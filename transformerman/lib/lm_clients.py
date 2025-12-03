@@ -22,18 +22,6 @@ class LMClient(ABC):
 
     @abstractmethod
     def transform(self, prompt: str) -> str:
-        """
-        Send a prompt to the language model and return the response.
-
-        Args:
-            prompt: The prompt to send to the LM, including examples and target notes.
-
-        Returns:
-            The LM response in XML-like format with filled fields.
-
-        Raises:
-            Exception: If the API call fails or returns an error.
-        """
         pass
 
     @abstractmethod
@@ -46,18 +34,7 @@ class DummyLMClient(LMClient):
 
     @override
     def transform(self, prompt: str) -> str:
-        """
-        Return a mock XML response based on the input prompt.
 
-        This implementation extracts note IDs from the prompt and returns
-        mock filled fields for testing purposes.
-
-        Args:
-            prompt: The prompt containing target notes to fill.
-
-        Returns:
-            Mock XML response with filled fields.
-        """
         # Extract note IDs and field names from the prompt
         # This is a simple implementation that looks for empty fields
         import re
