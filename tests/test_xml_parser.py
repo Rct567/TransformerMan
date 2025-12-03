@@ -7,28 +7,29 @@ from __future__ import annotations
 from transformerman.lib.xml_parser import notes_from_xml, escape_xml_content, unescape_xml_content
 
 
+class TestXmlParser:
+    """Test class for XML parser."""
 
-def test_parse_simple_response():
-    """Test parsing a simple XML response."""
-    xml = '''<notes model="Basic">
+    def test_parse_simple_response(self) -> None:
+        """Test parsing a simple XML response."""
+        xml = '''<notes model="Basic">
   <note nid="123" deck="Test">
     <field name="Front">Hello</field>
     <field name="Back">World</field>
   </note>
 </notes>'''
 
-    from anki.notes import NoteId
+        from anki.notes import NoteId
 
-    result = notes_from_xml(xml)
+        result = notes_from_xml(xml)
 
-    assert 123 in result
-    assert result[NoteId(123)]["Front"] == "Hello"
-    assert result[NoteId(123)]["Back"] == "World"
+        assert 123 in result
+        assert result[NoteId(123)]["Front"] == "Hello"
+        assert result[NoteId(123)]["Back"] == "World"
 
-
-def test_parse_multiple_notes():
-    """Test parsing multiple notes."""
-    xml = '''<notes model="Basic">
+    def test_parse_multiple_notes(self) -> None:
+        """Test parsing multiple notes."""
+        xml = '''<notes model="Basic">
   <note nid="123" deck="Test">
     <field name="Front">Q1</field>
     <field name="Back">A1</field>
@@ -39,53 +40,48 @@ def test_parse_multiple_notes():
   </note>
 </notes>'''
 
-    from anki.notes import NoteId
+        from anki.notes import NoteId
 
-    result = notes_from_xml(xml)
+        result = notes_from_xml(xml)
 
-    assert len(result) == 2
-    assert result[NoteId(123)]["Front"] == "Q1"
-    assert result[NoteId(456)]["Back"] == "A2"
+        assert len(result) == 2
+        assert result[NoteId(123)]["Front"] == "Q1"
+        assert result[NoteId(456)]["Back"] == "A2"
 
+    def test_parse_empty_response(self) -> None:
+        """Test parsing empty XML response."""
+        xml = '<notes></notes>'
 
-def test_parse_empty_response():
-    """Test parsing empty XML response."""
-    xml = '<notes></notes>'
+        result = notes_from_xml(xml)
 
-    result = notes_from_xml(xml)
+        assert result == {}
 
-    assert result == {}
+    def test_parse_malformed_xml(self) -> None:
+        """Test parsing malformed XML raises ValueError."""
+        xml = '<notes><note nid="123">'  # Unclosed tags
 
+        # Should still work with regex-based parsing
+        result = notes_from_xml(xml)
+        assert result == {}
 
-def test_parse_malformed_xml():
-    """Test parsing malformed XML raises ValueError."""
-    xml = '<notes><note nid="123">'  # Unclosed tags
+    def test_escape_xml_content(self) -> None:
+        """Test XML content escaping."""
+        content = '<tag>Hello & "World"</tag>'
+        escaped = escape_xml_content(content)
 
-    # Should still work with regex-based parsing
-    result = notes_from_xml(xml)
-    assert result == {}
+        assert escaped == '&lt;tag&gt;Hello &amp; &quot;World&quot;&lt;/tag&gt;'
 
+    def test_unescape_xml_content(self) -> None:
+        """Test XML content unescaping."""
+        content = '&lt;tag&gt;Hello &amp; &quot;World&quot;&lt;/tag&gt;'
+        unescaped = unescape_xml_content(content)
 
-def test_escape_xml_content():
-    """Test XML content escaping."""
-    content = '<tag>Hello & "World"</tag>'
-    escaped = escape_xml_content(content)
+        assert unescaped == '<tag>Hello & "World"</tag>'
 
-    assert escaped == '&lt;tag&gt;Hello &amp; &quot;World&quot;&lt;/tag&gt;'
+    def test_escape_unescape_roundtrip(self) -> None:
+        """Test that escape and unescape are inverses."""
+        original = '<div>Test & "quotes" with \'apostrophes\'</div>'
+        escaped = escape_xml_content(original)
+        unescaped = unescape_xml_content(escaped)
 
-
-def test_unescape_xml_content():
-    """Test XML content unescaping."""
-    content = '&lt;tag&gt;Hello &amp; &quot;World&quot;&lt;/tag&gt;'
-    unescaped = unescape_xml_content(content)
-
-    assert unescaped == '<tag>Hello & "World"</tag>'
-
-
-def test_escape_unescape_roundtrip():
-    """Test that escape and unescape are inverses."""
-    original = '<div>Test & "quotes" with \'apostrophes\'</div>'
-    escaped = escape_xml_content(original)
-    unescaped = unescape_xml_content(escaped)
-
-    assert unescaped == original
+        assert unescaped == original
