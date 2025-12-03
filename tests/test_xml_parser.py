@@ -4,8 +4,7 @@ Tests for XML parser.
 
 from __future__ import annotations
 
-
-from transformerman.lib.xml_parser import parse_xml_response, escape_xml_content, unescape_xml_content
+from transformerman.lib.xml_parser import notes_from_xml, escape_xml_content, unescape_xml_content
 
 
 def test_parse_simple_response():
@@ -17,11 +16,11 @@ def test_parse_simple_response():
   </note>
 </notes>'''
 
-    result = parse_xml_response(xml)
+    result = notes_from_xml(xml)
 
-    assert "123" in result
-    assert result["123"]["Front"] == "Hello"
-    assert result["123"]["Back"] == "World"
+    assert 123 in result
+    assert result[123]["Front"] == "Hello"
+    assert result[123]["Back"] == "World"
 
 
 def test_parse_multiple_notes():
@@ -37,18 +36,18 @@ def test_parse_multiple_notes():
   </note>
 </notes>'''
 
-    result = parse_xml_response(xml)
+    result = notes_from_xml(xml)
 
     assert len(result) == 2
-    assert result["123"]["Front"] == "Q1"
-    assert result["456"]["Back"] == "A2"
+    assert result[123]["Front"] == "Q1"
+    assert result[456]["Back"] == "A2"
 
 
 def test_parse_empty_response():
     """Test parsing empty XML response."""
     xml = '<notes></notes>'
 
-    result = parse_xml_response(xml)
+    result = notes_from_xml(xml)
 
     assert result == {}
 
@@ -58,7 +57,7 @@ def test_parse_malformed_xml():
     xml = '<notes><note nid="123">'  # Unclosed tags
 
     # Should still work with regex-based parsing
-    result = parse_xml_response(xml)
+    result = notes_from_xml(xml)
     assert result == {}
 
 

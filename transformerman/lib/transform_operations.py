@@ -12,8 +12,6 @@ from aqt.operations import QueryOp
 from aqt.utils import showInfo, tooltip
 from aqt.qt import QProgressDialog, QWidget, Qt
 
-from .xml_parser import parse_xml_response
-
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
@@ -93,13 +91,13 @@ def transform_notes_with_progress(  # noqa: PLR0913
                 response = lm_client.transform(prompt)
 
                 # Parse response
-                field_updates = parse_xml_response(response)
+                field_updates = response.get_notes_from_xml()
 
                 # Update notes
                 for nid in batch_note_ids:
                     try:
                         note = col.get_note(nid)
-                        updates = field_updates.get(str(nid), {})
+                        updates = field_updates.get(nid, {})
 
                         for field_name, content in updates.items():
                             # Only update if field is in selected fields and is empty

@@ -8,8 +8,13 @@ from __future__ import annotations
 import re
 
 
+from typing import TYPE_CHECKING, cast
 
-def parse_xml_response(xml_response: str) -> dict[str, dict[str, str]]:
+if TYPE_CHECKING:
+    from anki.notes import NoteId
+
+
+def notes_from_xml(xml_response: str) -> dict[NoteId, dict[str, str]]:
     """
     Parse XML-like LM response and extract field updates by note ID.
 
@@ -17,12 +22,13 @@ def parse_xml_response(xml_response: str) -> dict[str, dict[str, str]]:
         xml_response: The XML-like response from the LM containing filled notes.
 
     Returns:
-        Dictionary mapping note IDs (as strings) to dictionaries of field updates.
-        Example: {"123456": {"Front": "Hello", "Back": "World"}}
+        Dictionary mapping note IDs to dictionaries of field updates.
+        Example: {123: {"Front": "Hello", "Back": "World"}}
 
     Raises:
         ValueError: If the XML response is malformed or cannot be parsed.
     """
+
     try:
         # Find all note blocks
         note_pattern = r'<note nid="(\d+)"[^>]*>(.*?)</note>'
@@ -31,7 +37,7 @@ def parse_xml_response(xml_response: str) -> dict[str, dict[str, str]]:
         if not notes:
             return {}
 
-        result: dict[str, dict[str, str]] = {}
+        result: dict[NoteId, dict[str, str]] = {}
 
         for nid, note_content in notes:
             # Find all fields within this note
@@ -39,7 +45,9 @@ def parse_xml_response(xml_response: str) -> dict[str, dict[str, str]]:
             fields = re.findall(field_pattern, note_content)
 
             if fields:
-                result[nid] = {field_name: field_value for field_name, field_value in fields}
+                # NoteId is an int at runtime, so casting to int is sufficient
+                # but for type checking we treat it as NoteId
+                result[cast("NoteId", int(nid))] = {field_name: field_value for field_name, field_value in fields}
 
         return result
 

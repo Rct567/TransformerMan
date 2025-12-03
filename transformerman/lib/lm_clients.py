@@ -5,9 +5,13 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 
 from .utilities import override
+
+if TYPE_CHECKING:
+    from anki.notes import NoteId
 
 
 LM_CLIENTS = {
@@ -17,11 +21,23 @@ LM_CLIENTS = {
 }
 
 
+class LmResponse:
+    """Response from a language model containing the raw response and parsed notes."""
+
+    def __init__(self, raw_response: str) -> None:
+        self.raw_response = raw_response
+
+    def get_notes_from_xml(self) -> dict[NoteId, dict[str, str]]:
+        """Parse XML response and extract field updates by note ID."""
+        from .xml_parser import notes_from_xml
+        return notes_from_xml(self.raw_response)
+
+
 class LMClient(ABC):
     """Abstract base class for language model clients."""
 
     @abstractmethod
-    def transform(self, prompt: str) -> str:
+    def transform(self, prompt: str) -> LmResponse:
         pass
 
     @abstractmethod
@@ -33,7 +49,7 @@ class DummyLMClient(LMClient):
     """Dummy LM client that returns mock responses for testing."""
 
     @override
-    def transform(self, prompt: str) -> str:
+    def transform(self, prompt: str) -> LmResponse:
 
         # Extract note IDs and field names from the prompt
         # This is a simple implementation that looks for empty fields
@@ -44,7 +60,7 @@ class DummyLMClient(LMClient):
         notes = re.findall(note_pattern, prompt, re.DOTALL)
 
         if not notes:
-            return '<notes></notes>'
+            return LmResponse('<notes></notes>')
 
         # Extract model name
         model_match = re.search(r'<notes model="([^"]+)">', prompt)
@@ -77,7 +93,7 @@ class DummyLMClient(LMClient):
 
         response_parts.append('</notes>')
 
-        return '\n'.join(response_parts)
+        return LmResponse('\n'.join(response_parts))
 
     @override
     def get_available_models(self) -> list[str]:
@@ -91,7 +107,7 @@ class DummyLMClient(LMClient):
 
 class OpenAILMClient(LMClient):
     @override
-    def transform(self, prompt: str) -> str:
+    def transform(self, prompt: str) -> LmResponse:
         raise NotImplementedError
 
     @override
@@ -106,7 +122,7 @@ class OpenAILMClient(LMClient):
 
 class ClaudeLMClient(LMClient):
     @override
-    def transform(self, prompt: str) -> str:
+    def transform(self, prompt: str) -> LmResponse:
         raise NotImplementedError
 
     @override
