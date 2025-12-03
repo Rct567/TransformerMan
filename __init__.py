@@ -20,14 +20,11 @@ from .transformerman.ui.main_dialog import TransformerManMainDialog
 from .transformerman.ui.settings_dialog import SettingsDialog
 from .transformerman.lib.addon_config import AddonConfig
 from .transformerman.lib.settings_manager import SettingsManager
-from .transformerman.lib.lm_client import DummyLMClient
+from .transformerman.lib.lm_clients import DummyLMClient
 
 
 if TYPE_CHECKING:
-    from aqt.deckbrowser import DeckBrowser, DeckBrowserContent
-    from aqt.toolbar import Toolbar
     from aqt.browser.browser import Browser
-    from .transformerman.lib.utilities import JSON_TYPE
 
 
 def get_mw():
@@ -55,6 +52,8 @@ def open_settings() -> None:
     if not mw:
         return
 
+    addon_config.reload()
+
     dialog = SettingsDialog(mw, settings_manager)
     dialog.exec()
 
@@ -75,7 +74,7 @@ def open_main_dialog(browser: Browser) -> None:
     dialog = TransformerManMainDialog(
         parent=browser,
         col=mw.col,
-        note_ids=list(note_ids),
+        note_ids=note_ids,
         lm_client=lm_client,
         settings_manager=settings_manager,
     )

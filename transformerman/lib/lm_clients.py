@@ -10,6 +10,13 @@ from abc import ABC, abstractmethod
 from .utilities import override
 
 
+LM_CLIENTS = {
+    "dummy": "DummyLMClient",
+    "openai": "OpenAILMClient",
+    "claude": "ClaudeLMClient",
+}
+
+
 class LMClient(ABC):
     """Abstract base class for language model clients."""
 
@@ -27,6 +34,10 @@ class LMClient(ABC):
         Raises:
             Exception: If the API call fails or returns an error.
         """
+        pass
+
+    @abstractmethod
+    def get_available_models(self) -> list[str]:
         pass
 
 
@@ -90,3 +101,44 @@ class DummyLMClient(LMClient):
         response_parts.append('</notes>')
 
         return '\n'.join(response_parts)
+
+    def get_available_models(self) -> list[str]:
+        return [
+            "claude-v1.3-100k",
+            "gpt-4",
+            "gpt-3.5-turbo",
+            "grok-1",
+        ]
+
+
+class OpenAILMClient(LMClient):
+    @override
+    def transform(self, prompt: str) -> str:
+        raise NotImplementedError
+
+    def get_available_models(self) -> list[str]:
+        return [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-3.5-turbo",
+        ]
+
+
+class ClaudeLMClient(LMClient):
+    @override
+    def transform(self, prompt: str) -> str:
+        raise NotImplementedError
+
+    def get_available_models(self) -> list[str]:
+        return [
+            "claude-3-5-sonnet-latest",
+            "claude-3-opus-20240229",
+            "claude-3-haiku-20240307",
+        ]
+
+
+def create_lm_client(name: str) -> LMClient:
+    cls_name = LM_CLIENTS.get(name, "DummyLMClient")
+    cls = globals().get(cls_name, DummyLMClient)
+    return cls()

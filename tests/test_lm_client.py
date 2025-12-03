@@ -5,7 +5,7 @@ Tests for LM client.
 from __future__ import annotations
 
 
-from transformerman.lib.lm_client import DummyLMClient
+from transformerman.lib.lm_clients import DummyLMClient
 
 
 def test_dummy_client_basic_response():

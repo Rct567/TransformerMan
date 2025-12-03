@@ -29,7 +29,7 @@ from ..lib.prompt_builder import PromptBuilder
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
-    from ..lib.lm_client import LMClient
+    from ..lib.lm_clients import LMClient
     from ..lib.settings_manager import SettingsManager
 
 

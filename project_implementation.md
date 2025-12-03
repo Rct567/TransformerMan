@@ -114,7 +114,7 @@ from aqt.qt import QProgressDialog, QWidget, Qt
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
-    from .lm_client import LMClient
+    from .lm_clients import LMClient
     from .prompt_builder import PromptBuilder
 
 

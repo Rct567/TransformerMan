@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
     from collections.abc import Set
-    from .lm_client import LMClient
+    from .lm_clients import LMClient
     from .prompt_builder import PromptBuilder
     from .selected_notes import SelectedNotes
 

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .addon_config import AddonConfig
+from .lm_clients import LM_CLIENTS, create_lm_client
 
 
 class SettingsManager:
@@ -40,6 +41,12 @@ class SettingsManager:
             api_key: The API key to set.
         """
         self.config.update_setting("api_key", api_key)
+
+    def get_lm_client_name(self) -> str:
+        return str(self.config.get("lm_client", "dummy"))
+
+    def set_lm_client_name(self, client_name: str) -> None:
+        self.config.update_setting("lm_client", client_name)
 
     def get_model(self) -> str:
         """
@@ -89,11 +96,12 @@ class SettingsManager:
         Returns:
             List of model names.
         """
-        # For now, return a static list
-        # In the future, this could be fetched from an API
-        return [
-            "claude-v1.3-100k",
-            "gpt-4",
-            "gpt-3.5-turbo",
-            "grok-1",
-        ]
+        client = create_lm_client(self.get_lm_client_name())
+        return client.get_available_models()
+
+    def get_available_clients(self) -> list[str]:
+        return list(LM_CLIENTS.keys())
+
+    def get_available_models_for_client(self, client_name: str) -> list[str]:
+        client = create_lm_client(client_name)
+        return client.get_available_models()
