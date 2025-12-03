@@ -15,7 +15,6 @@ from aqt.qt import QAction
 from .transformerman.ui.main_dialog import TransformerManMainDialog
 from .transformerman.ui.settings_dialog import SettingsDialog
 from .transformerman.lib.addon_config import AddonConfig
-from .transformerman.lib.lm_clients import DummyLMClient
 
 
 if TYPE_CHECKING:
@@ -39,7 +38,6 @@ ADDON_NAME = "TransformerMan"
 # Initialize settings
 if mw:
     addon_config = AddonConfig.from_anki_main_window(mw)
-    lm_client = DummyLMClient()
 
 
 def open_settings() -> None:
@@ -65,6 +63,9 @@ def open_main_dialog(browser: Browser) -> None:
         from aqt.utils import showInfo
         showInfo("Please select at least one note.")
         return
+
+    addon_config.reload()
+    lm_client = addon_config.getClient()
 
     dialog = TransformerManMainDialog(
         parent=browser,

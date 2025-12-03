@@ -12,6 +12,9 @@ from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 if TYPE_CHECKING:
     from .utilities import JSON_TYPE
     from aqt.main import AnkiQt
+    from .lm_clients import LMClient
+
+from .lm_clients import create_lm_client
 
 
 class AddonConfig:
@@ -70,6 +73,14 @@ class AddonConfig:
         self.__config[key] = value
         self.__config_save(self.__config)
 
+    def getClient(self) -> LMClient:
+        if self.__config is None:
+            self.load()
+        
+        # Get client name, defaulting to 'dummy'
+        client_name = str(self.get("llm_client", "dummy"))
+        return create_lm_client(client_name)
+
     @staticmethod
     def from_anki_main_window(mw: AnkiQt) -> AddonConfig:
 
@@ -78,5 +89,4 @@ class AddonConfig:
         config_saver: Callable[[dict[str, Any]], None] = lambda config: addon_manager.writeConfig(__name__, config)
 
         addon_config = AddonConfig(config_loader, config_saver)
-        addon_config.load()
         return addon_config

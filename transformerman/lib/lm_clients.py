@@ -98,10 +98,7 @@ class DummyLMClient(LMClient):
     @override
     def get_available_models(self) -> list[str]:
         return [
-            "claude-v1.3-100k",
-            "gpt-4",
-            "gpt-3.5-turbo",
-            "grok-1",
+            "mock_content_generator"
         ]
 
 
