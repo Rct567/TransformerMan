@@ -38,6 +38,7 @@ class SettingsDialog(QDialog):
         """
         super().__init__(parent)
         self.addon_config = addon_config
+        self._is_loading_settings = False  # Flag to prevent save button from enabling during initial setup
 
         self._setup_ui()
         self._load_settings()
@@ -55,6 +56,7 @@ class SettingsDialog(QDialog):
         self.api_key_input = QLineEdit()
         self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.api_key_input.setPlaceholderText("Enter your API key...")
+        self.api_key_input.textChanged.connect(self._on_setting_changed)
         api_key_layout.addWidget(self.api_key_input)
         layout.addLayout(api_key_layout)
 
@@ -71,6 +73,7 @@ class SettingsDialog(QDialog):
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("Model:"))
         self.model_combo = QComboBox()
+        self.model_combo.currentTextChanged.connect(self._on_setting_changed)
         model_layout.addWidget(self.model_combo)
         self.model_widget.setLayout(model_layout)
         self.model_widget.setVisible(False)
@@ -83,6 +86,7 @@ class SettingsDialog(QDialog):
         self.batch_size_spin.setMinimum(1)
         self.batch_size_spin.setMaximum(100)
         self.batch_size_spin.setValue(10)
+        self.batch_size_spin.valueChanged.connect(self._on_setting_changed)
         batch_size_layout.addWidget(self.batch_size_spin)
         layout.addLayout(batch_size_layout)
 
@@ -90,6 +94,7 @@ class SettingsDialog(QDialog):
         button_layout = QHBoxLayout()
         self.save_button = QPushButton("Save")
         self.save_button.clicked.connect(self._on_save_clicked)
+        self.save_button.setEnabled(False)  # Initially disabled
         button_layout.addWidget(self.save_button)
 
         self.cancel_button = QPushButton("Cancel")
@@ -102,6 +107,7 @@ class SettingsDialog(QDialog):
 
     def _load_settings(self) -> None:
         """Load current settings into the UI."""
+        self._is_loading_settings = True
 
         current_client = str(self.addon_config.get("lm_client", "dummy"))
 
@@ -122,6 +128,8 @@ class SettingsDialog(QDialog):
         batch_size = self.addon_config.get("batch_size", 10)
         if isinstance(batch_size, int):
             self.batch_size_spin.setValue(batch_size)
+
+        self._is_loading_settings = False
 
     def _on_save_clicked(self) -> None:
         """Handle save button click."""
@@ -145,13 +153,19 @@ class SettingsDialog(QDialog):
             batch_size = 1
         self.addon_config.update_setting("batch_size", batch_size)
 
-        self.accept()
+        # Disable save button after saving
+        self.save_button.setEnabled(False)
 
     def _on_client_changed(self, client_name: str) -> None:
         # Update API key field for the selected client
         api_key = self.addon_config.get_api_key(client_name)
         self.api_key_input.setText(api_key)
         self._populate_models_for_client(client_name)
+
+    def _on_setting_changed(self) -> None:
+        # Enable save button when settings are changed.
+        if not self._is_loading_settings:
+            self.save_button.setEnabled(True)
 
     def _populate_models_for_client(self, client_name: str) -> None:
         # Get API key for this client
