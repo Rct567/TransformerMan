@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .xml_parser import escape_xml_content
+
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import Note
@@ -175,7 +177,6 @@ class PromptBuilder:
         Returns:
             XML-like string representation.
         """
-        from .xml_parser import escape_xml_content
 
         lines = [f'<notes model="{escape_xml_content(note_type_name)}">']
 

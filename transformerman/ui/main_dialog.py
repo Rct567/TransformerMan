@@ -18,7 +18,13 @@ from aqt.qt import (
     QPushButton,
     QScrollArea,
     QWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
 )
+
+from ..lib.transform_operations import transform_notes_with_progress
+from ..lib.prompt_builder import PromptBuilder
 
 if TYPE_CHECKING:
     from anki.collection import Collection
@@ -101,6 +107,16 @@ class TransformerManMainDialog(QDialog):
 
         layout.addWidget(scroll_area)
 
+        # Preview Table
+        layout.addWidget(QLabel("Preview (top 10 notes):"))
+        self.preview_table = QTableWidget()
+        self.preview_table.setAlternatingRowColors(True)
+        vertical_header = self.preview_table.verticalHeader()
+        if vertical_header:
+            vertical_header.setVisible(False)
+        self.preview_table.setMinimumHeight(150)
+        layout.addWidget(self.preview_table)
+
         # Transform button
         self.transform_button = QPushButton("Transform")
         self.transform_button.clicked.connect(self._on_transform_clicked)
@@ -175,12 +191,58 @@ class TransformerManMainDialog(QDialog):
         # Enable transform button if we have notes
         self.transform_button.setEnabled(len(filtered_ids) > 0)
 
+        self._update_preview_table()
+
     def _on_field_selection_changed(self) -> None:
         """Handle field checkbox state changes."""
         # Enable/disable instruction inputs based on checkbox state
         for field_name, checkbox in self.field_checkboxes.items():
             instruction_input = self.field_instructions[field_name]
             instruction_input.setEnabled(checkbox.isChecked())
+        
+        self._update_preview_table()
+
+    def _update_preview_table(self) -> None:
+        """Update the preview table with data from selected notes."""
+        # Get selected fields
+        selected_fields = [
+            field_name
+            for field_name, checkbox in self.field_checkboxes.items()
+            if checkbox.isChecked()
+        ]
+
+        if not selected_fields:
+            self.preview_table.clear()
+            self.preview_table.setColumnCount(0)
+            self.preview_table.setRowCount(0)
+            return
+
+        # Setup columns
+        self.preview_table.setColumnCount(len(selected_fields))
+        self.preview_table.setHorizontalHeaderLabels(selected_fields)
+
+        # Get notes (limit to 10)
+        filtered_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
+        preview_ids = filtered_ids[:10]
+        notes = self.selected_notes.get_notes(preview_ids)
+
+        self.preview_table.setRowCount(len(notes))
+
+        for row, note in enumerate(notes):
+            for col, field_name in enumerate(selected_fields):
+                if field_name in note:
+                    content = note[field_name]
+                    # Truncate long content
+                    if len(content) > 50:
+                        content = content[:47] + "..."
+                    item = QTableWidgetItem(content)
+                    item.setToolTip(note[field_name])  # Show full content on hover
+                    self.preview_table.setItem(row, col, item)
+        
+        # Adjust column widths
+        header = self.preview_table.horizontalHeader()
+        if header:
+             header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
     def _on_transform_clicked(self) -> None:
         """Handle transform button click."""
@@ -212,11 +274,9 @@ class TransformerManMainDialog(QDialog):
             return
 
         # Create prompt builder
-        from ..lib.prompt_builder import PromptBuilder
         prompt_builder = PromptBuilder(field_instructions)
 
         # Start transformation
-        from ..lib.transform_operations import transform_notes_with_progress
 
         batch_size = self.settings_manager.get_batch_size()
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from .utilities import override
 
 
 class LMClient(ABC):
@@ -32,6 +33,7 @@ class LMClient(ABC):
 class DummyLMClient(LMClient):
     """Dummy LM client that returns mock responses for testing."""
 
+    @override
     def transform(self, prompt: str) -> str:
         """
         Return a mock XML response based on the input prompt.

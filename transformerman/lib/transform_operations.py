@@ -7,9 +7,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from aqt import mw
 from aqt.operations import QueryOp
 from aqt.utils import showInfo, tooltip
 from aqt.qt import QProgressDialog, QWidget, Qt
+
+from .xml_parser import parse_xml_response
 
 if TYPE_CHECKING:
     from anki.collection import Collection
@@ -45,7 +48,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
         note_type_name: Name of the note type.
         batch_size: Number of notes per batch.
     """
-    from .xml_parser import parse_xml_response
+
 
     # Create batches
     batches = selected_notes.create_batches(note_ids, batch_size)
@@ -74,8 +77,11 @@ def transform_notes_with_progress(  # noqa: PLR0913
                 break
 
             # Update progress dialog
-            progress.setLabelText(f"Processing batch {batch_idx + 1} of {total_batches}...")
-            progress.setValue(batch_idx)
+            def update_progress_ui(b: int) -> None:
+                progress.setLabelText(f"Processing batch {b + 1} of {total_batches}...")
+                progress.setValue(b)
+
+            mw.taskman.run_on_main(lambda b=batch_idx: update_progress_ui(b)) # type: ignore[misc]
 
             try:
                 # Get notes for this batch
@@ -114,7 +120,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
                 total_failed += len(batch_note_ids)
                 continue
 
-        progress.setValue(total_batches)
+        mw.taskman.run_on_main(lambda: progress.setValue(total_batches))
 
         return {
             "updated": total_updated,
