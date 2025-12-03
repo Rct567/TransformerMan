@@ -30,6 +30,7 @@ from ..lib.prompt_builder import PromptBuilder
 from ..lib.selected_notes import SelectedNotes
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from anki.collection import Collection
     from anki.notes import NoteId
     from ..lib.lm_clients import LMClient
@@ -46,6 +47,7 @@ class TransformerManMainDialog(QDialog):
         note_ids: list[NoteId],
         lm_client: LMClient,
         addon_config: AddonConfig,
+        user_files_dir: Path,
     ) -> None:
         """
         Initialize the main dialog.
@@ -56,12 +58,14 @@ class TransformerManMainDialog(QDialog):
             note_ids: List of selected note IDs.
             lm_client: LM client instance.
             addon_config: Addon configuration instance.
+            user_files_dir: Directory for user files.
         """
         super().__init__(parent)
         self.col = col
         self.note_ids = note_ids
         self.lm_client = lm_client
         self.addon_config = addon_config
+        self.user_files_dir = user_files_dir
 
         self.selected_notes = SelectedNotes(col, note_ids)
 
@@ -292,6 +296,8 @@ class TransformerManMainDialog(QDialog):
             selected_fields=selected_fields,
             note_type_name=self.current_note_type,
             batch_size=batch_size,
+            addon_config=self.addon_config,
+            user_files_dir=self.user_files_dir,
         )
 
         # Close dialog

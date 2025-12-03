@@ -5,7 +5,8 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Callable
 
 from aqt import mw
 from aqt.operations import QueryOp
@@ -13,11 +14,35 @@ from aqt.utils import showInfo, tooltip
 from aqt.qt import QProgressDialog, QWidget, Qt
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from anki.collection import Collection
     from anki.notes import NoteId
-    from .lm_clients import LMClient
+    from .addon_config import AddonConfig
+    from .lm_clients import LMClient, LmResponse
     from .prompt_builder import PromptBuilder
     from .selected_notes import SelectedNotes
+
+
+def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[Callable[[str], None], Callable[[LmResponse], None]]:
+    """Create logging functions for LM requests and responses."""
+    logs_dir = user_files_dir / 'logs'
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    def log_request(prompt: str) -> None:
+        if addon_config.is_enabled("log_lm_requests", False):
+            requests_file = logs_dir / 'lm_requests.log'
+            timestamp = datetime.now().isoformat()
+            with requests_file.open('a', encoding='utf-8') as f:
+                f.write(f"[{timestamp}] {prompt}\n\n")
+
+    def log_response(response: LmResponse) -> None:
+        if addon_config.is_enabled("log_lm_responses", False):
+            responses_file = logs_dir / 'lm_responses.log'
+            timestamp = datetime.now().isoformat()
+            with responses_file.open('a', encoding='utf-8') as f:
+                f.write(f"[{timestamp}] {response.raw_response}\n\n")
+
+    return log_request, log_response
 
 
 def transform_notes_with_progress(  # noqa: PLR0913
@@ -30,6 +55,8 @@ def transform_notes_with_progress(  # noqa: PLR0913
     selected_fields: set[str],
     note_type_name: str,
     batch_size: int,
+    addon_config: AddonConfig,
+    user_files_dir: Path,
 ) -> None:
     """
     Transform notes in batches with progress tracking.
@@ -69,53 +96,61 @@ def transform_notes_with_progress(  # noqa: PLR0913
         total_failed = 0
         batch_idx = 0
 
+        log_request, log_response = create_lm_logger(addon_config, user_files_dir)
+
         for batch_idx, batch_note_ids in enumerate(batches):
-            if progress.wasCanceled():
-                break
+                if progress.wasCanceled():
+                    break
 
-            # Update progress dialog
-            def update_progress_ui(b: int) -> None:
-                progress.setLabelText(f"Processing batch {b + 1} of {total_batches}...")
-                progress.setValue(b)
+                # Update progress dialog
+                def update_progress_ui(b: int) -> None:
+                    progress.setLabelText(f"Processing batch {b + 1} of {total_batches}...")
+                    progress.setValue(b)
 
-            mw.taskman.run_on_main(lambda b=batch_idx: update_progress_ui(b)) # type: ignore[misc]
+                mw.taskman.run_on_main(lambda b=batch_idx: update_progress_ui(b)) # type: ignore[misc]
 
-            try:
-                # Get notes for this batch
-                notes = selected_notes.get_notes(batch_note_ids)
+                try:
+                    # Get notes for this batch
+                    notes = selected_notes.get_notes(batch_note_ids)
 
-                # Build prompt
-                prompt = prompt_builder.build_prompt(col, notes, selected_fields, note_type_name)
+                    # Build prompt
+                    prompt = prompt_builder.build_prompt(col, notes, selected_fields, note_type_name)
 
-                # Get LM response
-                response = lm_client.transform(prompt)
+                    # Log request
+                    log_request(prompt)
 
-                # Parse response
-                field_updates = response.get_notes_from_xml()
+                    # Get LM response
+                    response = lm_client.transform(prompt)
 
-                # Update notes
-                for nid in batch_note_ids:
-                    try:
-                        note = col.get_note(nid)
-                        updates = field_updates.get(nid, {})
+                    # Log response
+                    log_response(response)
 
-                        for field_name, content in updates.items():
-                            # Only update if field is in selected fields and is empty
-                            if field_name in selected_fields and not note[field_name].strip():
-                                note[field_name] = content
-                                total_updated += 1
+                    # Parse response
+                    field_updates = response.get_notes_from_xml()
 
-                        col.update_note(note)
+                    # Update notes
+                    for nid in batch_note_ids:
+                        try:
+                            note = col.get_note(nid)
+                            updates = field_updates.get(nid, {})
 
-                    except Exception as e:
-                        print(f"Error updating note {nid}: {e}")
-                        total_failed += 1
-                        continue
+                            for field_name, content in updates.items():
+                                # Only update if field is in selected fields and is empty
+                                if field_name in selected_fields and not note[field_name].strip():
+                                    note[field_name] = content
+                                    total_updated += 1
 
-            except Exception as e:
-                print(f"Error processing batch {batch_idx}: {e}")
-                total_failed += len(batch_note_ids)
-                continue
+                            col.update_note(note)
+
+                        except Exception as e:
+                            print(f"Error updating note {nid}: {e!r}")
+                            total_failed += 1
+                            continue
+
+                except Exception as e:
+                    print(f"Error processing batch {batch_idx}: {e!r}")
+                    total_failed += len(batch_note_ids)
+                    continue
 
         mw.taskman.run_on_main(lambda: progress.setValue(total_batches))
 

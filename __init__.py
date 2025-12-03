@@ -73,6 +73,7 @@ def open_main_dialog(browser: Browser) -> None:
         note_ids=note_ids,
         lm_client=lm_client,
         addon_config=addon_config,
+        user_files_dir=TM_USER_FILES_DIR,
     )
     dialog.exec()
 
@@ -93,4 +94,3 @@ if mw:
 
     # Add to browser context menu (right-click menu)
     gui_hooks.browser_will_show_context_menu.append(setup_browser_menu)
-
