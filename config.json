@@ -1,5 +1,5 @@
 {
-    "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    "model": "claude-v1.3-100k",
+    "api_key": "",
+    "model": "",
     "batch_size": 10
 }

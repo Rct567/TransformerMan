@@ -87,7 +87,7 @@ class TestAddonConfig:
         """Test getting LM client."""
 
         def loader() -> dict[str, JSON_TYPE]:
-            return {"llm_client": "openai"}
+            return {"lm_client": "openai"}
 
         def saver(config: dict[str, JSON_TYPE]) -> None:
             pass

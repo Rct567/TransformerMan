@@ -38,6 +38,12 @@ class LmResponse:
 class LMClient(ABC):
     """Abstract base class for language model clients."""
 
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        """Return the unique identifier for this LM client."""
+        pass
+
     @abstractmethod
     def transform(self, prompt: str) -> LmResponse:
         pass
@@ -49,6 +55,14 @@ class LMClient(ABC):
 
 class DummyLMClient(LMClient):
     """Dummy LM client that returns mock responses for testing."""
+
+    def __init__(self, api_key: str = "") -> None:
+        self._api_key = api_key
+
+    @property
+    @override
+    def id(self) -> str:
+        return "dummy"
 
     @override
     def transform(self, prompt: str) -> LmResponse:
@@ -104,6 +118,14 @@ class DummyLMClient(LMClient):
 
 
 class OpenAILMClient(LMClient):
+    def __init__(self, api_key: str = "") -> None:
+        self._api_key = api_key
+
+    @property
+    @override
+    def id(self) -> str:
+        return "openai"
+
     @override
     def transform(self, prompt: str) -> LmResponse:
         raise NotImplementedError
@@ -119,6 +141,14 @@ class OpenAILMClient(LMClient):
 
 
 class ClaudeLMClient(LMClient):
+    def __init__(self, api_key: str = "") -> None:
+        self._api_key = api_key
+
+    @property
+    @override
+    def id(self) -> str:
+        return "claude"
+
     @override
     def transform(self, prompt: str) -> LmResponse:
         raise NotImplementedError
@@ -132,7 +162,7 @@ class ClaudeLMClient(LMClient):
         ]
 
 
-def create_lm_client(name: str) -> LMClient:
+def create_lm_client(name: str, api_key: str = "") -> LMClient:
     cls_name = LM_CLIENTS.get(name, "DummyLMClient")
     cls = globals().get(cls_name, DummyLMClient)
-    return cls()
+    return cls(api_key)

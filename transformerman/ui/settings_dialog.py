@@ -102,8 +102,11 @@ class SettingsDialog(QDialog):
 
     def _load_settings(self) -> None:
         """Load current settings into the UI."""
-        # Load API key
-        api_key = str(self.addon_config.get("api_key", ""))
+
+        current_client = str(self.addon_config.get("lm_client", "dummy"))
+
+        # Load API key for current client
+        api_key = self.addon_config.get_api_key(current_client)
         self.api_key_input.setText(api_key)
 
         # Load LM clients
@@ -122,12 +125,14 @@ class SettingsDialog(QDialog):
 
     def _on_save_clicked(self) -> None:
         """Handle save button click."""
-        # Save API key
+        # Get current client
+        client_name = self.client_combo.currentText()
+
+        # Save API key using AddonConfig's method
         api_key = self.api_key_input.text().strip()
-        self.addon_config.update_setting("api_key", api_key)
+        self.addon_config.set_api_key(client_name, api_key)
 
         # Save LM client
-        client_name = self.client_combo.currentText()
         self.addon_config.update_setting("lm_client", client_name)
 
         # Save model
@@ -143,10 +148,15 @@ class SettingsDialog(QDialog):
         self.accept()
 
     def _on_client_changed(self, client_name: str) -> None:
+        # Update API key field for the selected client
+        api_key = self.addon_config.get_api_key(client_name)
+        self.api_key_input.setText(api_key)
         self._populate_models_for_client(client_name)
 
     def _populate_models_for_client(self, client_name: str) -> None:
-        client = create_lm_client(client_name)
+        # Get API key for this client
+        api_key = self.addon_config.get_api_key(client_name)
+        client = create_lm_client(client_name, api_key)
         models = client.get_available_models()
         self.model_combo.clear()
         if models:

@@ -73,13 +73,44 @@ class AddonConfig:
         self.__config[key] = value
         self.__config_save(self.__config)
 
+    def get_api_key(self, client_id: str) -> str:
+        """Get the API key for a specific LM client."""
+        if self.__config is None:
+            self.load()
+
+        # After load(), __config should not be None
+        assert self.__config is not None
+
+        # Try client-specific key first (e.g., "openai_api_key")
+        client_key = f"{client_id}_api_key"
+        if client_key in self.__config:
+            return str(self.__config[client_key])
+
+        # Fall back to generic "api_key" for backward compatibility
+        return str(self.get("api_key", ""))
+
+    def set_api_key(self, client_id: str, api_key: str) -> None:
+        """Set the API key for a specific LM client."""
+        if self.__config is None:
+            self.load()
+
+        # After load(), __config should not be None
+        assert self.__config is not None
+
+        # Store with client-specific prefix
+        client_key = f"{client_id}_api_key"
+        self.update_setting(client_key, api_key)
+
     def getClient(self) -> LMClient:
         if self.__config is None:
             self.load()
-        
+
         # Get client name, defaulting to 'dummy'
-        client_name = str(self.get("llm_client", "dummy"))
-        return create_lm_client(client_name)
+        client_name = str(self.get("lm_client", "dummy"))
+
+        # Get API key for this client
+        api_key = self.get_api_key(client_name)
+        return create_lm_client(client_name, api_key)
 
     @staticmethod
     def from_anki_main_window(mw: AnkiQt) -> AddonConfig:
