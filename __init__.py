@@ -11,6 +11,7 @@ from typing import Any, Optional, TYPE_CHECKING
 
 from aqt import mw as anki_main_window, gui_hooks
 from aqt.qt import QAction
+from aqt.utils import showInfo
 
 from .transformerman.ui.main_dialog import TransformerManMainDialog
 from .transformerman.ui.settings_dialog import SettingsDialog
@@ -60,7 +61,6 @@ def open_main_dialog(browser: Browser) -> None:
     note_ids = list(browser.selected_notes())
 
     if not note_ids:
-        from aqt.utils import showInfo
         showInfo("Please select at least one note.")
         return
 

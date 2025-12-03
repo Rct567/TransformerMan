@@ -8,7 +8,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 
+import re
+
 from .utilities import override
+from .xml_parser import notes_from_xml
 
 if TYPE_CHECKING:
     from anki.notes import NoteId
@@ -29,7 +32,6 @@ class LmResponse:
 
     def get_notes_from_xml(self) -> dict[NoteId, dict[str, str]]:
         """Parse XML response and extract field updates by note ID."""
-        from .xml_parser import notes_from_xml
         return notes_from_xml(self.raw_response)
 
 
@@ -53,7 +55,6 @@ class DummyLMClient(LMClient):
 
         # Extract note IDs and field names from the prompt
         # This is a simple implementation that looks for empty fields
-        import re
 
         # Find all note blocks
         note_pattern = r'<note nid="(\d+)"[^>]*>(.*?)</note>'

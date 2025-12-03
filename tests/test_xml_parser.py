@@ -7,6 +7,7 @@ from __future__ import annotations
 from transformerman.lib.xml_parser import notes_from_xml, escape_xml_content, unescape_xml_content
 
 
+
 def test_parse_simple_response():
     """Test parsing a simple XML response."""
     xml = '''<notes model="Basic">
@@ -16,11 +17,13 @@ def test_parse_simple_response():
   </note>
 </notes>'''
 
+    from anki.notes import NoteId
+
     result = notes_from_xml(xml)
 
     assert 123 in result
-    assert result[123]["Front"] == "Hello"
-    assert result[123]["Back"] == "World"
+    assert result[NoteId(123)]["Front"] == "Hello"
+    assert result[NoteId(123)]["Back"] == "World"
 
 
 def test_parse_multiple_notes():
@@ -36,11 +39,13 @@ def test_parse_multiple_notes():
   </note>
 </notes>'''
 
+    from anki.notes import NoteId
+
     result = notes_from_xml(xml)
 
     assert len(result) == 2
-    assert result[123]["Front"] == "Q1"
-    assert result[456]["Back"] == "A2"
+    assert result[NoteId(123)]["Front"] == "Q1"
+    assert result[NoteId(456)]["Back"] == "A2"
 
 
 def test_parse_empty_response():

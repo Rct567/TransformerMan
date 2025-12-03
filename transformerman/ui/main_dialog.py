@@ -23,8 +23,11 @@ from aqt.qt import (
     QHeaderView,
 )
 
+from aqt.utils import showInfo
+
 from ..lib.transform_operations import transform_notes_with_progress
 from ..lib.prompt_builder import PromptBuilder
+from ..lib.selected_notes import SelectedNotes
 
 if TYPE_CHECKING:
     from anki.collection import Collection
@@ -60,7 +63,6 @@ class TransformerManMainDialog(QDialog):
         self.lm_client = lm_client
         self.addon_config = addon_config
 
-        from ..lib.selected_notes import SelectedNotes
         self.selected_notes = SelectedNotes(col, note_ids)
 
         # State
@@ -199,7 +201,7 @@ class TransformerManMainDialog(QDialog):
         for field_name, checkbox in self.field_checkboxes.items():
             instruction_input = self.field_instructions[field_name]
             instruction_input.setEnabled(checkbox.isChecked())
-        
+
         self._update_preview_table()
 
     def _update_preview_table(self) -> None:
@@ -238,7 +240,7 @@ class TransformerManMainDialog(QDialog):
                     item = QTableWidgetItem(content)
                     item.setToolTip(note[field_name])  # Show full content on hover
                     self.preview_table.setItem(row, col, item)
-        
+
         # Adjust column widths
         header = self.preview_table.horizontalHeader()
         if header:
@@ -254,7 +256,6 @@ class TransformerManMainDialog(QDialog):
         }
 
         if not selected_fields:
-            from aqt.utils import showInfo
             showInfo("Please select at least one field to fill.")
             return
 
@@ -269,7 +270,6 @@ class TransformerManMainDialog(QDialog):
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
 
         if not filtered_note_ids:
-            from aqt.utils import showInfo
             showInfo("No notes to transform.")
             return
 
