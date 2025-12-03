@@ -12,39 +12,23 @@ from .xml_parser import escape_xml_content
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import Note
-    from collections.abc import Set
 
 
 class PromptBuilder:
     """Builds prompts for the language model to fill empty fields."""
 
     def __init__(self, field_instructions: dict[str, str] | None = None) -> None:
-        """
-        Initialize the prompt builder.
-
-        Args:
-            field_instructions: Optional dictionary mapping field names to user instructions.
-        """
         self.field_instructions = field_instructions or {}
 
     def build_prompt(
         self,
         col: Collection,
         target_notes: list[Note],
-        selected_fields: Set[str],
+        selected_fields: set[str],
         note_type_name: str,
     ) -> str:
         """
         Build a complete prompt for the LM including examples and target notes.
-
-        Args:
-            col: Anki collection.
-            target_notes: List of notes to fill.
-            selected_fields: Set of field names to fill.
-            note_type_name: Name of the note type.
-
-        Returns:
-            Complete prompt string.
         """
         # Get example notes
         example_notes = self._select_example_notes(col, target_notes, selected_fields, note_type_name)
@@ -72,7 +56,7 @@ class PromptBuilder:
 
         # Add example notes
         if example_notes:
-            prompt_parts.append(self._format_notes_as_xml(example_notes, note_type_name, include_all_fields=True))
+            prompt_parts.append(self._format_notes_as_xml(example_notes, note_type_name, selected_fields))
             prompt_parts.append("")
         else:
             prompt_parts.append("(No examples available)")
@@ -82,7 +66,7 @@ class PromptBuilder:
         prompt_parts.extend([
             "Please fill the empty fields in the following notes and return them in the same XML format:",
             "",
-            self._format_notes_as_xml(target_notes, note_type_name, include_all_fields=True),
+            self._format_notes_as_xml(target_notes, note_type_name, selected_fields),
         ])
 
         return "\n".join(prompt_parts)
@@ -91,7 +75,7 @@ class PromptBuilder:
         self,
         col: Collection,
         target_notes: list[Note],
-        selected_fields: Set[str],
+        selected_fields: set[str],
         note_type_name: str,
         max_examples: int = 3,
     ) -> list[Note]:
@@ -164,7 +148,7 @@ class PromptBuilder:
         self,
         notes: list[Note],
         note_type_name: str,
-        include_all_fields: bool = True,
+        fields_included: set[str],
     ) -> str:
         """
         Format notes as XML-like structure.
@@ -172,7 +156,7 @@ class PromptBuilder:
         Args:
             notes: List of notes to format.
             note_type_name: Name of the note type.
-            include_all_fields: Whether to include all fields or only selected ones.
+            fields_included: Set of field names to include.
 
         Returns:
             XML-like string representation.
@@ -195,11 +179,12 @@ class PromptBuilder:
 
             lines.append(f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">')
 
-            # Add all fields
-            for field_name in note.keys():
-                field_value = note[field_name]
-                escaped_value = escape_xml_content(field_value)
-                lines.append(f'    <field name="{escape_xml_content(field_name)}">{escaped_value}</field>')
+            # Add included fields
+            for field_name in fields_included:
+                if field_name in note:
+                    field_value = note[field_name]
+                    escaped_value = escape_xml_content(field_value)
+                    lines.append(f'    <field name="{escape_xml_content(field_name)}">{escaped_value}</field>')
 
             lines.append('  </note>')
 

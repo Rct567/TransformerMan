@@ -17,7 +17,6 @@ from .xml_parser import parse_xml_response
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
-    from collections.abc import Set
     from .lm_clients import LMClient
     from .prompt_builder import PromptBuilder
     from .selected_notes import SelectedNotes
@@ -30,7 +29,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
     note_ids: list[NoteId],
     lm_client: LMClient,
     prompt_builder: PromptBuilder,
-    selected_fields: Set[str],
+    selected_fields: set[str],
     note_type_name: str,
     batch_size: int,
 ) -> None:
