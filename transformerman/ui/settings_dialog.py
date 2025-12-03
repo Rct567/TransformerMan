@@ -20,22 +20,24 @@ from aqt.qt import (
 )
 
 if TYPE_CHECKING:
-    from ..lib.settings_manager import SettingsManager
+    from ..lib.addon_config import AddonConfig
+
+from ..lib.lm_clients import LM_CLIENTS, create_lm_client
 
 
 class SettingsDialog(QDialog):
     """Settings dialog for TransformerMan plugin."""
 
-    def __init__(self, parent: QWidget, settings_manager: SettingsManager) -> None:
+    def __init__(self, parent: QWidget, addon_config: AddonConfig) -> None:
         """
         Initialize the settings dialog.
 
         Args:
             parent: Parent widget.
-            settings_manager: Settings manager instance.
+            addon_config: Addon configuration instance.
         """
         super().__init__(parent)
-        self.settings_manager = settings_manager
+        self.addon_config = addon_config
 
         self._setup_ui()
         self._load_settings()
@@ -101,39 +103,42 @@ class SettingsDialog(QDialog):
     def _load_settings(self) -> None:
         """Load current settings into the UI."""
         # Load API key
-        api_key = self.settings_manager.get_api_key()
+        api_key = str(self.addon_config.get("api_key", ""))
         self.api_key_input.setText(api_key)
 
         # Load LM clients
-        clients = self.settings_manager.get_available_clients()
+        clients = list(LM_CLIENTS.keys())
         self.client_combo.addItems(clients)
-        current_client = self.settings_manager.get_lm_client_name()
+        current_client = str(self.addon_config.get("lm_client", "dummy"))
         idx_client = self.client_combo.findText(current_client)
         if idx_client >= 0:
             self.client_combo.setCurrentIndex(idx_client)
         self._populate_models_for_client(current_client)
 
         # Load batch size
-        batch_size = self.settings_manager.get_batch_size()
-        self.batch_size_spin.setValue(batch_size)
+        batch_size = self.addon_config.get("batch_size", 10)
+        if isinstance(batch_size, int):
+            self.batch_size_spin.setValue(batch_size)
 
     def _on_save_clicked(self) -> None:
         """Handle save button click."""
         # Save API key
         api_key = self.api_key_input.text().strip()
-        self.settings_manager.set_api_key(api_key)
+        self.addon_config.update_setting("api_key", api_key)
 
         # Save LM client
         client_name = self.client_combo.currentText()
-        self.settings_manager.set_lm_client_name(client_name)
+        self.addon_config.update_setting("lm_client", client_name)
 
         # Save model
         model = self.model_combo.currentText()
-        self.settings_manager.set_model(model)
+        self.addon_config.update_setting("model", model)
 
         # Save batch size
         batch_size = self.batch_size_spin.value()
-        self.settings_manager.set_batch_size(batch_size)
+        if batch_size < 1:
+            batch_size = 1
+        self.addon_config.update_setting("batch_size", batch_size)
 
         self.accept()
 
@@ -141,11 +146,12 @@ class SettingsDialog(QDialog):
         self._populate_models_for_client(client_name)
 
     def _populate_models_for_client(self, client_name: str) -> None:
-        models = self.settings_manager.get_available_models_for_client(client_name)
+        client = create_lm_client(client_name)
+        models = client.get_available_models()
         self.model_combo.clear()
         if models:
             self.model_combo.addItems(models)
-            current_model = self.settings_manager.get_model()
+            current_model = str(self.addon_config.get("model", "claude-v1.3-100k"))
             index = self.model_combo.findText(current_model)
             if index >= 0:
                 self.model_combo.setCurrentIndex(index)

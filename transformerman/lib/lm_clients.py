@@ -102,6 +102,7 @@ class DummyLMClient(LMClient):
 
         return '\n'.join(response_parts)
 
+    @override
     def get_available_models(self) -> list[str]:
         return [
             "claude-v1.3-100k",
@@ -116,6 +117,7 @@ class OpenAILMClient(LMClient):
     def transform(self, prompt: str) -> str:
         raise NotImplementedError
 
+    @override
     def get_available_models(self) -> list[str]:
         return [
             "gpt-4o",
@@ -130,6 +132,7 @@ class ClaudeLMClient(LMClient):
     def transform(self, prompt: str) -> str:
         raise NotImplementedError
 
+    @override
     def get_available_models(self) -> list[str]:
         return [
             "claude-3-5-sonnet-latest",

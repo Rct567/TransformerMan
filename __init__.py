@@ -7,23 +7,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from functools import partial
-from typing import Any, NamedTuple, Optional, Callable, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
-from aqt.main import AnkiQt
-from aqt import mw as anki_main_window, gui_hooks, dialogs
+from aqt import mw as anki_main_window, gui_hooks
 from aqt.qt import QAction
-
-from anki.collection import Collection
 
 from .transformerman.ui.main_dialog import TransformerManMainDialog
 from .transformerman.ui.settings_dialog import SettingsDialog
 from .transformerman.lib.addon_config import AddonConfig
-from .transformerman.lib.settings_manager import SettingsManager
 from .transformerman.lib.lm_clients import DummyLMClient
 
 
 if TYPE_CHECKING:
+    from aqt.main import AnkiQt
     from aqt.browser.browser import Browser
 
 
@@ -43,7 +39,6 @@ ADDON_NAME = "TransformerMan"
 # Initialize settings
 if mw:
     addon_config = AddonConfig.from_anki_main_window(mw)
-    settings_manager = SettingsManager(addon_config)
     lm_client = DummyLMClient()
 
 
@@ -54,7 +49,7 @@ def open_settings() -> None:
 
     addon_config.reload()
 
-    dialog = SettingsDialog(mw, settings_manager)
+    dialog = SettingsDialog(mw, addon_config)
     dialog.exec()
 
 
@@ -64,7 +59,7 @@ def open_main_dialog(browser: Browser) -> None:
         return
 
     # Get selected note IDs
-    note_ids = browser.selected_notes()
+    note_ids = list(browser.selected_notes())
 
     if not note_ids:
         from aqt.utils import showInfo
@@ -76,7 +71,7 @@ def open_main_dialog(browser: Browser) -> None:
         col=mw.col,
         note_ids=note_ids,
         lm_client=lm_client,
-        settings_manager=settings_manager,
+        addon_config=addon_config,
     )
     dialog.exec()
 

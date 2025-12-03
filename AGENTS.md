@@ -121,11 +121,11 @@
 ## Workflow Summary
 
 1. **Create code** following style guidelines
-2. **Run linters** immediately: `ruff`, `mypy` and `pyright`
+2. **Run linters** immediately: `ruff check`, `mypy` and `pyright`
 3. **Fix all issues** before proceeding
 4. **Write tests** for the new code
 5. **Run tests**: `pytest`
-6. **Run linters again**: `ruff`, `mypy` and `pyright`
+6. **Run linters again**: `ruff check`, `mypy` and `pyright`
 6. **Verify** all checks pass before considering task complete
 
 ## Quick Reference
@@ -134,7 +134,7 @@
 1. Create file in appropriate directory
 2. Add proper imports and type hints
 3. Write code following style guide
-4. Run: `ruff check <file>', `mypy <file>` and `pyright <file>`
+4. Run: `ruff check <file>`, `mypy <file>` and `pyright <file>`
 5. Create corresponding test file
 6. Run: `pytest`
 
@@ -143,6 +143,4 @@
 2. Import what you're testing
 3. Write comprehensive tests
 4. Run: `pytest`
-5. Check linters: `ruff check tests/test_<module>.py`
-
-Remember: Clean code is better than clever code. Readability counts!
+5. Check linters: `ruff check tests/test_<module>`

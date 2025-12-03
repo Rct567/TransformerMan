@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
     from ..lib.lm_clients import LMClient
-    from ..lib.settings_manager import SettingsManager
+    from ..lib.addon_config import AddonConfig
 
 
 class TransformerManMainDialog(QDialog):
@@ -42,7 +42,7 @@ class TransformerManMainDialog(QDialog):
         col: Collection,
         note_ids: list[NoteId],
         lm_client: LMClient,
-        settings_manager: SettingsManager,
+        addon_config: AddonConfig,
     ) -> None:
         """
         Initialize the main dialog.
@@ -52,13 +52,13 @@ class TransformerManMainDialog(QDialog):
             col: Anki collection.
             note_ids: List of selected note IDs.
             lm_client: LM client instance.
-            settings_manager: Settings manager instance.
+            addon_config: Addon configuration instance.
         """
         super().__init__(parent)
         self.col = col
         self.note_ids = note_ids
         self.lm_client = lm_client
-        self.settings_manager = settings_manager
+        self.addon_config = addon_config
 
         from ..lib.selected_notes import SelectedNotes
         self.selected_notes = SelectedNotes(col, note_ids)
@@ -278,7 +278,9 @@ class TransformerManMainDialog(QDialog):
 
         # Start transformation
 
-        batch_size = self.settings_manager.get_batch_size()
+        batch_size = self.addon_config.get("batch_size", 10)
+        if not isinstance(batch_size, int):
+            batch_size = 10
 
         transform_notes_with_progress(
             parent=self,

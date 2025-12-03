@@ -58,7 +58,7 @@ Structure the plugin using object-oriented principles for better organization. S
 - **SelectedNotes**: A class responsible for selecting examples, batching notes, and updating Anki notes after transformation.
 - **PromptBuilder**: A utility class to construct the LM prompt dynamically, including examples and target notes in the XML-like format.
 - **LMClient**: A class for interacting with the external LM API (e.g., sending prompts, parsing responses). Make it configurable for different APIs. Use a dummy reponse for now.
-- **SettingsManager**: A class to handle plugin settings (e.g., API keys, model selection) via a separate dialog or Anki's config system.
+- **AddonConfig**: A class to handle plugin settings (e.g., API keys, model selection) via Anki's config system.
 - **SettingsDialog**: A GUI class for the plugin settings.
 
 ### Testing
