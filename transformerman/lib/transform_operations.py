@@ -101,7 +101,7 @@ class NoteTransformer:
         batch_selected_notes: SelectedNotes,
         log_request: Callable[[str], None],
         log_response: Callable[[LmResponse], None],
-    ) -> tuple[int, int, dict[int, dict[str, str]]]:
+    ) -> tuple[int, int, dict[NoteId, dict[str, str]]]:
         """
         Get field updates for a single batch of notes (preview mode).
 
@@ -116,7 +116,7 @@ class NoteTransformer:
         """
         updated = 0
         failed = 0
-        field_updates_dict: dict[int, dict[str, str]] = {}
+        field_updates_dict: dict[NoteId, dict[str, str]] = {}
 
         try:
             # Build prompt
@@ -236,7 +236,7 @@ class NoteTransformer:
         self,
         progress_callback: Callable[[int, int], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
-    ) -> tuple[dict[str, int], dict[int, dict[str, str]]]:
+    ) -> tuple[dict[str, int], dict[NoteId, dict[str, str]]]:
         """
         Get field updates for notes in batches.
 
@@ -260,7 +260,7 @@ class NoteTransformer:
         total_updated = 0
         total_failed = 0
         batch_idx = 0
-        all_field_updates: dict[int, dict[str, str]] = {}
+        all_field_updates: dict[NoteId, dict[str, str]] = {}
 
         log_request, log_response = create_lm_logger(self.addon_config, self.user_files_dir)
 
@@ -361,7 +361,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
     batch_size: int,
     addon_config: AddonConfig,
     user_files_dir: Path,
-    on_success: Callable[[dict[str, int], dict[int, dict[str, str]]], None],
+    on_success: Callable[[dict[str, int], dict[NoteId, dict[str, str]]], None],
 ) -> None:
     """
     Transform notes in batches with progress tracking.
@@ -410,7 +410,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
     progress.setMinimumDuration(0)  # Show immediately
     progress.show()
 
-    def process_batches(col: Collection) -> tuple[dict[str, int], dict[int, dict[str, str]]]:
+    def process_batches(col: Collection) -> tuple[dict[str, int], dict[NoteId, dict[str, str]]]:
         """Background operation that processes each batch."""
         # Create callbacks for progress and cancellation
         def progress_callback(current: int, total: int) -> None:
@@ -428,7 +428,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
             should_cancel=should_cancel,
         )
 
-    def on_success_callback(result_tuple: tuple[dict[str, int], dict[int, dict[str, str]]]) -> None:
+    def on_success_callback(result_tuple: tuple[dict[str, int], dict[NoteId, dict[str, str]]]) -> None:
         """Called when transformation succeeds."""
         progress.close()
         results, field_updates = result_tuple
@@ -449,7 +449,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
 
 def apply_field_updates(
     col: Collection,
-    field_updates: dict[int, dict[str, str]],
+    field_updates: dict[NoteId, dict[str, str]],
 ) -> dict[str, int]:
     """
     Apply stored field updates to the Anki collection.
@@ -466,10 +466,8 @@ def apply_field_updates(
     updated = 0
     failed = 0
 
-    for note_id_int, updates in field_updates.items():
+    for note_id, updates in field_updates.items():
         try:
-            # Convert to NoteId type
-            note_id: NoteId = note_id_int  # type: ignore[assignment]
             note = col.get_note(note_id)
             note_updated = False
 
@@ -483,7 +481,7 @@ def apply_field_updates(
                 updated += 1
 
         except Exception as e:
-            print(f"Error applying updates to note {note_id_int}: {e!r}")
+            print(f"Error applying updates to note {note_id}: {e!r}")
             failed += 1
 
     return {

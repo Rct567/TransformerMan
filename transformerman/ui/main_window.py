@@ -81,8 +81,8 @@ class TransformerManMainWindow(TransformerManBaseWindow):
         self.field_instructions: dict[str, QLineEdit] = {}
 
         # Preview state
-        self.preview_results: dict[int, dict[str, str]] = {}  # note_id -> field_name -> new_value
-        self.previewed_note_ids: list[int] = []
+        self.preview_results: dict[NoteId, dict[str, str]] = {}  # note_id -> field_name -> new_value
+        self.previewed_note_ids: list[NoteId] = []
 
         self._setup_ui()
         self._load_note_types()
@@ -312,7 +312,7 @@ class TransformerManMainWindow(TransformerManBaseWindow):
         if not isinstance(batch_size, int):
             batch_size = 10
 
-        def on_preview_success(results: dict[str, int], field_updates: dict[int, dict[str, str]]) -> None:
+        def on_preview_success(results: dict[str, int], field_updates: dict[NoteId, dict[str, str]]) -> None:
             """Handle successful preview."""
             # Store preview results
             self.preview_results = field_updates
@@ -371,7 +371,7 @@ class TransformerManMainWindow(TransformerManBaseWindow):
     def _update_preview_table_with_results(
         self,
         results: dict[str, int],
-        field_updates: dict[int, dict[str, str]],
+        field_updates: dict[NoteId, dict[str, str]],
     ) -> None:
         """Update the preview table with preview results and green highlighting."""
         # Get selected fields
