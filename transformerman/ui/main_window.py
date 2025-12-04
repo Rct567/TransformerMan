@@ -127,7 +127,7 @@ class TransformerManMainWindow(TransformerManBaseWindow):
         layout.addWidget(scroll_area)
 
         # Preview Table
-        layout.addWidget(QLabel("Preview (top 10 notes):"))
+        layout.addWidget(QLabel("Selected notes:"))
         self.preview_table = QTableWidget()
         self.preview_table.setAlternatingRowColors(True)
         vertical_header = self.preview_table.verticalHeader()
