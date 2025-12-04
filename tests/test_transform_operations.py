@@ -53,7 +53,7 @@ def mock_lm_client() -> Mock:
         3: {"Field1": "Content3"},
         4: {"Field1": "Content4"},
     })
-    mock_response.raw_response = "<xml>response</xml>"
+    mock_response.text_response = "<xml>response</xml>"
 
     client.transform = Mock(return_value=mock_response)
     return client
@@ -280,7 +280,7 @@ class TestNoteTransformer:
             3: {"Field1": "Content3"},
             4: {"Field1": "Content4"},
         }
-        mock_response.raw_response = "<xml>response</xml>"
+        mock_response.text_response = "<xml>response</xml>"
 
         # Make first batch fail, second batch succeed
         mock_lm_client.transform.side_effect = [Exception("Batch failed"), mock_response]
@@ -343,7 +343,7 @@ class TestCreateLmLogger:
 
         # Call logging functions
         log_request("Test prompt")
-        log_response(Mock(raw_response="Test response"))
+        log_response(Mock(text_response="Test response"))
 
         # Verify no log files were created (directory may exist but should be empty)
         logs_dir = mock_user_files_dir / 'logs'
@@ -368,7 +368,7 @@ class TestCreateLmLogger:
         log_request("Test prompt")
 
         mock_response = Mock()
-        mock_response.raw_response = "Test response"
+        mock_response.text_response = "Test response"
         log_response(mock_response)
 
         # Verify files were created and contain expected content

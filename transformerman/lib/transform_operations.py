@@ -40,7 +40,7 @@ def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[C
             responses_file = logs_dir / 'lm_responses.log'
             timestamp = datetime.now().isoformat()
             with responses_file.open('a', encoding='utf-8') as f:
-                f.write(f"[{timestamp}] {response.raw_response}\n\n")
+                f.write(f"[{timestamp}] {response.text_response}\n\n")
 
     return log_request, log_response
 

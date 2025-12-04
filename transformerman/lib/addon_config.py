@@ -110,7 +110,11 @@ class AddonConfig:
 
         # Get API key for this client
         api_key = self.get_api_key(client_name)
-        return create_lm_client(client_name, api_key)
+
+        # Get model configuration
+        model = str(self.get("model", ""))
+
+        return create_lm_client(client_name, api_key, model)
 
     @staticmethod
     def from_anki_main_window(mw: AnkiQt) -> AddonConfig:

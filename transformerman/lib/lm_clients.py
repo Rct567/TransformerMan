@@ -8,7 +8,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 
+import json
 import re
+import urllib.error
+import urllib.request
 
 from .utilities import override
 from .xml_parser import notes_from_xml
@@ -21,18 +24,28 @@ LM_CLIENTS = {
     "dummy": "DummyLMClient",
     "openai": "OpenAILMClient",
     "claude": "ClaudeLMClient",
+    "gemini": "GeminiLMClient",
 }
 
 
 class LmResponse:
-    """Response from a language model containing the raw response and parsed notes."""
+    """Response from a language model containing the text response and parsed notes."""
 
-    def __init__(self, raw_response: str) -> None:
-        self.raw_response = raw_response
+    def __init__(
+        self,
+        text_response: str,
+        error: str | None = None,
+        exception: Exception | None = None
+    ) -> None:
+        self.text_response = text_response
+        self.error = error
+        self.exception = exception
 
     def get_notes_from_xml(self) -> dict[NoteId, dict[str, str]]:
         """Parse XML response and extract field updates by note ID."""
-        return notes_from_xml(self.raw_response)
+        if self.error is not None or self.exception is not None:
+            return {}
+        return notes_from_xml(self.text_response)
 
 
 class LMClient(ABC):
@@ -56,8 +69,9 @@ class LMClient(ABC):
 class DummyLMClient(LMClient):
     """Dummy LM client that returns mock responses for testing."""
 
-    def __init__(self, api_key: str = "") -> None:
+    def __init__(self, api_key: str = "", model: str = "") -> None:
         self._api_key = api_key
+        self._model = model
 
     @property
     @override
@@ -118,8 +132,9 @@ class DummyLMClient(LMClient):
 
 
 class OpenAILMClient(LMClient):
-    def __init__(self, api_key: str = "") -> None:
+    def __init__(self, api_key: str = "", model: str = "") -> None:
         self._api_key = api_key
+        self._model = model
 
     @property
     @override
@@ -141,8 +156,9 @@ class OpenAILMClient(LMClient):
 
 
 class ClaudeLMClient(LMClient):
-    def __init__(self, api_key: str = "") -> None:
+    def __init__(self, api_key: str = "", model: str = "") -> None:
         self._api_key = api_key
+        self._model = model
 
     @property
     @override
@@ -161,8 +177,84 @@ class ClaudeLMClient(LMClient):
             "claude-3-haiku-20240307",
         ]
 
+class GeminiLMClient(LMClient):
+    def __init__(self, api_key: str = "", model: str = "") -> None:
+        self._api_key = api_key
+        self._model = model
 
-def create_lm_client(name: str, api_key: str = "") -> LMClient:
+    @property
+    @override
+    def id(self) -> str:
+        return "gemini"
+
+    @override
+    def transform(self, prompt: str) -> LmResponse:
+        """Transform notes using Gemini API."""
+        if not self._api_key or not self._api_key.strip():
+            raise ValueError("API key is required for GeminiLMClient")
+
+        # Use configured model or fall back to first available
+        if self._model and self._model.strip():
+            model = self._model
+        else:
+            model = self.get_available_models()[0]
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+        data = {"contents": [{"parts": [{"text": prompt}]}]}
+
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self._api_key,
+        }
+
+        try:
+            req = urllib.request.Request(
+                url, data=json.dumps(data).encode("utf-8"), headers=headers
+            )
+            with urllib.request.urlopen(req, timeout=30) as response:
+                result = json.loads(response.read().decode("utf-8"))
+
+            # Extract text from response
+            try:
+                candidates = result.get("candidates")
+                if not candidates or not isinstance(candidates, list) or len(candidates) == 0:
+                    raise KeyError("Missing or empty 'candidates' in result")
+                candidate = candidates[0]
+                content = candidate.get("content")
+                if not content or not isinstance(content, dict):
+                    raise KeyError("Missing or invalid 'content' in candidate")
+                parts = content.get("parts")
+                if not parts or not isinstance(parts, list) or len(parts) == 0:
+                    raise KeyError("Missing or empty 'parts' in content")
+                part = parts[0]
+                text = part.get("text")
+                if text is None:
+                    raise KeyError("Missing 'text' in part")
+                return LmResponse(text)
+            except (KeyError, IndexError, TypeError) as e:
+                print(f"Error parsing Gemini response: {e}")
+                return LmResponse("", f"Error parsing AI response: {e}", e)
+
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            print(f"Gemini HTTP Error {e.code}: {error_body}")
+            return LmResponse("", f"API Error: {e.code}", e)
+        except urllib.error.URLError as e:
+            print(f"Gemini Network Error: {e}")
+            return LmResponse("", f"Network Error: {e.reason}", e)
+        except Exception as e:
+            print(f"Gemini Unexpected error: {e}")
+            return LmResponse("", f"Error: {e!s}", e)
+
+    @override
+    def get_available_models(self) -> list[str]:
+        return [
+            "gemini-flash-latest",
+            "gemini-2.5-flash",
+        ]
+
+
+def create_lm_client(name: str, api_key: str = "", model: str = "") -> LMClient:
     cls_name = LM_CLIENTS.get(name, "DummyLMClient")
     cls = globals().get(cls_name, DummyLMClient)
-    return cls(api_key)
+    return cls(api_key, model)
