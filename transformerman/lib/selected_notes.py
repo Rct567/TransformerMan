@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .utilities import batched
+
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import Note, NoteId
@@ -14,6 +16,8 @@ if TYPE_CHECKING:
 
 class SelectedNotes:
     """Manages selected notes for transformation."""
+
+    note_ids: list[NoteId]
 
     def __init__(self, col: Collection, note_ids: list[NoteId]) -> None:
         """
@@ -71,34 +75,36 @@ class SelectedNotes:
         # Sort by count descending
         return dict(sorted(counts.items(), key=lambda x: x[1], reverse=True))
 
-    def create_batches(self, note_ids: list[NoteId], batch_size: int) -> list[list[NoteId]]:
+    def create_batches(self, batch_size: int) -> list[SelectedNotes]:
         """
-        Split note IDs into batches.
+        Split the current SelectedNotes instance into batches.
 
         Args:
-            note_ids: List of note IDs to batch.
             batch_size: Maximum size of each batch.
 
         Returns:
-            List of batches (each batch is a list of note IDs).
+            List of SelectedNotes instances, each representing a batch.
         """
-        batches: list[list[NoteId]] = []
+        batches: list[SelectedNotes] = []
 
-        for i in range(0, len(note_ids), batch_size):
-            batches.append(note_ids[i:i + batch_size])
+        for batch_note_ids in batched(self.note_ids, batch_size):
+            batches.append(self.get_selected_notes(list(batch_note_ids)))
 
         return batches
 
-    def get_notes(self, note_ids: list[NoteId]) -> list[Note]:
+    def get_notes(self, note_ids: list[NoteId] | None = None) -> list[Note]:
         """
         Get Note objects from note IDs.
 
         Args:
-            note_ids: List of note IDs.
+            note_ids: List of note IDs. If None, uses the note_ids of this instance.
 
         Returns:
             List of Note objects.
         """
+        if note_ids is None:
+            note_ids = self.note_ids
+
         notes: list[Note] = []
 
         for nid in note_ids:
@@ -108,6 +114,18 @@ class SelectedNotes:
                 continue
 
         return notes
+
+    def get_selected_notes(self, note_ids: list[NoteId]) -> SelectedNotes:
+        """
+        Get a new SelectedNotes instance containing only the specified note IDs.
+
+        Args:
+            note_ids: List of note IDs.
+
+        Returns:
+            New SelectedNotes instance.
+        """
+        return SelectedNotes(self.col, note_ids)
 
     def get_field_names(self, note_type_name: str) -> list[str]:
         """
@@ -124,3 +142,36 @@ class SelectedNotes:
                 return [field['name'] for field in notetype['flds']]
 
         return []
+
+    @staticmethod
+    def has_empty_field(note: Note, selected_fields: set[str]) -> bool:
+        """
+        Check if a note has any empty fields among the selected fields.
+
+        Args:
+            note: The note to check.
+            selected_fields: Set of field names to consider.
+
+        Returns:
+            True if the note has at least one empty field in selected_fields, False otherwise.
+        """
+        return any(not note[field].strip() for field in selected_fields if field in note)
+
+    def has_note_with_empty_field(self, selected_fields: set[str]) -> bool:
+        """
+        Check if any note in this SelectedNotes instance has empty fields.
+
+        Args:
+            selected_fields: Set of field names to consider.
+
+        Returns:
+            True if at least one note has empty fields in selected_fields, False otherwise.
+        """
+        for nid in self.note_ids:
+            try:
+                note = self.col.get_note(nid)
+                if SelectedNotes.has_empty_field(note, selected_fields):
+                    return True
+            except Exception:
+                continue
+        return False

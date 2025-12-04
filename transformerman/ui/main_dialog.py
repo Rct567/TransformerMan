@@ -263,6 +263,10 @@ class TransformerManMainDialog(QDialog):
             showInfo("Please select at least one field to fill.")
             return
 
+        if not self.selected_notes.has_note_with_empty_field(selected_fields):
+            showInfo("No notes with empty fields found.")
+            return
+
         # Get field instructions
         field_instructions = {
             field_name: instruction_input.text().strip()

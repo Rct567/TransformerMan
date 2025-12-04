@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .xml_parser import escape_xml_content
+from .selected_notes import SelectedNotes
 
 if TYPE_CHECKING:
     from anki.collection import Collection
@@ -23,7 +24,7 @@ class PromptBuilder:
     def build_prompt(
         self,
         col: Collection,
-        target_notes: list[Note],
+        target_notes: SelectedNotes,
         selected_fields: set[str],
         note_type_name: str,
     ) -> str:
@@ -62,11 +63,21 @@ class PromptBuilder:
             prompt_parts.append("(No examples available)")
             prompt_parts.append("")
 
+        # Get target notes and filter to only include those with empty fields
+        target_note_objects = target_notes.get_notes(target_notes.note_ids)
+        notes_with_empty_fields = [
+            note for note in target_note_objects
+            if SelectedNotes.has_empty_field(note, selected_fields)
+        ]
+
         # Add target notes
+        if not notes_with_empty_fields:
+            raise ValueError("No notes with empty fields found")
+
         prompt_parts.extend([
             "Please fill the empty fields in the following notes and return them in the same XML format:",
             "",
-            self._format_notes_as_xml(target_notes, note_type_name, selected_fields),
+            self._format_notes_as_xml(notes_with_empty_fields, note_type_name, selected_fields),
         ])
 
         return "\n".join(prompt_parts)
@@ -74,7 +85,7 @@ class PromptBuilder:
     def _select_example_notes(
         self,
         col: Collection,
-        target_notes: list[Note],
+        target_notes: SelectedNotes,
         selected_fields: set[str],
         note_type_name: str,
         max_examples: int = 3,
@@ -89,7 +100,7 @@ class PromptBuilder:
 
         Args:
             col: Anki collection.
-            target_notes: List of target notes (to avoid selecting them as examples).
+            target_notes: SelectedNotes instance (to avoid selecting them as examples).
             selected_fields: Set of field names to consider.
             note_type_name: Name of the note type.
             max_examples: Maximum number of examples to return.
@@ -97,8 +108,8 @@ class PromptBuilder:
         Returns:
             List of example notes.
         """
-        # Get all notes of this type
-        target_nids = {note.id for note in target_notes}
+        # Get target note IDs
+        target_note_ids = set(target_notes.note_ids)
 
         # Find the note type
         notetype = None
@@ -114,15 +125,15 @@ class PromptBuilder:
         note_ids = col.find_notes(f'"note:{note_type_name}"')
 
         # Filter out target notes
-        candidate_nids = [nid for nid in note_ids if nid not in target_nids]
+        candidate_note_ids = [nid for nid in note_ids if nid not in target_note_ids]
 
-        if not candidate_nids:
+        if not candidate_note_ids:
             return []
 
         # Score each candidate
         scored_candidates: list[tuple[int, int, Note]] = []
 
-        for nid in candidate_nids[:100]:  # Limit to first 100 for performance
+        for nid in candidate_note_ids[:100]:  # Limit to first 100 for performance
             try:
                 note = col.get_note(nid)
 

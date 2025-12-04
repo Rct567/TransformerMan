@@ -73,9 +73,13 @@ def transform_notes_with_progress(  # noqa: PLR0913
         batch_size: Number of notes per batch.
     """
 
+    notes_to_transform = selected_notes.get_selected_notes(note_ids)
+
+    if not notes_to_transform.has_note_with_empty_field(selected_fields):
+        raise ValueError("No notes with empty fields found")
 
     # Create batches
-    batches = selected_notes.create_batches(note_ids, batch_size)
+    batches = notes_to_transform.create_batches(batch_size)
     total_batches = len(batches)
 
     # Create progress dialog
@@ -98,7 +102,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
 
         log_request, log_response = create_lm_logger(addon_config, user_files_dir)
 
-        for batch_idx, batch_note_ids in enumerate(batches):
+        for batch_idx, batch_selected_notes in enumerate(batches):
                 if progress.wasCanceled():
                     break
 
@@ -110,11 +114,8 @@ def transform_notes_with_progress(  # noqa: PLR0913
                 mw.taskman.run_on_main(lambda b=batch_idx: update_progress_ui(b)) # type: ignore[misc]
 
                 try:
-                    # Get notes for this batch
-                    notes = selected_notes.get_notes(batch_note_ids)
-
                     # Build prompt
-                    prompt = prompt_builder.build_prompt(col, notes, selected_fields, note_type_name)
+                    prompt = prompt_builder.build_prompt(col, batch_selected_notes, selected_fields, note_type_name)
 
                     # Log request
                     log_request(prompt)
@@ -129,7 +130,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
                     field_updates = response.get_notes_from_xml()
 
                     # Update notes
-                    for nid in batch_note_ids:
+                    for nid in batch_selected_notes.note_ids:
                         try:
                             note = col.get_note(nid)
                             updates = field_updates.get(nid, {})
@@ -149,7 +150,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
 
                 except Exception as e:
                     print(f"Error processing batch {batch_idx}: {e!r}")
-                    total_failed += len(batch_note_ids)
+                    total_failed += len(batch_selected_notes.note_ids)
                     continue
 
         mw.taskman.run_on_main(lambda: progress.setValue(total_batches))
