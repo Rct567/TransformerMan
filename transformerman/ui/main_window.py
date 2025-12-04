@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from aqt.qt import (
     QVBoxLayout,
     QHBoxLayout,
+    QGridLayout,
     QLabel,
     QComboBox,
     QCheckBox,
@@ -120,7 +121,7 @@ class TransformerManMainWindow(TransformerManBaseWindow):
         scroll_area.setMinimumHeight(200)
 
         self.fields_widget = QWidget()
-        self.fields_layout = QVBoxLayout()
+        self.fields_layout = QGridLayout()
         self.fields_widget.setLayout(self.fields_layout)
         scroll_area.setWidget(self.fields_widget)
 
@@ -182,8 +183,8 @@ class TransformerManMainWindow(TransformerManBaseWindow):
         self.notes_count_label.setText(f"{len(filtered_ids)} notes selected")
 
         # Clear existing field widgets
-        for i in reversed(range(self.fields_layout.count())):
-            item = self.fields_layout.itemAt(i)
+        while self.fields_layout.count():
+            item = self.fields_layout.takeAt(0)
             if item is not None:
                 widget = item.widget()
                 if widget:
@@ -196,26 +197,25 @@ class TransformerManMainWindow(TransformerManBaseWindow):
         field_names = self.selected_notes.get_field_names(note_type_name)
 
         # Create checkbox and instruction input for each field
-        for idx, field_name in enumerate(field_names):
-            field_layout = QHBoxLayout()
-
+        for row, field_name in enumerate(field_names):
             # Checkbox
             checkbox = QCheckBox(field_name)
             # Select first two fields by default
-            if idx < 2:
+            if row < 2:
                 checkbox.setChecked(True)
             checkbox.stateChanged.connect(self._on_field_selection_changed)
             self.field_checkboxes[field_name] = checkbox
-            field_layout.addWidget(checkbox)
+            self.fields_layout.addWidget(checkbox, row, 0)
 
             # Instruction input
             instruction_input = QLineEdit()
             instruction_input.setPlaceholderText("Optional instructions for this field...")
-            instruction_input.setEnabled(idx < 2)  # Enable for checked fields
+            instruction_input.setEnabled(row < 2)  # Enable for checked fields
             self.field_instructions[field_name] = instruction_input
-            field_layout.addWidget(instruction_input)
+            self.fields_layout.addWidget(instruction_input, row, 1)
 
-            self.fields_layout.addLayout(field_layout)
+        # Set column stretch so that instruction column expands
+        self.fields_layout.setColumnStretch(1, 1)
 
         # Enable preview button if we have notes
         self.preview_button.setEnabled(len(filtered_ids) > 0)
