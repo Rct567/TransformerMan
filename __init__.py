@@ -13,7 +13,7 @@ from aqt import mw as anki_main_window, gui_hooks
 from aqt.qt import QAction
 from aqt.utils import showInfo
 
-from .transformerman.ui.main_dialog import TransformerManMainDialog
+from .transformerman.ui.main_window import TransformerManMainWindow
 from .transformerman.ui.settings_dialog import SettingsDialog
 from .transformerman.lib.addon_config import AddonConfig
 
@@ -52,8 +52,8 @@ def open_settings() -> None:
     dialog.exec()
 
 
-def open_main_dialog(browser: Browser) -> None:
-    """Open the main TransformerMan dialog from card browser."""
+def open_main_window(browser: Browser) -> None:
+    """Open the main TransformerMan window from card browser."""
     if not mw or not mw.col:
         return
 
@@ -72,7 +72,7 @@ def open_main_dialog(browser: Browser) -> None:
     if mw and mw.app:
         is_dark_mode = mw.app.styleSheet().lower().find("dark") != -1
 
-    dialog = TransformerManMainDialog(
+    window = TransformerManMainWindow(
         parent=browser,
         is_dark_mode=is_dark_mode,
         col=mw.col,
@@ -81,13 +81,13 @@ def open_main_dialog(browser: Browser) -> None:
         addon_config=addon_config,
         user_files_dir=TM_USER_FILES_DIR,
     )
-    dialog.exec()
+    window.show()
 
 
 def setup_browser_menu(browser: Browser, menu: Any) -> None:
     """Add TransformerMan to browser context menu."""
     action = QAction(ADDON_NAME, browser)
-    action.triggered.connect(lambda: open_main_dialog(browser))
+    action.triggered.connect(lambda: open_main_window(browser))
     menu.addAction(action)
 
 

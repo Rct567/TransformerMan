@@ -25,7 +25,7 @@ from aqt.qt import (
 
 from aqt.utils import showInfo
 
-from .base_dialog import TransformerManBaseDialog
+from .base_window import TransformerManBaseWindow
 
 from ..lib.transform_operations import transform_notes_with_progress, apply_field_updates
 from ..lib.prompt_builder import PromptBuilder
@@ -39,8 +39,8 @@ if TYPE_CHECKING:
     from ..lib.addon_config import AddonConfig
 
 
-class TransformerManMainDialog(TransformerManBaseDialog):
-    """Main dialog for TransformerMan plugin."""
+class TransformerManMainWindow(TransformerManBaseWindow):
+    """Main window for TransformerMan plugin."""
 
     def __init__(
         self,
@@ -53,7 +53,7 @@ class TransformerManMainDialog(TransformerManBaseDialog):
         user_files_dir: Path,
     ) -> None:
         """
-        Initialize the main dialog.
+        Initialize the main window.
 
         Args:
             parent: Parent widget.
@@ -93,7 +93,11 @@ class TransformerManMainDialog(TransformerManBaseDialog):
         self.setMinimumWidth(500)
         self.setMinimumHeight(400)
 
-        layout = QVBoxLayout()
+        # Create central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        layout = QVBoxLayout(central_widget)
 
         # Note type selection
         note_type_layout = QHBoxLayout()
@@ -149,8 +153,6 @@ class TransformerManMainDialog(TransformerManBaseDialog):
 
         button_layout.addStretch()
         layout.addLayout(button_layout)
-
-        self.setLayout(layout)
 
     def _load_note_types(self) -> None:
         """Load note types from selected notes."""
