@@ -10,8 +10,10 @@ from typing import TYPE_CHECKING, Callable
 
 from aqt import mw
 from aqt.operations import QueryOp
-from aqt.utils import showInfo, tooltip
+from aqt.utils import showInfo
 from aqt.qt import QProgressDialog, QWidget, Qt
+
+from ..ui.results_dialog import ResultsDialog
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -289,12 +291,17 @@ def transform_notes_with_progress(  # noqa: PLR0913
     def on_success(results: dict[str, int]) -> None:
         """Called when operation succeeds."""
         progress.close()
-        message = "Transformation complete!\n\n"
-        message += f"Batches processed: {results['batches_processed']}/{transformer.total_batches}\n"
-        message += f"Fields updated: {results['updated']}\n"
-        if results['failed'] > 0:
-            message += f"Failed notes: {results['failed']}"
-        tooltip(message)
+
+        # Create and show results dialog
+        dialog = ResultsDialog(
+            parent=parent,
+            col=col,
+            note_ids=note_ids,
+            selected_fields=selected_fields,
+            note_type_name=note_type_name,
+            results=results,
+        )
+        dialog.exec()
 
     def on_failure(exc: Exception) -> None:
         """Called when operation fails."""
