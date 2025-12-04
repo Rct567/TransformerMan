@@ -124,12 +124,12 @@ class ResultsDialog(TransformerManBaseDialog):
         if updated > 0:
             html += f'<p style="color: #388e3c;"><b>Updated notes:</b> {updated}</p>'
         else:
-            html += f'<p><b>Updated notes:</b>0</p>'
+            html += '<p><b>Updated notes:</b>0</p>'
 
         if failed > 0:
             html += f'<p style="color: #d32f2f;"><b>Failed notes:</b> {failed}</p>'
         else:
-            html += f'<p><b>Failed notes:</b> 0</p>'
+            html += '<p><b>Failed notes:</b> 0</p>'
 
         html += "</div>"
 
