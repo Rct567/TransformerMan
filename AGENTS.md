@@ -29,7 +29,7 @@
 ### Type Hints
 - All function signatures must have type hints
 - Avoid `Any` unless absolutely necessary (it rarely is)
-- Use modern syntax: `list[str]` not `List[str]`
+- Use modern syntax: `list[str]` not `List[str]`, `set[str]` not `Set[str]`
 - Use `from typing import` only for: `Callable`, `Optional`, `TypeVar`, etc.
 - Use `from collections.abc import` for: `Generator`, `Iterator`, etc.
 - Always include return type hints (use `-> None` when appropriate)
@@ -46,18 +46,20 @@
 - Keep methods focused (single responsibility)
 - Extract complex logic into private helper methods
 - Class constants should be defined right after class declaration
+- Import statements should be located at the top of the file
 
 ## Testing Requirements
 
 ### Test Coverage
 - Test files go in `tests/` directory
 - Test filename format: `test_<module_name>.py`
-- Use descriptive test function names: `test_<what>_<scenario>`
+- Test class format: `class Test<ModuleName>:`
+- Use descriptive test method names: `test_<what>_<scenario>`
 
 ### Test Structure
 - One test file per module being tested
-- Use pytest fixtures when available
-- Always include docstrings in new test files
+- Use pytest fixtures, but try to use the real thing where possible (it often is)
+- Don't test implementation details, instead focus on behavior, usage/consumption and edge cases
 
 ## Root Directory Structure
 
@@ -121,26 +123,10 @@
 ## Workflow Summary
 
 1. **Create code** following style guidelines
-2. **Run linters** immediately: `ruff check`, `mypy` and `pyright`
-3. **Fix all issues** before proceeding
-4. **Write tests** for the new code
-5. **Run tests**: `pytest`
-6. **Run linters again**: `ruff check`, `mypy` and `pyright`
+2. **Write or update tests** if appropriate
+3. **Run tests**: `pytest -vv --full-trace --showlocals --maxfail=3`
+4. **Fix issues** if tests fail and run tests again
+5. **Check code**: `ruff check && mypy && pyright`
 6. **Verify** all checks pass before considering task complete
 
-## Quick Reference
-
-### Create New Module
-1. Create file in appropriate directory
-2. Add proper imports and type hints
-3. Write code following style guide
-4. Run: `ruff check <file>`, `mypy <file>` and `pyright <file>`
-5. Create corresponding test file
-6. Run: `pytest`
-
-### Create New Test File
-1. Create `tests/test_<module>.py`
-2. Import what you're testing
-3. Write comprehensive tests
-4. Run: `pytest`
-5. Check linters: `ruff check tests/test_<module>`
+ 
