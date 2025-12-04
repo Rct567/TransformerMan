@@ -61,14 +61,20 @@ def open_main_dialog(browser: Browser) -> None:
     note_ids = list(browser.selected_notes())
 
     if not note_ids:
-        showInfo("Please select at least one note.")
+        showInfo("Please select at least one note.", parent=browser)
         return
 
     addon_config.reload()
     lm_client = addon_config.getClient()
 
+    # Detect dark mode
+    is_dark_mode = False
+    if mw and mw.app:
+        is_dark_mode = mw.app.styleSheet().lower().find("dark") != -1
+
     dialog = TransformerManMainDialog(
         parent=browser,
+        is_dark_mode=is_dark_mode,
         col=mw.col,
         note_ids=note_ids,
         lm_client=lm_client,

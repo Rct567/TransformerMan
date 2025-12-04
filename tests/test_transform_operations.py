@@ -155,7 +155,7 @@ class TestNoteTransformer:
 
         mock_collection.get_note.side_effect = mock_notes
 
-        # Run transformation
+        # Run transformation (immediate application)
         results = note_transformer.transform()
 
         # Verify results

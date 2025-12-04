@@ -20,13 +20,14 @@ from aqt.qt import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
+    QColor,
 )
 
 from aqt.utils import showInfo
 
 from .base_dialog import TransformerManBaseDialog
 
-from ..lib.transform_operations import transform_notes_with_progress
+from ..lib.transform_operations import transform_notes_with_progress, apply_field_updates
 from ..lib.prompt_builder import PromptBuilder
 from ..lib.selected_notes import SelectedNotes
 
@@ -44,6 +45,7 @@ class TransformerManMainDialog(TransformerManBaseDialog):
     def __init__(
         self,
         parent: QWidget,
+        is_dark_mode: bool,
         col: Collection,
         note_ids: list[NoteId],
         lm_client: LMClient,
@@ -55,6 +57,7 @@ class TransformerManMainDialog(TransformerManBaseDialog):
 
         Args:
             parent: Parent widget.
+            is_dark_mode: Whether the application is in dark mode.
             col: Anki collection.
             note_ids: List of selected note IDs.
             lm_client: LM client instance.
@@ -62,6 +65,7 @@ class TransformerManMainDialog(TransformerManBaseDialog):
             user_files_dir: Directory for user files.
         """
         super().__init__(parent)
+        self.is_dark_mode = is_dark_mode
         self.col = col
         self.note_ids = note_ids
         self.lm_client = lm_client
@@ -75,6 +79,10 @@ class TransformerManMainDialog(TransformerManBaseDialog):
         self.current_note_type: str = ""
         self.field_checkboxes: dict[str, QCheckBox] = {}
         self.field_instructions: dict[str, QLineEdit] = {}
+
+        # Preview state
+        self.preview_results: dict[int, dict[str, str]] = {}  # note_id -> field_name -> new_value
+        self.previewed_note_ids: list[int] = []
 
         self._setup_ui()
         self._load_note_types()
@@ -124,11 +132,23 @@ class TransformerManMainDialog(TransformerManBaseDialog):
         self.preview_table.setMinimumHeight(150)
         layout.addWidget(self.preview_table)
 
-        # Transform button
-        self.transform_button = QPushButton("Transform")
-        self.transform_button.clicked.connect(self._on_transform_clicked)
-        self.transform_button.setEnabled(False)
-        layout.addWidget(self.transform_button)
+        # Button layout
+        button_layout = QHBoxLayout()
+
+        # Preview button
+        self.preview_button = QPushButton("Preview")
+        self.preview_button.clicked.connect(self._on_preview_clicked)
+        self.preview_button.setEnabled(False)
+        button_layout.addWidget(self.preview_button)
+
+        # Apply button
+        self.apply_button = QPushButton("Apply")
+        self.apply_button.clicked.connect(self._on_apply_clicked)
+        self.apply_button.setEnabled(False)
+        button_layout.addWidget(self.apply_button)
+
+        button_layout.addStretch()
+        layout.addLayout(button_layout)
 
         self.setLayout(layout)
 
@@ -195,8 +215,8 @@ class TransformerManMainDialog(TransformerManBaseDialog):
 
             self.fields_layout.addLayout(field_layout)
 
-        # Enable transform button if we have notes
-        self.transform_button.setEnabled(len(filtered_ids) > 0)
+        # Enable preview button if we have notes
+        self.preview_button.setEnabled(len(filtered_ids) > 0)
 
         self._update_preview_table()
 
@@ -251,8 +271,8 @@ class TransformerManMainDialog(TransformerManBaseDialog):
         if header:
              header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
-    def _on_transform_clicked(self) -> None:
-        """Handle transform button click."""
+    def _on_preview_clicked(self) -> None:
+        """Handle preview button click."""
         # Get selected fields
         selected_fields = {
             field_name
@@ -261,11 +281,11 @@ class TransformerManMainDialog(TransformerManBaseDialog):
         }
 
         if not selected_fields:
-            showInfo("Please select at least one field to fill.")
+            showInfo("Please select at least one field to fill.", parent=self)
             return
 
         if not self.selected_notes.has_note_with_empty_field(selected_fields):
-            showInfo("No notes with empty fields found.")
+            showInfo("No notes with empty fields found.", parent=self)
             return
 
         # Get field instructions
@@ -279,17 +299,33 @@ class TransformerManMainDialog(TransformerManBaseDialog):
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
 
         if not filtered_note_ids:
-            showInfo("No notes to transform.")
+            showInfo("No notes to transform.", parent=self)
             return
 
         # Create prompt builder
         prompt_builder = PromptBuilder(field_instructions)
 
-        # Start transformation
-
+        # Start preview transformation
         batch_size = self.addon_config.get("batch_size", 10)
         if not isinstance(batch_size, int):
             batch_size = 10
+
+        def on_preview_success(results: dict[str, int], field_updates: dict[int, dict[str, str]]) -> None:
+            """Handle successful preview."""
+            # Store preview results
+            self.preview_results = field_updates
+            self.previewed_note_ids = list(field_updates.keys())
+
+            # Enable apply button
+            self.apply_button.setEnabled(len(field_updates) > 0)
+
+            # Update preview table with green highlighting
+            self._update_preview_table_with_results(results, field_updates)
+
+            # Show preview summary
+            updated = results.get("updated", 0)
+            failed = results.get("failed", 0)
+            showInfo(f"Preview complete:\n\n{updated} notes would be updated\n{failed} notes failed", parent=self)
 
         transform_notes_with_progress(
             parent=self,
@@ -303,7 +339,102 @@ class TransformerManMainDialog(TransformerManBaseDialog):
             batch_size=batch_size,
             addon_config=self.addon_config,
             user_files_dir=self.user_files_dir,
+            on_success=on_preview_success,
         )
 
-        # Close dialog
-        self.accept()
+    def _on_apply_clicked(self) -> None:
+        """Handle apply button click."""
+        if not self.preview_results:
+            showInfo("No preview results to apply. Please run Preview first.", parent=self)
+            return
+
+        # Apply field updates
+        results = apply_field_updates(self.col, self.preview_results)
+
+        # Show results
+        updated = results.get("updated", 0)
+        failed = results.get("failed", 0)
+
+        if updated > 0:
+            showInfo(f"Successfully applied changes to {updated} notes.", parent=self)
+            # Clear preview results and disable apply button
+            self.preview_results.clear()
+            self.previewed_note_ids.clear()
+            self.apply_button.setEnabled(False)
+            # Refresh preview table to show updated values
+            self._update_preview_table()
+        else:
+            showInfo(f"No notes were updated. {failed} notes failed.", parent=self)
+
+    def _update_preview_table_with_results(
+        self,
+        results: dict[str, int],
+        field_updates: dict[int, dict[str, str]],
+    ) -> None:
+        """Update the preview table with preview results and green highlighting."""
+        # Get selected fields
+        selected_fields = [
+            field_name
+            for field_name, checkbox in self.field_checkboxes.items()
+            if checkbox.isChecked()
+        ]
+
+        if not selected_fields:
+            self.preview_table.clear()
+            self.preview_table.setColumnCount(0)
+            self.preview_table.setRowCount(0)
+            return
+
+        # Setup columns
+        self.preview_table.setColumnCount(len(selected_fields))
+        self.preview_table.setHorizontalHeaderLabels(selected_fields)
+
+        # Get notes (limit to 10)
+        filtered_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
+        preview_ids = filtered_ids[:10]
+        notes = self.selected_notes.get_notes(preview_ids)
+
+        self.preview_table.setRowCount(len(notes))
+
+        # Create appropriate color for highlighting based on dark mode
+        if self.is_dark_mode:
+            # Dark mode - use a darker green
+            highlight_color = QColor(50, 150, 50)
+        else:
+            # Light mode - use a light green
+            highlight_color = QColor(200, 255, 200)
+
+        for row, note in enumerate(notes):
+            note_id = note.id
+            note_updates = field_updates.get(note_id, {})
+
+            for col, field_name in enumerate(selected_fields):
+                # Check if field exists in note
+                try:
+                    # Check if this field has a preview update
+                    if field_name in note_updates:
+                        # Show preview value with green background
+                        content = note_updates[field_name]
+                        if len(content) > 50:
+                            content = content[:47] + "..."
+                        item = QTableWidgetItem(content)
+                        item.setBackground(highlight_color)
+                        item.setToolTip(note_updates[field_name])
+                    else:
+                        # Show original value
+                        content = note[field_name]
+                        if len(content) > 50:
+                            content = content[:47] + "..."
+                        item = QTableWidgetItem(content)
+                        item.setToolTip(note[field_name])
+
+                    self.preview_table.setItem(row, col, item)
+                except Exception:
+                    # Field doesn't exist in note
+                    item = QTableWidgetItem("")
+                    self.preview_table.setItem(row, col, item)
+
+        # Adjust column widths
+        header = self.preview_table.horizontalHeader()
+        if header:
+             header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)

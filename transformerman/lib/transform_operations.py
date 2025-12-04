@@ -13,8 +13,6 @@ from aqt.operations import QueryOp
 from aqt.utils import showInfo
 from aqt.qt import QProgressDialog, QWidget, Qt
 
-from ..ui.results_dialog import ResultsDialog
-
 if TYPE_CHECKING:
     from pathlib import Path
     from anki.collection import Collection
@@ -98,14 +96,83 @@ class NoteTransformer:
         self.batches = notes_to_transform.create_batches(self.batch_size)
         self.total_batches = len(self.batches)
 
-    def _handle_batch(
+    def _get_batch_field_updates(
+        self,
+        batch_selected_notes: SelectedNotes,
+        log_request: Callable[[str], None],
+        log_response: Callable[[LmResponse], None],
+    ) -> tuple[int, int, dict[int, dict[str, str]]]:
+        """
+        Get field updates for a single batch of notes (preview mode).
+
+        Args:
+            batch_selected_notes: Batch of notes to process.
+            log_request: Function to log LM requests.
+            log_response: Function to log LM responses.
+
+        Returns:
+            Tuple of (updated_count, failed_count, field_updates) for this batch.
+            field_updates is a dict mapping note_id -> dict of field_name -> new_value.
+        """
+        updated = 0
+        failed = 0
+        field_updates_dict: dict[int, dict[str, str]] = {}
+
+        try:
+            # Build prompt
+            prompt = self.prompt_builder.build_prompt(
+                self.col, batch_selected_notes, self.selected_fields, self.note_type_name
+            )
+
+            # Log request
+            log_request(prompt)
+
+            # Get LM response
+            response = self.lm_client.transform(prompt)
+
+            # Log response
+            log_response(response)
+
+            # Parse response
+            field_updates = response.get_notes_from_xml()
+
+            # Collect field updates (preview mode)
+            for nid in batch_selected_notes.note_ids:
+                try:
+                    note = self.col.get_note(nid)
+                    updates = field_updates.get(nid, {})
+
+                    batch_field_updates: dict[str, str] = {}
+
+                    for field_name, content in updates.items():
+                        # Only collect if field is in selected fields and is empty
+                        if field_name in self.selected_fields and not note[field_name].strip():
+                            batch_field_updates[field_name] = content
+
+                    if batch_field_updates:
+                        # Store field updates for preview
+                        field_updates_dict[nid] = batch_field_updates
+                        updated += 1
+
+                except Exception as e:
+                    print(f"Error processing note {nid} in preview: {e!r}")
+                    failed += 1
+                    continue
+
+        except Exception as e:
+            print(f"Error processing batch in preview: {e!r}")
+            failed += len(batch_selected_notes.note_ids)
+
+        return updated, failed, field_updates_dict
+
+    def _apply_batch_updates(
         self,
         batch_selected_notes: SelectedNotes,
         log_request: Callable[[str], None],
         log_response: Callable[[LmResponse], None],
     ) -> tuple[int, int]:
         """
-        Process a single batch of notes.
+        Apply updates to a single batch of notes (apply mode).
 
         Args:
             batch_selected_notes: Batch of notes to process.
@@ -136,13 +203,13 @@ class NoteTransformer:
             # Parse response
             field_updates = response.get_notes_from_xml()
 
-            # Update notes
+            # Apply updates to notes
             for nid in batch_selected_notes.note_ids:
                 try:
                     note = self.col.get_note(nid)
                     updates = field_updates.get(nid, {})
-
                     note_updated = False
+
                     for field_name, content in updates.items():
                         # Only update if field is in selected fields and is empty
                         if field_name in self.selected_fields and not note[field_name].strip():
@@ -150,6 +217,7 @@ class NoteTransformer:
                             note_updated = True
 
                     if note_updated:
+                        # Actually update the note in the collection
                         self.col.update_note(note)
                         updated += 1
 
@@ -164,13 +232,77 @@ class NoteTransformer:
 
         return updated, failed
 
+    def get_field_updates(
+        self,
+        progress_callback: Callable[[int, int], None] | None = None,
+        should_cancel: Callable[[], bool] | None = None,
+    ) -> tuple[dict[str, int], dict[int, dict[str, str]]]:
+        """
+        Get field updates for notes in batches.
+
+        Makes API calls to get field updates but does not apply them.
+        Use apply_field_updates() later to apply the stored updates.
+
+        Args:
+            progress_callback: Optional callback for progress reporting.
+                Called with (current_batch, total_batches).
+            should_cancel: Optional callback to check if operation should be canceled.
+                Should return True if operation should be canceled.
+
+        Returns:
+            Tuple of (results, field_updates) where:
+            - results: Dictionary with transformation results:
+                - "updated": Number of fields that would be updated
+                - "failed": Number of notes that failed
+                - "batches_processed": Number of batches processed
+            - field_updates: dict mapping note_id -> dict of field_name -> new_value
+        """
+        total_updated = 0
+        total_failed = 0
+        batch_idx = 0
+        all_field_updates: dict[int, dict[str, str]] = {}
+
+        log_request, log_response = create_lm_logger(self.addon_config, self.user_files_dir)
+
+        for batch_idx, batch_selected_notes in enumerate(self.batches):
+            # Check if operation should be canceled
+            if should_cancel and should_cancel():
+                break
+
+            # Report progress
+            if progress_callback:
+                progress_callback(batch_idx, self.total_batches)
+
+            # Get field updates for batch (preview mode)
+            updated, failed, batch_field_updates = self._get_batch_field_updates(
+                batch_selected_notes, log_request, log_response
+            )
+            total_updated += updated
+            total_failed += failed
+            all_field_updates.update(batch_field_updates)
+
+        # Report completion
+        if progress_callback:
+            progress_callback(self.total_batches, self.total_batches)
+
+        results = {
+            "updated": total_updated,
+            "failed": total_failed,
+            "batches_processed": batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
+        }
+
+        return results, all_field_updates
+
     def transform(
         self,
         progress_callback: Callable[[int, int], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
     ) -> dict[str, int]:
         """
-        Transform notes in batches.
+        Transform notes in batches (immediate application).
+
+        Makes API calls to get field updates and applies them immediately.
+        This is the old workflow for direct transformation without preview.
 
         Args:
             progress_callback: Optional callback for progress reporting.
@@ -199,8 +331,10 @@ class NoteTransformer:
             if progress_callback:
                 progress_callback(batch_idx, self.total_batches)
 
-            # Process batch
-            updated, failed = self._handle_batch(batch_selected_notes, log_request, log_response)
+            # Apply updates to batch (apply mode)
+            updated, failed = self._apply_batch_updates(
+                batch_selected_notes, log_request, log_response
+            )
             total_updated += updated
             total_failed += failed
 
@@ -227,9 +361,13 @@ def transform_notes_with_progress(  # noqa: PLR0913
     batch_size: int,
     addon_config: AddonConfig,
     user_files_dir: Path,
+    on_success: Callable[[dict[str, int], dict[int, dict[str, str]]], None],
 ) -> None:
     """
     Transform notes in batches with progress tracking.
+
+    Makes API calls to get field updates and returns them.
+    The UI decides whether to show preview or apply updates.
 
     Args:
         parent: Parent widget for dialogs.
@@ -243,6 +381,8 @@ def transform_notes_with_progress(  # noqa: PLR0913
         batch_size: Number of notes per batch.
         addon_config: Addon configuration instance.
         user_files_dir: Directory for user files.
+        on_success: Callback for transformation success.
+            Called with (results, field_updates) when transformation completes successfully.
     """
     # Create NoteTransformer (UI-agnostic)
     transformer = NoteTransformer(
@@ -270,7 +410,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
     progress.setMinimumDuration(0)  # Show immediately
     progress.show()
 
-    def process_batches(col: Collection) -> dict[str, int]:
+    def process_batches(col: Collection) -> tuple[dict[str, int], dict[int, dict[str, str]]]:
         """Background operation that processes each batch."""
         # Create callbacks for progress and cancellation
         def progress_callback(current: int, total: int) -> None:
@@ -282,35 +422,71 @@ def transform_notes_with_progress(  # noqa: PLR0913
         def should_cancel() -> bool:
             return progress.wasCanceled()
 
-        # Run transformation with callbacks
-        return transformer.transform(
+        # Run transformation with callbacks (always returns field updates)
+        return transformer.get_field_updates(
             progress_callback=progress_callback,
             should_cancel=should_cancel,
         )
 
-    def on_success(results: dict[str, int]) -> None:
-        """Called when operation succeeds."""
+    def on_success_callback(result_tuple: tuple[dict[str, int], dict[int, dict[str, str]]]) -> None:
+        """Called when transformation succeeds."""
         progress.close()
-
-        # Create and show results dialog
-        dialog = ResultsDialog(
-            parent=parent,
-            col=col,
-            note_ids=note_ids,
-            selected_fields=selected_fields,
-            note_type_name=note_type_name,
-            results=results,
-        )
-        dialog.exec()
+        results, field_updates = result_tuple
+        on_success(results, field_updates)
 
     def on_failure(exc: Exception) -> None:
         """Called when operation fails."""
         progress.close()
-        showInfo(f"Error during transformation: {exc!s}")
+        showInfo(f"Error during transformation: {exc!s}", parent=parent)
 
     # Run the operation in the background
     QueryOp(
         parent=parent,
         op=lambda col: process_batches(col),
-        success=on_success,
+        success=on_success_callback,
     ).failure(on_failure).run_in_background()
+
+
+def apply_field_updates(
+    col: Collection,
+    field_updates: dict[int, dict[str, str]],
+) -> dict[str, int]:
+    """
+    Apply stored field updates to the Anki collection.
+
+    Args:
+        col: Anki collection.
+        field_updates: Dictionary mapping note_id -> dict of field_name -> new_value.
+
+    Returns:
+        Dictionary with application results:
+            - "updated": Number of notes updated
+            - "failed": Number of notes that failed
+    """
+    updated = 0
+    failed = 0
+
+    for note_id_int, updates in field_updates.items():
+        try:
+            # Convert to NoteId type
+            note_id: NoteId = note_id_int  # type: ignore[assignment]
+            note = col.get_note(note_id)
+            note_updated = False
+
+            for field_name, content in updates.items():
+                if field_name in note:
+                    note[field_name] = content
+                    note_updated = True
+
+            if note_updated:
+                col.update_note(note)
+                updated += 1
+
+        except Exception as e:
+            print(f"Error applying updates to note {note_id_int}: {e!r}")
+            failed += 1
+
+    return {
+        "updated": updated,
+        "failed": failed,
+    }

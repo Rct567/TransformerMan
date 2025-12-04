@@ -12,11 +12,7 @@ from aqt.qt import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView,
     QWidget,
-    QScrollArea,
 )
 
 from .base_dialog import TransformerManBaseDialog
@@ -61,13 +57,12 @@ class ResultsDialog(TransformerManBaseDialog):
 
         self._setup_ui()
         self._load_results()
-        self._load_updated_notes()
 
     def _setup_ui(self) -> None:
         """Setup the UI components."""
         self.setWindowTitle("Transformation Results")
-        self.setMinimumWidth(700)
-        self.setMinimumHeight(500)
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(300)
 
         layout = QVBoxLayout()
 
@@ -76,27 +71,6 @@ class ResultsDialog(TransformerManBaseDialog):
 
         self.results_label = QLabel()
         layout.addWidget(self.results_label)
-
-        # Separator
-        layout.addWidget(QLabel("<hr>"))
-
-        # Updated notes section
-        layout.addWidget(QLabel("<h3>Updated Notes</h3>"))
-        layout.addWidget(QLabel(f"Showing notes with updated fields (note type: {self.note_type_name}):"))
-
-        # Scrollable table for notes
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setMinimumHeight(300)
-
-        self.notes_table = QTableWidget()
-        self.notes_table.setAlternatingRowColors(True)
-        vertical_header = self.notes_table.verticalHeader()
-        if vertical_header:
-            vertical_header.setVisible(False)
-        scroll_area.setWidget(self.notes_table)
-
-        layout.addWidget(scroll_area)
 
         # Close button
         button_layout = QHBoxLayout()
@@ -107,6 +81,7 @@ class ResultsDialog(TransformerManBaseDialog):
         button_layout.addWidget(self.close_button)
 
         layout.addLayout(button_layout)
+        layout.addStretch()
 
         self.setLayout(layout)
 
@@ -134,68 +109,3 @@ class ResultsDialog(TransformerManBaseDialog):
         html += "</div>"
 
         self.results_label.setText(html)
-
-    def _load_updated_notes(self) -> None:
-        """Load and display updated notes with selected fields."""
-        if not self.selected_fields:
-            self.notes_table.clear()
-            self.notes_table.setColumnCount(0)
-            self.notes_table.setRowCount(0)
-            self.notes_table.setHorizontalHeaderLabels([])
-            return
-
-        # Get fresh notes from collection
-        notes = []
-        for note_id in self.note_ids:
-            try:
-                note = self.col.get_note(note_id)
-                notes.append(note)
-            except Exception:
-                continue
-
-        if not notes:
-            self.notes_table.clear()
-            self.notes_table.setColumnCount(0)
-            self.notes_table.setRowCount(0)
-            self.notes_table.setHorizontalHeaderLabels([])
-            return
-
-        # Setup columns: Note ID + selected fields
-        columns = ["Note ID"] + sorted(self.selected_fields)
-        self.notes_table.setColumnCount(len(columns))
-        self.notes_table.setHorizontalHeaderLabels(columns)
-
-        self.notes_table.setRowCount(len(notes))
-
-        for row, note in enumerate(notes):
-            # Note ID
-            item = QTableWidgetItem(str(note.id))
-            item.setToolTip(f"Note ID: {note.id}")
-            self.notes_table.setItem(row, 0, item)
-
-            # Selected fields
-            for col_idx, field_name in enumerate(sorted(self.selected_fields), start=1):
-                if field_name in note:
-                    content = note[field_name]
-                    # Truncate long content for display
-                    display_content = content
-                    if len(content) > 100:
-                        display_content = content[:97] + "..."
-
-                    item = QTableWidgetItem(display_content)
-                    item.setToolTip(content)  # Show full content on hover
-                    self.notes_table.setItem(row, col_idx, item)
-                else:
-                    item = QTableWidgetItem("")
-                    self.notes_table.setItem(row, col_idx, item)
-
-        # Adjust column widths - Note ID fixed but resizable, other columns expand equally
-        header = self.notes_table.horizontalHeader()
-        if header:
-            # Set Note ID column to a reasonable fixed width but still resizable
-            self.notes_table.setColumnWidth(0, 120)
-            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-
-            # Set all field columns to Stretch mode so they expand equally
-            for col in range(1, self.notes_table.columnCount()):
-                header.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
