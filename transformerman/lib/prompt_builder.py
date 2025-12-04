@@ -47,21 +47,23 @@ class PromptBuilder:
                 if field_name in selected_fields:
                     prompt_parts.append(f"- For field '{field_name}': {instruction}")
         else:
-            prompt_parts.append("- Fill empty fields intelligently based on field names, deck context, and examples.")
+            # Adjust instruction based on whether examples are available
+            if example_notes:
+                prompt_parts.append("- Fill empty fields intelligently based on field names, deck context, and examples.")
+            else:
+                prompt_parts.append("- Fill empty fields intelligently based on field names and deck context.")
 
-        prompt_parts.extend([
-            "",
-            "Here are some example notes from the collection:",
-            "",
-        ])
-
-        # Add example notes
+        # Only include examples section if there are examples
         if example_notes:
-            prompt_parts.append(self._format_notes_as_xml(example_notes, note_type_name, selected_fields))
-            prompt_parts.append("")
-        else:
-            prompt_parts.append("(No examples available)")
-            prompt_parts.append("")
+            prompt_parts.extend(
+                [
+                    "",
+                    "Here are some example notes from the collection:",
+                    "",
+                    self._format_notes_as_xml(example_notes, note_type_name, selected_fields),
+                    "",
+                ]
+            )
 
         # Get target notes and filter to only include those with empty fields
         target_note_objects = target_notes.get_notes(target_notes.note_ids)
