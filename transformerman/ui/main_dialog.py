@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from aqt.qt import (
-    QDialog,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -25,6 +24,8 @@ from aqt.qt import (
 
 from aqt.utils import showInfo
 
+from .base_dialog import TransformerManBaseDialog
+
 from ..lib.transform_operations import transform_notes_with_progress
 from ..lib.prompt_builder import PromptBuilder
 from ..lib.selected_notes import SelectedNotes
@@ -37,7 +38,7 @@ if TYPE_CHECKING:
     from ..lib.addon_config import AddonConfig
 
 
-class TransformerManMainDialog(QDialog):
+class TransformerManMainDialog(TransformerManBaseDialog):
     """Main dialog for TransformerMan plugin."""
 
     def __init__(

@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from aqt.qt import (
-    QDialog,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -20,12 +19,14 @@ from aqt.qt import (
     QScrollArea,
 )
 
+from .base_dialog import TransformerManBaseDialog
+
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
 
 
-class ResultsDialog(QDialog):
+class ResultsDialog(TransformerManBaseDialog):
     """Dialog to show transformation results and updated notes."""
 
     def __init__(

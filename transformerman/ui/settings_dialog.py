@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from aqt.qt import (
-    QDialog,
     QVBoxLayout,
     QHBoxLayout,
     QLineEdit,
@@ -30,8 +29,10 @@ if TYPE_CHECKING:
 from ..lib.lm_clients import LM_CLIENTS, create_lm_client
 from ..lib.utilities import override
 
+from .base_dialog import TransformerManBaseDialog
 
-class SettingsDialog(QDialog):
+
+class SettingsDialog(TransformerManBaseDialog):
     """Settings dialog for TransformerMan plugin."""
 
     def __init__(self, parent: QWidget, addon_config: AddonConfig) -> None:
@@ -243,15 +244,21 @@ class SettingsDialog(QDialog):
                 self._on_save_clicked()
                 if a0:
                     a0.accept()
+                # Call parent closeEvent to save geometry
+                super().closeEvent(a0)
             elif reply == QMessageBox.StandardButton.Discard:
                 # Discard changes and close
                 if a0:
                     a0.accept()
+                # Call parent closeEvent to save geometry
+                super().closeEvent(a0)
             else:
-                # Cancel close
+                # Cancel close - don't save geometry since dialog isn't closing
                 if a0:
                     a0.ignore()
         else:
             # No unsaved changes, proceed with close
             if a0:
                 a0.accept()
+            # Call parent closeEvent to save geometry
+            super().closeEvent(a0)
