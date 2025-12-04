@@ -12,7 +12,7 @@ from .selected_notes import SelectedNotes
 
 if TYPE_CHECKING:
     from anki.collection import Collection
-    from anki.notes import Note
+    from anki.notes import Note, NoteId
 
 
 class PromptBuilder:
@@ -123,11 +123,22 @@ class PromptBuilder:
         if not notetype:
             return []
 
-        # Get all note IDs of this type
-        note_ids = col.find_notes(f'"note:{note_type_name}"')
+        def find_candidate_notes(query: str) -> list[NoteId]:
+            note_ids = col.find_notes(query)
+            # Filter out target notes
+            return [nid for nid in note_ids if nid not in target_note_ids]
 
-        # Filter out target notes
-        candidate_note_ids = [nid for nid in note_ids if nid not in target_note_ids]
+        # Try refined query first: filter out notes with empty selected fields
+        refined_query_parts = [f'"note:{note_type_name}"']
+        for field in selected_fields:
+            refined_query_parts.append(f'-{field}:')
+
+        candidate_note_ids = find_candidate_notes(' '.join(refined_query_parts))
+
+        # If refined query doesn't produce enough candidate notes, fall back to original query
+        if len(candidate_note_ids) < max_examples:
+            # Get all note IDs of this type
+            candidate_note_ids += [note_id for note_id in find_candidate_notes(f'"note:{note_type_name}"') if note_id not in candidate_note_ids]
 
         if not candidate_note_ids:
             return []
@@ -135,7 +146,7 @@ class PromptBuilder:
         # Score each candidate
         scored_candidates: list[tuple[int, int, Note]] = []
 
-        for nid in candidate_note_ids[:100]:  # Limit to first 100 for performance
+        for nid in candidate_note_ids[:300]:  # Limit to first 300 for performance
             try:
                 note = col.get_note(nid)
 
