@@ -31,7 +31,12 @@ class PromptBuilder:
     ) -> str:
         """
         Build a complete prompt for the LM including examples and target notes.
+
+        Precondition: `target_notes` must contain at least one note with an empty field
+        among `selected_fields`. This is enforced by an assertion.
         """
+        assert target_notes.has_note_with_empty_field(selected_fields)
+
         # Get example notes
         example_notes = self._select_example_notes(col, target_notes, selected_fields, note_type_name)
 

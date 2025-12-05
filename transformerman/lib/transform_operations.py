@@ -93,9 +93,14 @@ class NoteTransformer:
         if not notes_to_transform.has_note_with_empty_field(self.selected_fields):
             raise ValueError("No notes with empty fields found")
 
+        # Filter to only notes with empty fields
+        notes_to_transform = notes_to_transform.filter_by_empty_field(self.selected_fields)
+        # Update note_ids to filtered IDs
+        self.note_ids = notes_to_transform.note_ids
+
         # Create batches
-        self.batches = notes_to_transform.create_batches(self.batch_size)
-        self.total_batches = len(self.batches)
+        self.batches = notes_to_transform.batched(self.batch_size)
+        self.num_batches = len(self.batches)
 
     def _get_batch_field_updates(
         self,
@@ -272,7 +277,7 @@ class NoteTransformer:
 
             # Report progress
             if progress_callback:
-                progress_callback(batch_idx, self.total_batches)
+                progress_callback(batch_idx, self.num_batches)
 
             # Get field updates for batch (preview mode)
             updated, failed, batch_field_updates = self._get_batch_field_updates(
@@ -284,7 +289,7 @@ class NoteTransformer:
 
         # Report completion
         if progress_callback:
-            progress_callback(self.total_batches, self.total_batches)
+            progress_callback(self.num_batches, self.num_batches)
 
         results = {
             "updated": total_updated,
@@ -330,7 +335,7 @@ class NoteTransformer:
 
             # Report progress
             if progress_callback:
-                progress_callback(batch_idx, self.total_batches)
+                progress_callback(batch_idx, self.num_batches)
 
             # Apply updates to batch (apply mode)
             updated, failed = self._apply_batch_updates(
@@ -341,7 +346,7 @@ class NoteTransformer:
 
         # Report completion
         if progress_callback:
-            progress_callback(self.total_batches, self.total_batches)
+            progress_callback(self.num_batches, self.num_batches)
 
         return {
             "updated": total_updated,
@@ -401,10 +406,10 @@ def transform_notes_with_progress(  # noqa: PLR0913
 
     # Create progress dialog
     progress = QProgressDialog(
-        f"Processing batch 0 of {transformer.total_batches}...",
+        f"Processing batch 0 of {transformer.num_batches}...",
         "Cancel",
         0,
-        transformer.total_batches,
+        transformer.num_batches,
         parent,
     )
     progress.setWindowModality(Qt.WindowModality.WindowModal)

@@ -34,7 +34,14 @@ def mock_selected_notes() -> Mock:
     # Mock note with empty fields
     mock_note = Mock()
     mock_note.has_note_with_empty_field = Mock(return_value=True)
-    mock_note.create_batches = Mock(return_value=[Mock(note_ids=[1, 2]), Mock(note_ids=[3, 4])])
+    mock_note.filter_by_empty_field = Mock(return_value=mock_note)  # returns itself
+    mock_note.note_ids = [1, 2, 3, 4]
+    # Mock batched to return list of SelectedNotes mocks
+    batch1 = Mock()
+    batch1.note_ids = [1, 2]
+    batch2 = Mock()
+    batch2.note_ids = [3, 4]
+    mock_note.batched = Mock(return_value=[batch1, batch2])
 
     selected_notes.get_selected_notes = Mock(return_value=mock_note)
     return selected_notes
@@ -121,6 +128,9 @@ class TestNoteTransformer:
         # Mock notes without empty fields
         mock_selected_notes_without_empty = Mock()
         mock_selected_notes_without_empty.has_note_with_empty_field = Mock(return_value=False)
+        # Add required attributes (won't be used because validation fails)
+        mock_selected_notes_without_empty.filter_by_empty_field = Mock()
+        mock_selected_notes_without_empty.batched = Mock()
         mock_selected_notes.get_selected_notes = Mock(return_value=mock_selected_notes_without_empty)
 
         with pytest.raises(ValueError, match="No notes with empty fields found"):

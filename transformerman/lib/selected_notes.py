@@ -89,7 +89,7 @@ class SelectedNotes:
         # Sort by count descending
         return dict(sorted(counts.items(), key=lambda x: x[1], reverse=True))
 
-    def create_batches(self, batch_size: int) -> list[SelectedNotes]:
+    def batched(self, batch_size: int) -> list[SelectedNotes]:
         """
         Split the current SelectedNotes instance into batches.
 
@@ -184,3 +184,20 @@ class SelectedNotes:
             if SelectedNotes.has_empty_field(note, selected_fields):
                 return True
         return False
+
+    def filter_by_empty_field(self, selected_fields: set[str]) -> SelectedNotes:
+        """
+        Return a new SelectedNotes instance containing only notes that have at least one empty field among selected_fields.
+
+        Args:
+            selected_fields: Set of field names to consider.
+
+        Returns:
+            New SelectedNotes instance with filtered note IDs.
+        """
+        filtered_ids: list[NoteId] = []
+        for nid in self.note_ids:
+            note = self.get_note(nid)
+            if SelectedNotes.has_empty_field(note, selected_fields):
+                filtered_ids.append(nid)
+        return self.get_selected_notes(filtered_ids)
