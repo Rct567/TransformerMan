@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from .utilities import batched
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import Note, NoteId
 
@@ -17,15 +18,15 @@ if TYPE_CHECKING:
 class SelectedNotes:
     """Manages selected notes for transformation."""
 
-    note_ids: list[NoteId]
+    note_ids: Sequence[NoteId]
 
-    def __init__(self, col: Collection, note_ids: list[NoteId]) -> None:
+    def __init__(self, col: Collection, note_ids: Sequence[NoteId]) -> None:
         """
         Initialize with collection and selected note IDs.
 
         Args:
             col: Anki collection.
-            note_ids: List of selected note IDs.
+            note_ids: Sequence of selected note IDs.
         """
         self.col = col
         self.note_ids = note_ids
@@ -49,7 +50,7 @@ class SelectedNotes:
         return note
 
 
-    def filter_by_note_type(self, note_type_name: str) -> list[NoteId]:
+    def filter_by_note_type(self, note_type_name: str) -> Sequence[NoteId]:
         """
         Filter notes by note type name.
 
@@ -101,16 +102,16 @@ class SelectedNotes:
         batches: list[SelectedNotes] = []
 
         for batch_note_ids in batched(self.note_ids, batch_size):
-            batches.append(self.get_selected_notes(list(batch_note_ids)))
+            batches.append(self.get_selected_notes(batch_note_ids))
 
         return batches
 
-    def get_notes(self, note_ids: list[NoteId] | None = None) -> list[Note]:
+    def get_notes(self, note_ids: Sequence[NoteId] | None = None) -> Sequence[Note]:
         """
         Get Note objects from note IDs.
 
         Args:
-            note_ids: List of note IDs. If None, uses the note_ids of this instance.
+            note_ids: Sequence of note IDs. If None, uses the note_ids of this instance.
 
         Returns:
             List of Note objects.
@@ -126,12 +127,12 @@ class SelectedNotes:
 
         return notes
 
-    def get_selected_notes(self, note_ids: list[NoteId]) -> SelectedNotes:
+    def get_selected_notes(self, note_ids: Sequence[NoteId]) -> SelectedNotes:
         """
         Get a new SelectedNotes instance containing only the specified note IDs.
 
         Args:
-            note_ids: List of note IDs.
+            note_ids: Sequence of note IDs.
 
         Returns:
             New SelectedNotes instance.

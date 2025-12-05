@@ -21,6 +21,7 @@ from aqt.operations import QueryOp
 from ..lib.utilities import batched
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import NoteId, Note
     from ..lib.selected_notes import SelectedNotes
@@ -83,7 +84,7 @@ class PreviewTable(QTableWidget):
 
     def set_note_fields_update(
         self,
-        filtered_ids: list[NoteId],
+        filtered_ids: Sequence[NoteId],
         selected_fields: list[str],
         field_updates: dict[NoteId, dict[str, str]] | None = None,
     ) -> None:
@@ -109,7 +110,7 @@ class PreviewTable(QTableWidget):
         self.setRowCount(len(filtered_ids))
 
         # Load notes in background
-        self._load_notes_in_background(filtered_ids, selected_fields, field_updates)
+        self._load_notes_in_background(list(filtered_ids), selected_fields, field_updates)
 
 
     def _create_table_item(self, full_content: str, is_highlighted: bool) -> QTableWidgetItem:

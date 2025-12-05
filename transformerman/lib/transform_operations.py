@@ -14,6 +14,7 @@ from aqt.utils import showInfo
 from aqt.qt import QProgressDialog, QWidget, Qt
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
     from anki.collection import Collection
     from anki.notes import NoteId
@@ -52,7 +53,7 @@ class NoteTransformer:
         self,
         col: Collection,
         selected_notes: SelectedNotes,
-        note_ids: list[NoteId],
+        note_ids: Sequence[NoteId],
         lm_client: LMClient,
         prompt_builder: PromptBuilder,
         selected_fields: set[str],
@@ -353,7 +354,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
     parent: QWidget,
     col: Collection,
     selected_notes: SelectedNotes,
-    note_ids: list[NoteId],
+    note_ids: Sequence[NoteId],
     lm_client: LMClient,
     prompt_builder: PromptBuilder,
     selected_fields: set[str],

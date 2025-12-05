@@ -11,6 +11,7 @@ from .xml_parser import escape_xml_content
 from .selected_notes import SelectedNotes
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import Note, NoteId
 
@@ -91,7 +92,7 @@ class PromptBuilder:
         selected_fields: set[str],
         note_type_name: str,
         max_examples: int = 3,
-    ) -> list[Note]:
+    ) -> Sequence[Note]:
         """
         Select up to max_examples example notes from the collection.
 
@@ -170,7 +171,7 @@ class PromptBuilder:
 
     def _format_notes_as_xml(
         self,
-        notes: list[Note],
+        notes: Sequence[Note],
         note_type_name: str,
         fields_included: set[str],
     ) -> str:
