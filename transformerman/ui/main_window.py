@@ -21,7 +21,6 @@ from aqt.qt import (
 )
 from aqt.utils import showInfo
 
-
 from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 
@@ -29,6 +28,7 @@ from ..lib.transform_operations import transform_notes_with_progress, apply_fiel
 from ..lib.prompt_builder import PromptBuilder
 from ..lib.selected_notes import SelectedNotes
 
+import logging
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -69,6 +69,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.note_ids = note_ids
         self.lm_client = lm_client
         self.addon_config = addon_config
+        self.logger = logging.getLogger(__name__)
         self.user_files_dir = user_files_dir
 
         self.selected_notes = SelectedNotes(col, note_ids)
@@ -128,7 +129,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Preview Table
         layout.addWidget(QLabel("Selected notes:"))
-        self.preview_table = PreviewTable(parent=self, is_dark_mode=self.is_dark_mode)
+        self.preview_table = PreviewTable(self, self.is_dark_mode)
         self.preview_table.set_selected_notes(self.selected_notes)
         layout.addWidget(self.preview_table, 1)
 
@@ -321,7 +322,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             return
 
         # Apply field updates
-        results = apply_field_updates(self.col, self.preview_results)
+        results = apply_field_updates(self.col, self.preview_results, self.logger)
 
         # Show results
         updated = results.get("updated", 0)

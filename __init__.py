@@ -5,7 +5,6 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from typing import Any, TYPE_CHECKING
@@ -21,7 +20,6 @@ from .transformerman.lib.addon_config import AddonConfig
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from aqt.browser.browser import Browser
 
 

@@ -5,6 +5,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable
 
@@ -87,6 +88,7 @@ class NoteTransformer:
         self.batch_size = batch_size
         self.addon_config = addon_config
         self.user_files_dir = user_files_dir
+        self.logger = logging.getLogger(__name__)
 
         # Validate that we have notes with empty fields
         notes_to_transform = self.selected_notes.get_selected_notes(self.note_ids)
@@ -161,12 +163,12 @@ class NoteTransformer:
                         updated += 1
 
                 except Exception as e:
-                    print(f"Error processing note {nid} in preview: {e!r}")
+                    self.logger.error(f"Error processing note {nid} in preview: {e!r}")
                     failed += 1
                     continue
 
         except Exception as e:
-            print(f"Error processing batch in preview: {e!r}")
+            self.logger.error(f"Error processing batch in preview: {e!r}")
             failed += len(batch_selected_notes.note_ids)
 
         return updated, failed, field_updates_dict
@@ -228,12 +230,12 @@ class NoteTransformer:
                         updated += 1
 
                 except Exception as e:
-                    print(f"Error updating note {nid}: {e!r}")
+                    self.logger.error(f"Error updating note {nid}: {e!r}")
                     failed += 1
                     continue
 
         except Exception as e:
-            print(f"Error processing batch: {e!r}")
+            self.logger.error(f"Error processing batch: {e!r}")
             failed += len(batch_selected_notes.note_ids)
 
         return updated, failed
@@ -456,6 +458,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
 def apply_field_updates(
     col: Collection,
     field_updates: dict[NoteId, dict[str, str]],
+    logger: logging.Logger,
 ) -> dict[str, int]:
     """
     Apply stored field updates to the Anki collection.
@@ -487,7 +490,7 @@ def apply_field_updates(
                 updated += 1
 
         except Exception as e:
-            print(f"Error applying updates to note {note_id}: {e!r}")
+            logger.error(f"Error applying updates to note {note_id}: {e!r}")
             failed += 1
 
     return {

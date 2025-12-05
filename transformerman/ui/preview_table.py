@@ -20,6 +20,8 @@ from aqt.operations import QueryOp
 
 from ..lib.utilities import batched
 
+import logging
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
@@ -52,8 +54,8 @@ class PreviewTable(QTableWidget):
 
     def __init__(
         self,
-        parent: QWidget | None = None,
-        is_dark_mode: bool = False,
+        parent: QWidget,
+        is_dark_mode: bool,
     ) -> None:
         """
         Initialize the preview table.
@@ -64,6 +66,7 @@ class PreviewTable(QTableWidget):
         """
         super().__init__(parent)
         self.is_dark_mode = is_dark_mode
+        self.logger = logging.getLogger(__name__)
 
         # Configure table appearance
         self.setAlternatingRowColors(True)
@@ -234,7 +237,7 @@ class PreviewTable(QTableWidget):
 
         def on_failure(exc: Exception) -> None:
             """Handle failure in background loading."""
-            print(f"Error loading notes in background: {exc!s}")
+            self.logger.error(f"Error loading notes in background: {exc!s}")
 
         # Run the operation in the background
         QueryOp(

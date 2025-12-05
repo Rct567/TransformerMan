@@ -12,7 +12,7 @@ class TestLmClient:
 
     def test_dummy_client_basic_response(self) -> None:
         """Test that DummyLMClient returns valid XML response."""
-        client = DummyLMClient()
+        client = DummyLMClient("", "")
 
         prompt = '''<notes model="Basic">
   <note nid="123" deck="Test Deck">
@@ -30,7 +30,7 @@ class TestLmClient:
 
     def test_dummy_client_multiple_notes(self) -> None:
         """Test DummyLMClient with multiple notes."""
-        client = DummyLMClient()
+        client = DummyLMClient("", "")
 
         prompt = '''<notes model="Basic">
   <note nid="123" deck="Test">
@@ -51,7 +51,7 @@ class TestLmClient:
 
     def test_dummy_client_preserves_existing_content(self) -> None:
         """Test that DummyLMClient preserves existing field content."""
-        client = DummyLMClient()
+        client = DummyLMClient("", "")
 
         prompt = '''<notes model="Basic">
   <note nid="123" deck="Test">
@@ -68,7 +68,7 @@ class TestLmClient:
 
     def test_dummy_client_empty_prompt(self) -> None:
         """Test DummyLMClient with empty prompt."""
-        client = DummyLMClient()
+        client = DummyLMClient("", "")
 
         response = client.transform("")
 

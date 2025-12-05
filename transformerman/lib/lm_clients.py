@@ -16,9 +16,10 @@ import urllib.request
 from .utilities import override
 from .xml_parser import notes_from_xml
 
+import logging
+
 if TYPE_CHECKING:
     from anki.notes import NoteId
-
 
 LM_CLIENTS = {
     "dummy": "DummyLMClient",
@@ -51,6 +52,15 @@ class LmResponse:
 class LMClient(ABC):
     """Abstract base class for language model clients."""
 
+    logger: logging.Logger
+    _api_key: str
+    _model: str
+
+    def __init__(self, api_key: str, model: str) -> None:
+        self._api_key = api_key
+        self._model = model
+        self.logger = logging.getLogger(__name__)
+
     @property
     @abstractmethod
     def id(self) -> str:
@@ -68,10 +78,6 @@ class LMClient(ABC):
 
 class DummyLMClient(LMClient):
     """Dummy LM client that returns mock responses for testing."""
-
-    def __init__(self, api_key: str = "", model: str = "") -> None:
-        self._api_key = api_key
-        self._model = model
 
     @property
     @override
@@ -132,9 +138,6 @@ class DummyLMClient(LMClient):
 
 
 class OpenAILMClient(LMClient):
-    def __init__(self, api_key: str = "", model: str = "") -> None:
-        self._api_key = api_key
-        self._model = model
 
     @property
     @override
@@ -156,9 +159,6 @@ class OpenAILMClient(LMClient):
 
 
 class ClaudeLMClient(LMClient):
-    def __init__(self, api_key: str = "", model: str = "") -> None:
-        self._api_key = api_key
-        self._model = model
 
     @property
     @override
@@ -178,9 +178,7 @@ class ClaudeLMClient(LMClient):
         ]
 
 class GeminiLMClient(LMClient):
-    def __init__(self, api_key: str = "", model: str = "") -> None:
-        self._api_key = api_key
-        self._model = model
+
 
     @property
     @override
@@ -232,18 +230,18 @@ class GeminiLMClient(LMClient):
                     raise KeyError("Missing 'text' in part")
                 return LmResponse(text)
             except (KeyError, IndexError, TypeError) as e:
-                print(f"Error parsing Gemini response: {e}")
+                self.logger.error(f"Error parsing Gemini response: {e}")
                 return LmResponse("", f"Error parsing AI response: {e}", e)
 
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8")
-            print(f"Gemini HTTP Error {e.code}: {error_body}")
+            self.logger.error(f"Gemini HTTP Error {e.code}: {error_body}")
             return LmResponse("", f"API Error: {e.code}", e)
         except urllib.error.URLError as e:
-            print(f"Gemini Network Error: {e}")
+            self.logger.error(f"Gemini Network Error: {e}")
             return LmResponse("", f"Network Error: {e.reason}", e)
         except Exception as e:
-            print(f"Gemini Unexpected error: {e}")
+            self.logger.error(f"Gemini Unexpected error: {e}")
             return LmResponse("", f"Error: {e!s}", e)
 
     @override
@@ -254,7 +252,7 @@ class GeminiLMClient(LMClient):
         ]
 
 
-def create_lm_client(name: str, api_key: str = "", model: str = "") -> LMClient:
+def create_lm_client(name: str, api_key: str, model: str) -> LMClient:
     cls_name = LM_CLIENTS.get(name, "DummyLMClient")
     cls = globals().get(cls_name, DummyLMClient)
     return cls(api_key, model)

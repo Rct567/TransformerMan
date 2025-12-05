@@ -8,13 +8,11 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from .utilities import JSON_TYPE
     from aqt.main import AnkiQt
-    from .lm_clients import LMClient
 
-from .lm_clients import create_lm_client
+from .lm_clients import create_lm_client, LMClient
 
 
 class AddonConfig:

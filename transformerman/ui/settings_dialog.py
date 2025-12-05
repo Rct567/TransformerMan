@@ -200,7 +200,7 @@ class SettingsDialog(TransformerManBaseDialog):
     def _populate_models_for_client(self, client_name: str) -> None:
         # Get API key for this client
         api_key = self.addon_config.get_api_key(client_name)
-        client = create_lm_client(client_name, api_key)
+        client = create_lm_client(client_name, api_key, "")
         models = client.get_available_models()
         self.model_combo.clear()
         if models:
