@@ -9,7 +9,7 @@
   - `transformerman/lib/` - Utility modules (config, logging, caching, database)
   - `transformerman/ui/` - Qt-based UI components (main window, tabs, dialogs)
 - **`tests/`** - Test suite with `test_*.py` files matching source modules
-- **`user_files/`** - User-generated data and logs
+- **`user_files/`** - User-generated data and logs (blocked by .gitignore)
 
 ### Key Files
 
@@ -30,8 +30,10 @@
 - All function signatures must have type hints
 - Avoid `Any` unless absolutely necessary (it rarely is)
 - Use modern syntax: `list[str]` not `List[str]`, `set[str]` not `Set[str]`
+- Use `Optional[]` for variables that can be `None`
+- Use `Sequence` instead of `list` for non-mutable sequences
 - Use `from typing import` only for: `Callable`, `Optional`, `TypeVar`, etc.
-- Use `from collections.abc import` for: `Generator`, `Iterator`, etc.
+- Use `from collections.abc import` for: `Generator`, `Iterator`, `Sequence` etc.
 - Always include return type hints (use `-> None` when appropriate)
 
 ### Naming Conventions
@@ -128,5 +130,3 @@
 4. **Fix issues** if tests fail and run tests again
 5. **Check code**: `ruff check && mypy && pyright`
 6. **Verify** all checks pass before considering task complete
-
- 
