@@ -5,11 +5,13 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from aqt import mw as anki_main_window, gui_hooks
+from aqt.main import AnkiQt
 from aqt.qt import QAction
 from aqt.utils import showInfo
 
@@ -19,14 +21,14 @@ from .transformerman.lib.addon_config import AddonConfig
 
 
 if TYPE_CHECKING:
-    from aqt.main import AnkiQt
+    from collections.abc import Callable
     from aqt.browser.browser import Browser
 
 
 def get_mw():
     return anki_main_window
 
-mw: Optional[AnkiQt] = get_mw()
+mw = get_mw()
 
 TM_ROOT_DIR = Path(__file__).parent
 TM_USER_FILES_DIR = TM_ROOT_DIR / 'user_files'
@@ -36,15 +38,9 @@ if not TM_USER_FILES_DIR.is_dir():
 
 ADDON_NAME = "TransformerMan"
 
-# Initialize settings
-if mw:
-    addon_config = AddonConfig.from_anki_main_window(mw)
 
-
-def open_settings() -> None:
+def open_settings(mw: AnkiQt, addon_config: AddonConfig) -> None:
     """Open the settings dialog."""
-    if not mw:
-        return
 
     addon_config.reload()
 
@@ -52,9 +48,9 @@ def open_settings() -> None:
     dialog.exec()
 
 
-def open_main_window(browser: Browser) -> None:
+def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) -> None:
     """Open the main TransformerMan window from card browser."""
-    if not mw or not mw.col:
+    if not mw.col:
         return
 
     # Get selected note IDs
@@ -84,18 +80,17 @@ def open_main_window(browser: Browser) -> None:
     window.exec()
 
 
-def setup_browser_menu(browser: Browser, menu: Any) -> None:
+def setup_browser_menu(mw: AnkiQt, browser: Browser, menu: Any, addon_config: AddonConfig) -> None:
     """Add TransformerMan to browser context menu."""
     action = QAction(ADDON_NAME, browser)
-    action.triggered.connect(lambda: open_main_window(browser))
+    action.triggered.connect(lambda: open_main_window(mw, browser, addon_config))
     menu.addAction(action)
 
 
-def setup_browser_top_menu(browser: Browser) -> None:
+def setup_browser_top_menu(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) -> None:
     """Add TransformerMan as a clickable button in the Browser's menu bar."""
-    # Create a clickable action (button) directly on the menu bar
     action = QAction(ADDON_NAME, browser)
-    action.triggered.connect(lambda: open_main_window(browser))
+    action.triggered.connect(lambda: open_main_window(mw, browser, addon_config))
 
     menu_bar = browser.form.menubar
     if not menu_bar:
@@ -106,13 +101,18 @@ def setup_browser_top_menu(browser: Browser) -> None:
 
 # Add menu items
 if mw:
+
+    assert isinstance(mw, AnkiQt)
+
+    addon_config = AddonConfig.from_anki_main_window(mw)
+
     # Add settings to Tools menu
     settings_action = QAction(f"{ADDON_NAME} Settings", mw)
-    settings_action.triggered.connect(open_settings)
+    settings_action.triggered.connect(lambda: open_settings(mw, addon_config))
     mw.form.menuTools.addAction(settings_action)
 
     # Add to browser context menu (right-click menu)
-    #gui_hooks.browser_will_show_context_menu.append(setup_browser_menu)
+    gui_hooks.browser_will_show_context_menu.append(lambda browser, menu: setup_browser_menu(mw, browser, menu, addon_config))
 
     # Add to browser top menu bar
-    gui_hooks.browser_menus_did_init.append(setup_browser_top_menu)
+    gui_hooks.browser_menus_did_init.append(lambda browser: setup_browser_top_menu(mw, browser, addon_config))
