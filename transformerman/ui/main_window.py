@@ -22,7 +22,7 @@ from aqt.qt import (
 from aqt.utils import showInfo
 
 
-from .base_window import TransformerManBaseWindow
+from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 
 from ..lib.transform_operations import transform_notes_with_progress, apply_field_updates
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from anki.notes import NoteId
 
 
-class TransformerManMainWindow(TransformerManBaseWindow):
+class TransformerManMainWindow(TransformerManBaseDialog):
     """Main window for TransformerMan plugin."""
 
     def __init__(
@@ -92,11 +92,8 @@ class TransformerManMainWindow(TransformerManBaseWindow):
         self.setMinimumWidth(500)
         self.setMinimumHeight(400)
 
-        # Create central widget
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-
-        layout = QVBoxLayout(central_widget)
+        # Create main layout for the dialog
+        layout = QVBoxLayout(self)
 
         # Note type selection
         note_type_layout = QHBoxLayout()

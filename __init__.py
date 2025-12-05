@@ -81,7 +81,7 @@ def open_main_window(browser: Browser) -> None:
         addon_config=addon_config,
         user_files_dir=TM_USER_FILES_DIR,
     )
-    window.show()
+    window.exec()
 
 
 def setup_browser_menu(browser: Browser, menu: Any) -> None:
