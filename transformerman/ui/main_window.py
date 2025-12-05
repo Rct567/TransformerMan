@@ -5,7 +5,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from aqt.qt import (
     QVBoxLayout,
@@ -23,8 +23,9 @@ from aqt.qt import (
     QHeaderView,
     QColor,
 )
-
+from aqt.operations import QueryOp
 from aqt.utils import showInfo
+
 
 from .base_window import TransformerManBaseWindow
 
@@ -32,12 +33,19 @@ from ..lib.transform_operations import transform_notes_with_progress, apply_fiel
 from ..lib.prompt_builder import PromptBuilder
 from ..lib.selected_notes import SelectedNotes
 
+
 if TYPE_CHECKING:
     from pathlib import Path
     from anki.collection import Collection
-    from anki.notes import NoteId
     from ..lib.lm_clients import LMClient
     from ..lib.addon_config import AddonConfig
+    from anki.notes import NoteId, Note
+
+
+class TableNoteData(TypedDict):
+    """Data structure for note information used in background loading for the preview table."""
+    note: Note
+    note_updates: dict[str, str]  # Field updates from preview transformation (field_name -> new_value)
 
 
 class TransformerManMainWindow(TransformerManBaseWindow):
@@ -231,6 +239,107 @@ class TransformerManMainWindow(TransformerManBaseWindow):
 
         self._update_preview_table()
 
+    def _load_table_notes_in_background(
+        self,
+        filtered_ids: list[NoteId],
+        selected_fields: list[str],
+        field_updates: dict[NoteId, dict[str, str]] | None = None,
+    ) -> None:
+        """
+        Load notes in batches in a background thread and update the table as they come in.
+
+        Args:
+            filtered_ids: List of note IDs to load.
+            selected_fields: List of selected field names.
+            field_updates: Optional dictionary of field updates for preview highlighting.
+        """
+        # Create appropriate color for highlighting based on dark mode
+        highlight_color = None
+        if field_updates is not None:
+            if self.is_dark_mode:
+                # Dark mode - use a darker green
+                highlight_color = QColor(50, 150, 50)
+            else:
+                # Light mode - use a light green
+                highlight_color = QColor(200, 255, 200)
+
+        # Store the current state for the background operation
+        current_filtered_ids = filtered_ids.copy()
+        current_selected_fields = selected_fields.copy()
+        current_field_updates = field_updates.copy() if field_updates else {}
+
+        def load_notes_batch(col: Collection) -> list[tuple[int, TableNoteData]]:
+            """Background operation that loads notes in batches."""
+            batch_size = 10  # Load 10 notes at a time
+            loaded_data: list[tuple[int, TableNoteData]] = []
+
+            for batch_start in range(0, len(current_filtered_ids), batch_size):
+                batch_end = min(batch_start + batch_size, len(current_filtered_ids))
+                batch_ids = current_filtered_ids[batch_start:batch_end]
+
+                # Load notes for this batch
+                notes = self.selected_notes.get_notes(batch_ids)
+
+                # Process each note in the batch
+                for i, note in enumerate(notes):
+                    row_index = batch_start + i
+                    note_data: TableNoteData = {
+                        "note": note,
+                        "note_updates": current_field_updates.get(note.id, {}),
+                    }
+                    loaded_data.append((row_index, note_data))
+
+            return loaded_data
+
+        def on_batch_loaded(result: list[tuple[int, TableNoteData]]) -> None:
+            """Update the table with loaded notes."""
+            for row_index, data in result:
+                note = data["note"]
+                note_updates = data["note_updates"]
+
+                for col, field_name in enumerate(current_selected_fields):
+                    # Check if field exists in note
+                    try:
+                        # Check if this field has a preview update
+                        if field_name in note_updates:
+                            # Show preview value with green background
+                            content = note_updates[field_name]
+                            if len(content) > 50:
+                                content = content[:47] + "..."
+                            item = QTableWidgetItem(content)
+                            if highlight_color:
+                                item.setBackground(highlight_color)
+                            item.setToolTip(note_updates[field_name])
+                        else:
+                            # Show original value
+                            content = note[field_name]
+                            if len(content) > 50:
+                                content = content[:47] + "..."
+                            item = QTableWidgetItem(content)
+                            item.setToolTip(note[field_name])
+
+                        self.preview_table.setItem(row_index, col, item)
+                    except Exception:
+                        # Field doesn't exist in note
+                        item = QTableWidgetItem("")
+                        self.preview_table.setItem(row_index, col, item)
+
+            # Adjust column widths
+            header = self.preview_table.horizontalHeader()
+            if header:
+                header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+        def on_failure(exc: Exception) -> None:
+            """Handle failure in background loading."""
+            print(f"Error loading notes in background: {exc!s}")
+
+        # Run the operation in the background
+        QueryOp(
+            parent=self,
+            op=lambda col: load_notes_batch(col),
+            success=on_batch_loaded,
+        ).failure(on_failure).run_in_background()
+
     def _update_preview_table(self) -> None:
         """Update the preview table with data from selected notes."""
         # Get selected fields
@@ -246,32 +355,27 @@ class TransformerManMainWindow(TransformerManBaseWindow):
             self.preview_table.setRowCount(0)
             return
 
+        # Get filtered note IDs
+        filtered_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
+
+        # Check if we have notes with selected note type
+        if not filtered_ids:
+            self.preview_table.clear()
+            self.preview_table.setColumnCount(0)
+            self.preview_table.setRowCount(0)
+            return
+
         # Setup columns
         self.preview_table.setColumnCount(len(selected_fields))
         self.preview_table.setHorizontalHeaderLabels(selected_fields)
 
-        # Get notes (limit to 10)
-        filtered_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
-        preview_ids = filtered_ids[:10]
-        notes = self.selected_notes.get_notes(preview_ids)
+        # Set row count to total number of notes
+        self.preview_table.setRowCount(len(filtered_ids))
 
-        self.preview_table.setRowCount(len(notes))
+        # Load notes in background
+        self._load_table_notes_in_background(filtered_ids, selected_fields)
 
-        for row, note in enumerate(notes):
-            for col, field_name in enumerate(selected_fields):
-                if field_name in note:
-                    content = note[field_name]
-                    # Truncate long content
-                    if len(content) > 50:
-                        content = content[:47] + "..."
-                    item = QTableWidgetItem(content)
-                    item.setToolTip(note[field_name])  # Show full content on hover
-                    self.preview_table.setItem(row, col, item)
 
-        # Adjust column widths
-        header = self.preview_table.horizontalHeader()
-        if header:
-             header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
     def _on_preview_clicked(self) -> None:
         """Handle preview button click."""
@@ -381,62 +485,8 @@ class TransformerManMainWindow(TransformerManBaseWindow):
             if checkbox.isChecked()
         ]
 
-        if not selected_fields:
-            self.preview_table.clear()
-            self.preview_table.setColumnCount(0)
-            self.preview_table.setRowCount(0)
-            return
-
-        # Setup columns
-        self.preview_table.setColumnCount(len(selected_fields))
-        self.preview_table.setHorizontalHeaderLabels(selected_fields)
-
-        # Get notes (limit to 10)
+        # Get filtered note IDs
         filtered_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
-        preview_ids = filtered_ids[:10]
-        notes = self.selected_notes.get_notes(preview_ids)
 
-        self.preview_table.setRowCount(len(notes))
-
-        # Create appropriate color for highlighting based on dark mode
-        if self.is_dark_mode:
-            # Dark mode - use a darker green
-            highlight_color = QColor(50, 150, 50)
-        else:
-            # Light mode - use a light green
-            highlight_color = QColor(200, 255, 200)
-
-        for row, note in enumerate(notes):
-            note_id = note.id
-            note_updates = field_updates.get(note_id, {})
-
-            for col, field_name in enumerate(selected_fields):
-                # Check if field exists in note
-                try:
-                    # Check if this field has a preview update
-                    if field_name in note_updates:
-                        # Show preview value with green background
-                        content = note_updates[field_name]
-                        if len(content) > 50:
-                            content = content[:47] + "..."
-                        item = QTableWidgetItem(content)
-                        item.setBackground(highlight_color)
-                        item.setToolTip(note_updates[field_name])
-                    else:
-                        # Show original value
-                        content = note[field_name]
-                        if len(content) > 50:
-                            content = content[:47] + "..."
-                        item = QTableWidgetItem(content)
-                        item.setToolTip(note[field_name])
-
-                    self.preview_table.setItem(row, col, item)
-                except Exception:
-                    # Field doesn't exist in note
-                    item = QTableWidgetItem("")
-                    self.preview_table.setItem(row, col, item)
-
-        # Adjust column widths
-        header = self.preview_table.horizontalHeader()
-        if header:
-             header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        # Load notes in background with field updates for highlighting
+        self._load_table_notes_in_background(filtered_ids, selected_fields, field_updates)

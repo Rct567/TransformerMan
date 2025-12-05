@@ -29,6 +29,25 @@ class SelectedNotes:
         """
         self.col = col
         self.note_ids = note_ids
+        self._note_cache: dict[NoteId, Note] = {}
+
+    def get_note(self, nid: NoteId) -> Note:
+        """
+        Get a Note object by ID, with caching.
+
+        Args:
+            nid: Note ID.
+
+        Returns:
+            Note object if found and no error, otherwise None.
+        """
+        if nid in self._note_cache:
+            return self._note_cache[nid]
+
+        note = self.col.get_note(nid)
+        self._note_cache[nid] = note
+        return note
+
 
     def filter_by_note_type(self, note_type_name: str) -> list[NoteId]:
         """
@@ -43,13 +62,10 @@ class SelectedNotes:
         filtered_ids: list[NoteId] = []
 
         for nid in self.note_ids:
-            try:
-                note = self.col.get_note(nid)
-                notetype = self.col.models.get(note.mid)
-                if notetype and notetype['name'] == note_type_name:
-                    filtered_ids.append(nid)
-            except Exception:
-                continue
+            note = self.get_note(nid)
+            notetype = self.col.models.get(note.mid)
+            if notetype and notetype['name'] == note_type_name:
+                filtered_ids.append(nid)
 
         return filtered_ids
 
@@ -63,14 +79,11 @@ class SelectedNotes:
         counts: dict[str, int] = {}
 
         for nid in self.note_ids:
-            try:
-                note = self.col.get_note(nid)
-                notetype = self.col.models.get(note.mid)
-                if notetype:
-                    name = notetype['name']
-                    counts[name] = counts.get(name, 0) + 1
-            except Exception:
-                continue
+            note = self.get_note(nid)
+            notetype = self.col.models.get(note.mid)
+            if notetype:
+                name = notetype['name']
+                counts[name] = counts.get(name, 0) + 1
 
         # Sort by count descending
         return dict(sorted(counts.items(), key=lambda x: x[1], reverse=True))
@@ -108,10 +121,8 @@ class SelectedNotes:
         notes: list[Note] = []
 
         for nid in note_ids:
-            try:
-                notes.append(self.col.get_note(nid))
-            except Exception:
-                continue
+            note = self.get_note(nid)
+            notes.append(note)
 
         return notes
 
@@ -168,10 +179,7 @@ class SelectedNotes:
             True if at least one note has empty fields in selected_fields, False otherwise.
         """
         for nid in self.note_ids:
-            try:
-                note = self.col.get_note(nid)
-                if SelectedNotes.has_empty_field(note, selected_fields):
-                    return True
-            except Exception:
-                continue
+            note = self.get_note(nid)
+            if SelectedNotes.has_empty_field(note, selected_fields):
+                return True
         return False
