@@ -113,11 +113,15 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Scrollable area for fields
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setMinimumHeight(200)
 
         self.fields_widget = QWidget()
+        fields_container_layout = QVBoxLayout()
+        self.fields_widget.setLayout(fields_container_layout)
+
         self.fields_layout = QGridLayout()
-        self.fields_widget.setLayout(self.fields_layout)
+        fields_container_layout.addLayout(self.fields_layout)
+        fields_container_layout.addStretch()
+
         scroll_area.setWidget(self.fields_widget)
 
         layout.addWidget(scroll_area)
@@ -126,7 +130,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         layout.addWidget(QLabel("Selected notes:"))
         self.preview_table = PreviewTable(parent=self, is_dark_mode=self.is_dark_mode)
         self.preview_table.set_selected_notes(self.selected_notes)
-        layout.addWidget(self.preview_table)
+        layout.addWidget(self.preview_table, 1)
 
         # Button layout
         button_layout = QHBoxLayout()
