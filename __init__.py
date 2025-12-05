@@ -91,6 +91,19 @@ def setup_browser_menu(browser: Browser, menu: Any) -> None:
     menu.addAction(action)
 
 
+def setup_browser_top_menu(browser: Browser) -> None:
+    """Add TransformerMan as a clickable button in the Browser's menu bar."""
+    # Create a clickable action (button) directly on the menu bar
+    action = QAction(ADDON_NAME, browser)
+    action.triggered.connect(lambda: open_main_window(browser))
+
+    menu_bar = browser.form.menubar
+    if not menu_bar:
+        return
+
+    menu_bar.addAction(action)
+
+
 # Add menu items
 if mw:
     # Add settings to Tools menu
@@ -99,4 +112,7 @@ if mw:
     mw.form.menuTools.addAction(settings_action)
 
     # Add to browser context menu (right-click menu)
-    gui_hooks.browser_will_show_context_menu.append(setup_browser_menu)
+    #gui_hooks.browser_will_show_context_menu.append(setup_browser_menu)
+
+    # Add to browser top menu bar
+    gui_hooks.browser_menus_did_init.append(setup_browser_top_menu)
