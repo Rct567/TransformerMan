@@ -170,7 +170,62 @@ class ClaudeLMClient(LMClient):
 
     @override
     def transform(self, prompt: str) -> LmResponse:
-        raise NotImplementedError
+        """Transform notes using Claude API."""
+        if not self._api_key or not self._api_key.strip():
+            raise ValueError("API key is required for ClaudeLMClient")
+
+        # Use configured model or fall back to first available
+        if self._model and self._model.strip():
+            model = self._model
+        else:
+            model = self.get_available_models()[0]
+
+        url = "https://api.anthropic.com/v1/messages"
+
+        data = {
+            "model": model,
+            "max_tokens": 1024,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": self._api_key,
+            "anthropic-version": "2023-06-01",
+        }
+
+        try:
+            json_data = json.dumps(data).encode("utf-8")
+            req = urllib.request.Request(url, data=json_data, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=30) as response:
+                result = json.loads(response.read().decode("utf-8"))
+
+            # Extract text from response
+            try:
+                content = result.get("content")
+                if not content or not isinstance(content, list) or len(content) == 0:
+                    raise KeyError("Missing or empty 'content' in result")
+                first_content = content[0]
+                text = first_content.get("text")
+                if text is None:
+                    raise KeyError("Missing 'text' in content")
+                return LmResponse(text)
+            except (KeyError, IndexError, TypeError) as e:
+                self.logger.error(f"Error parsing Claude response: {e}")
+                return LmResponse("", f"Error parsing AI response: {e}", e)
+
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            self.logger.error(f"Claude HTTP Error {e.code}: {error_body}")
+            return LmResponse("", f"API Error: {e.code}", e)
+        except urllib.error.URLError as e:
+            self.logger.error(f"Claude Network Error: {e}")
+            return LmResponse("", f"Network Error: {e.reason}", e)
+        except Exception as e:
+            self.logger.error(f"Claude Unexpected error: {e}")
+            return LmResponse("", f"Error: {e!s}", e)
 
     @staticmethod
     @override
@@ -179,6 +234,9 @@ class ClaudeLMClient(LMClient):
             "claude-3-5-sonnet-latest",
             "claude-3-opus-20240229",
             "claude-3-haiku-20240307",
+            "claude-opus-4-5",
+            "claude-sonnet-3-5",
+            "claude-haiku-3-0",
         ]
 
 class GeminiLMClient(LMClient):
