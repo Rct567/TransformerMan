@@ -91,74 +91,9 @@ The plugin comes with sensible defaults in `config.json`:
 
 4. **Note Updates**: Updates only the empty fields in the selected field set
 
-## Development
+## Contributing
 
-### Current Implementation
-
-The plugin currently uses a `DummyLMClient` that returns mock responses for testing. To integrate with a real LM service:
-
-1. Create a new class extending `LMClient` in `transformerman/lib/lm_client.py`
-2. Implement the `transform(prompt: str) -> str` method
-3. Update `__init__.py` to use your client
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest tests -v
-
-# Run specific test file
-pytest tests/test_lm_client.py -v
-
-# Run with coverage
-pytest tests --cov=transformerman --cov-report=html
-```
-
-### Type Checking
-
-```bash
-mypy transformerman tests
-```
-
-### Linting
-
-```bash
-ruff check transformerman tests
-```
-
-### Pre-commit Hook
-
-A git pre-commit hook is included to automatically run code quality checks before committing. The hook script is located at `scripts/pre-commit-hook.sh`.
-
-#### Installation
-
-```bash
-# Copy the hook to the git hooks directory
-cp scripts/pre-commit-hook.sh .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-```
-
-#### What the hook runs:
-1. **pyright** - Type checking on staged Python files
-2. **mypy** - Static type checking on staged Python files
-3. **ruff check** - Linting on staged Python files
-4. **pytest** - Full test suite (always runs)
-
-#### Usage
-
-```bash
-# To temporarily bypass the hook:
-git commit --no-verify -m "Your message"
-
-# To remove the hook:
-rm .git/hooks/pre-commit
-```
-
-#### Features
-- Runs static analysis (pyright, mypy, ruff) only on staged Python files
-- Always runs the full pytest test suite
-- Stops the commit if any check fails
-- Provides clear success/failure messages
+For development guidelines, testing instructions, and contribution information, please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Project Structure
 
