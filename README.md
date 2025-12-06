@@ -8,8 +8,9 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
 - 📝 **Context-Aware**: Uses example notes from your collection to guide the LM
 - 🎯 **Selective Processing**: Choose which fields to fill and which note types to process
 - 📋 **Custom Instructions**: Add field-specific instructions to guide the LM
-- 📊 **Batch Processing**: Efficiently process large selections with progress tracking
 - ⚙️ **Configurable**: Customize API settings, model selection, and batch size
+- 🔍 **Preview Before Applying**: See what changes will be made before applying them
+- ✅ **Multiple LM Support**: OpenAI (GPT-5, GPT-4o, o3), Claude, Gemini, DeepSeek, and Dummy client for testing
 
 ## Installation
 
@@ -26,16 +27,17 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
    - Go to **Tools → TransformerMan Settings**
    - Enter your API key (when using a real LM service)
    - Select your preferred model
-   - Adjust batch size if needed (default: 10)
+   - Adjust batch size if needed (default: 20)
 
 2. **Transform Notes**:
    - Open the card browser
    - Select one or more notes
-   - Right-click and select **Edit → TransformerMan**
+   - Right-click and select **Edit → TransformerMan** (or use the TransformerMan button in the menu bar)
    - Choose the note type from the dropdown
    - Select which fields to fill
    - (Optional) Add custom instructions for specific fields
-   - Click **Transform**
+   - Click **Preview** to see what changes will be made
+   - Review the preview and click **Apply** to save changes
 
 ### Example Workflow
 
@@ -46,12 +48,13 @@ Let's say you have German vocabulary notes with "Front" (German word) and "Back"
 3. Select the "Basic" note type
 4. Check the "Back" field
 5. Add instruction: "Provide a concise English translation"
-6. Click Transform
+6. Click Preview, then Apply
 
 The plugin will:
-- Find 3 example notes with both fields filled
+- Find up to 3 example notes with both fields filled
 - Send them to the LM along with your notes
 - Fill the empty "Back" fields with translations
+- Show a preview of changes before applying them
 
 ## Configuration
 
@@ -59,21 +62,11 @@ The plugin will:
 
 Access via **Tools → TransformerMan Settings**:
 
-- **API Key**: Your language model API key
-- **Model**: Choose from available models (GPT-4, Claude, etc.)
-- **Batch Size**: Number of notes to process per batch (1-100)
+- **API Key**: Your language model API key (required for real LM services)
+- **Model**: Choose from available models (OpenAI GPT-5/4o, Claude, Gemini, DeepSeek, or Dummy for testing)
+- **Batch Size**: Number of notes to process per batch (default: 20, range: 1-100)
+- **Log LM Requests/Responses**: Enable logging for debugging (saved to user_files directory)
 
-### Default Configuration
-
-The plugin comes with sensible defaults in `config.json`:
-
-```json
-{
-    "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    "model": "claude-v1.3-100k",
-    "batch_size": 10
-}
-```
 
 ## How It Works
 
@@ -89,31 +82,13 @@ The plugin comes with sensible defaults in `config.json`:
 
 3. **LM Processing**: Sends the prompt to the language model and receives filled notes
 
-4. **Note Updates**: Updates only the empty fields in the selected field set
+4. **Preview Display**: Shows what changes will be made with green highlighting
+
+5. **Note Updates**: Updates only the empty fields in the selected field set (after user confirmation)
 
 ## Contributing
 
 For development guidelines, testing instructions, and contribution information, please see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Project Structure
-
-```
-TransformerMan/
-├── __init__.py                      # Plugin entry point
-├── config.json                      # Default configuration
-├── transformerman/
-│   ├── lib/                        # Core library
-│   │   ├── lm_client.py           # LM client abstraction
-│   │   ├── prompt_builder.py      # Prompt construction
-│   │   ├── xml_parser.py          # XML parsing
-│   │   ├── selected_notes.py      # Note management
-│   │   ├── settings_manager.py    # Settings management
-│   │   └── transform_operations.py # Batch processing
-│   └── ui/                         # User interface
-│       ├── main_dialog.py         # Main dialog
-│       └── settings_dialog.py     # Settings dialog
-└── tests/                          # Test suite
-```
 
 ## License
 
@@ -125,9 +100,8 @@ For issues, questions, or contributions, please visit the project repository.
 
 ## Roadmap
 
-- [ ] Real LM API integration (OpenAI, Anthropic, Grok)
-- [ ] Field validation before updating
-- [ ] Enhanced error reporting and logging
+- [x] Preview before applying changes
+- [x] Enhanced error reporting and logging
 - [ ] Undo support integration
-- [ ] Example note preview/selection UI
-- [ ] Token usage tracking and optimization
+- [ ] Cost and token usage tracking and optimization
+- [ ] Support for more LM providers
