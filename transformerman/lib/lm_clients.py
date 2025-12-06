@@ -26,6 +26,7 @@ LM_CLIENTS = {
     "openai": "OpenAILMClient",
     "claude": "ClaudeLMClient",
     "gemini": "GeminiLMClient",
+    "deepseek": "DeepSeekLMClient",
 }
 
 
@@ -380,6 +381,85 @@ class GeminiLMClient(LMClient):
         return [
             "gemini-flash-latest",
             "gemini-2.5-flash",
+        ]
+
+
+class DeepSeekLMClient(LMClient):
+
+    @property
+    @override
+    def id(self) -> str:
+        return "deepseek"
+
+    @override
+    def transform(self, prompt: str) -> LmResponse:
+        """Transform notes using DeepSeek API."""
+        if not self._api_key or not self._api_key.strip():
+            raise ValueError("API key is required for DeepSeekLMClient")
+
+        # Use configured model or fall back to first available
+        if self._model and self._model.strip():
+            model = self._model
+        else:
+            model = self.get_available_models()[0]
+
+        url = "https://api.deepseek.com/chat/completions"
+
+        data = {
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "model": model,
+            "stream": False,
+            "temperature": 1.0,
+            "max_tokens": 1000,
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {self._api_key}",
+        }
+
+        try:
+            json_data = json.dumps(data).encode("utf-8")
+            req = urllib.request.Request(url, data=json_data, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=30) as response:
+                result = json.loads(response.read().decode("utf-8"))
+
+            # Extract text from response
+            try:
+                choices = result.get("choices")
+                if not choices or not isinstance(choices, list) or len(choices) == 0:
+                    raise KeyError("Missing or empty 'choices' in result")
+                choice = choices[0]
+                message = choice.get("message")
+                if not message or not isinstance(message, dict):
+                    raise KeyError("Missing or invalid 'message' in choice")
+                text = message.get("content")
+                if text is None:
+                    raise KeyError("Missing 'content' in message")
+                return LmResponse(text)
+            except (KeyError, IndexError, TypeError) as e:
+                self.logger.error(f"Error parsing DeepSeek response: {e}")
+                return LmResponse("", f"Error parsing AI response: {e}", e)
+
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            self.logger.error(f"DeepSeek HTTP Error {e.code}: {error_body}")
+            return LmResponse("", f"API Error: {e.code}", e)
+        except urllib.error.URLError as e:
+            self.logger.error(f"DeepSeek Network Error: {e}")
+            return LmResponse("", f"Network Error: {e.reason}", e)
+        except Exception as e:
+            self.logger.error(f"DeepSeek Unexpected error: {e}")
+            return LmResponse("", f"Error: {e!s}", e)
+
+    @staticmethod
+    @override
+    def get_available_models() -> list[str]:
+        return [
+            "deepseek-chat",
         ]
 
 
