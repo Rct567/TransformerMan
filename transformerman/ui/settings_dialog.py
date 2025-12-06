@@ -150,7 +150,7 @@ class SettingsDialog(TransformerManBaseDialog):
 
         # Load API key for current client
         api_key = self.addon_config.get_api_key(current_client)
-        self.api_key_input.setText(api_key)
+        self.api_key_input.setText(str(api_key))
 
         # Load LM clients
         clients = list(LM_CLIENTS.keys())
@@ -198,7 +198,7 @@ class SettingsDialog(TransformerManBaseDialog):
     def _on_client_changed(self, client_name: str) -> None:
         # Update API key field for the selected client
         api_key = self.addon_config.get_api_key(client_name)
-        self.api_key_input.setText(api_key)
+        self.api_key_input.setText(str(api_key))
         self._populate_models_for_client(client_name)
 
     def _on_setting_changed(self) -> None:

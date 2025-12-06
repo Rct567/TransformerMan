@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from transformerman.lib.addon_config import AddonConfig
-from transformerman.lib.lm_clients import OpenAILMClient
+from transformerman.lib.lm_clients import OpenAILMClient, ApiKey
 
 if TYPE_CHECKING:
     from transformerman.lib.utilities import JSON_TYPE
@@ -74,11 +74,11 @@ class TestAddonConfig:
         addon_config = AddonConfig(loader, saver)
         addon_config.load()
 
-        assert addon_config.get_api_key("openai") == "old-key"
+        assert addon_config.get_api_key("openai") == ApiKey("old-key")
         addon_config.update_setting("openai_api_key", "new-key")
 
         assert addon_config.get("openai_api_key", None) == "new-key"
-        assert addon_config.get_api_key("openai") == "new-key"
+        assert addon_config.get_api_key("openai") == ApiKey("new-key")
 
     def test_default_values(self, empty_addon_config: AddonConfig) -> None:
         """Test default values when config is empty."""

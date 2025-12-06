@@ -5,7 +5,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NewType
 from abc import ABC, abstractmethod
 
 import json
@@ -17,6 +17,9 @@ from .utilities import override
 from .xml_parser import notes_from_xml
 
 import logging
+
+ApiKey = NewType('ApiKey', str)
+ModelName = NewType('ModelName', str)
 
 if TYPE_CHECKING:
     from anki.notes import NoteId
@@ -54,10 +57,17 @@ class LMClient(ABC):
     """Abstract base class for language model clients."""
 
     logger: logging.Logger
-    _api_key: str
-    _model: str
+    _api_key: ApiKey
+    _model: ModelName
 
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(self, api_key: ApiKey, model: ModelName) -> None:
+
+        if model not in self.get_available_models():
+            raise ValueError(f"Model {model} is not available for {self.id} LMClient")
+
+        if self.api_key_required() and not api_key:
+            raise ValueError(f"API key is required for {self.id} LMClient")
+
         self._api_key = api_key
         self._model = model
         self.logger = logging.getLogger(__name__)

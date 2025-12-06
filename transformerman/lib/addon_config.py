@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .utilities import JSON_TYPE
     from aqt.main import AnkiQt
 
-from .lm_clients import LM_CLIENTS, LMClient, get_lm_client_class
+from .lm_clients import LM_CLIENTS, LMClient, get_lm_client_class, ApiKey, ModelName
 
 
 class AddonConfig:
@@ -71,7 +71,7 @@ class AddonConfig:
         self.__config[key] = value
         self.__config_save(self.__config)
 
-    def get_api_key(self, client_id: str) -> str:
+    def get_api_key(self, client_id: str) -> ApiKey:
         """Get the API key for a specific LM client."""
         if self.__config is None:
             self.load()
@@ -82,10 +82,10 @@ class AddonConfig:
         # Try client-specific key first (e.g., "openai_api_key")
         client_key = f"{client_id}_api_key"
         if client_key in self.__config:
-            return str(self.__config[client_key])
+            return ApiKey(str(self.__config[client_key]))
 
         # Fall back to generic "api_key" for backward compatibility
-        return str(self.get("api_key", ""))
+        return ApiKey(str(self.get("api_key", "")))
 
     def set_api_key(self, client_id: str, api_key: str) -> None:
         """Set the API key for a specific LM client."""
@@ -116,11 +116,11 @@ class AddonConfig:
             return f"Unknown LM client '{client_name}' configured", None
 
         # Model of LM client
-        model = self.get("model", None)
+        model_str = self.get("model", None)
 
-        if not isinstance(model, str):
+        if not isinstance(model_str, str):
             return "Configured model is not a string", None
-        elif not model:
+        elif not model_str:
             return "No model configured", None
 
         client_class = get_lm_client_class(client_name)
@@ -128,20 +128,19 @@ class AddonConfig:
         if not client_class:
             return f"Unknown LM client '{client_name}' configured", None
 
-        if model not in client_class.get_available_models():
-            return f"Configured model '{model}' is not available for client '{client_name}'", None
+        if model_str not in client_class.get_available_models():
+            return f"Configured model '{model_str}' is not available for client '{client_name}'", None
 
         # Api key
-        api_key = ""
+        api_key: ApiKey = ApiKey("")
 
         if client_class.api_key_required():
-
             api_key = self.get_api_key(client_name)
-
             if not api_key:
                 return f"API key is required for client '{client_name}'", None
 
-        # Create client
+        # Create client with proper types
+        model = ModelName(model_str)
         client = client_class(api_key, model)
         return None, client
 
