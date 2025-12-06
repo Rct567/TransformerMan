@@ -76,13 +76,6 @@ class SettingsDialog(TransformerManBaseDialog):
         form_layout.setContentsMargins(10, 15, 10, 15)
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        # API Key
-        self.api_key_input = QLineEdit()
-        self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key_input.setPlaceholderText("Enter your API key...")
-        self.api_key_input.textChanged.connect(self._on_setting_changed)
-        form_layout.addRow("API Key:", self.api_key_input)
-
         # LM Client Selection
         self.client_combo = QComboBox()
         self.client_combo.currentTextChanged.connect(self._on_client_changed)
@@ -92,6 +85,13 @@ class SettingsDialog(TransformerManBaseDialog):
         self.model_combo = QComboBox()
         self.model_combo.currentTextChanged.connect(self._on_setting_changed)
         form_layout.addRow("Model:", self.model_combo)
+
+        # API Key
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.api_key_input.setPlaceholderText("Enter your API key...")
+        self.api_key_input.textChanged.connect(self._on_setting_changed)
+        form_layout.addRow("API Key:", self.api_key_input)
 
         # Batch Size
         self.batch_size_spin = QSpinBox()
