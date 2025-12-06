@@ -142,7 +142,7 @@ class AddonConfig:
                 return f"API key is required for client '{client_name}'", None
 
         # Create client
-        client = client_class(client_name, api_key)
+        client = client_class(api_key, model)
         return None, client
 
     @staticmethod
