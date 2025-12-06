@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .utilities import JSON_TYPE
     from aqt.main import AnkiQt
 
-from .lm_clients import create_lm_client, LMClient
+from .lm_clients import LM_CLIENTS, create_lm_client, LMClient
 
 
 class AddonConfig:
@@ -99,22 +99,42 @@ class AddonConfig:
         client_key = f"{client_id}_api_key"
         self.update_setting(client_key, api_key)
 
-    def getClient(self) -> Optional[LMClient]:
+    def getClient(self) -> tuple[Optional[str], Optional[LMClient]]:
         """Return the configured LM client, or None if the client is unknown."""
         if self.__config is None:
             self.load()
 
-        # Get client name, defaulting to 'dummy'
-        client_name = str(self.get("lm_client", "dummy"))
+        # Get client name
+        client_name = self.get("lm_client", None)
+
+        if not isinstance(client_name, str):
+            return "Configured LM client is not a string", None
+        elif not client_name:
+            return "No LM client configured", None
+
+        if client_name not in LM_CLIENTS:
+            return f"Unknown LM client '{client_name}' configured", None
 
         # Get API key for this client
         api_key = self.get_api_key(client_name)
 
         # Get model configuration
-        model = str(self.get("model", ""))
+        model = self.get("model", None)
+
+        if not isinstance(model, str):
+            return "Configured model is not a string", None
+        elif not model:
+            return "No model configured", None
 
         client = create_lm_client(client_name, api_key, model)
-        return client
+
+        if not client:
+            return "Unknown LM client", None
+
+        if model not in client.get_available_models():
+            return f"Configured model '{model}' is not available for client '{client_name}'", None
+
+        return None, client
 
     @staticmethod
     def from_anki_main_window(mw: AnkiQt) -> AddonConfig:

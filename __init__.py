@@ -59,11 +59,12 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
         return
 
     addon_config.reload()
-    lm_client = addon_config.getClient()
+    error, lm_client = addon_config.getClient()
 
     if lm_client is None:
+
         showWarning(
-            "Unknown LM client configured. Please check your settings.",
+            f"{error}.\n\nPlease check your settings.",
             title="Configuration Error",
             parent=browser,
         )
