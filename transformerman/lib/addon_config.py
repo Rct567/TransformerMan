@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .utilities import JSON_TYPE
     from aqt.main import AnkiQt
 
-from .lm_clients import LM_CLIENTS, create_lm_client, LMClient, get_lm_client_class
+from .lm_clients import LM_CLIENTS, LMClient, get_lm_client_class
 
 
 class AddonConfig:
@@ -142,11 +142,7 @@ class AddonConfig:
                 return f"API key is required for client '{client_name}'", None
 
         # Create client
-        client = create_lm_client(client_name, api_key, model)
-
-        if client is None:
-            return f"Could not create LM client '{client_name}'", None
-
+        client = client_class(client_name, api_key)
         return None, client
 
     @staticmethod

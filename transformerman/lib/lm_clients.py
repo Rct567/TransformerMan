@@ -475,15 +475,6 @@ class DeepSeekLMClient(LMClient):
 from typing import Optional
 
 
-def create_lm_client(name: str, api_key: str, model: str) -> Optional[LMClient]:
-    if name not in LM_CLIENTS:
-        return None
-    cls_name = LM_CLIENTS[name]
-    cls = globals().get(cls_name)
-    if cls is None:
-        return None
-    return cls(api_key, model)
-
 
 def get_lm_client_class(name: str) -> Optional[type[LMClient]]:
     """Return the LM client class (type) for the given client name."""

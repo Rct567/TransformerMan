@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from transformerman.lib.addon_config import AddonConfig
-from transformerman.lib.lm_clients import DummyLMClient, OpenAILMClient
+from transformerman.lib.lm_clients import OpenAILMClient
 
 if TYPE_CHECKING:
     from transformerman.lib.utilities import JSON_TYPE
@@ -65,7 +65,7 @@ class TestAddonConfig:
         saved_data: dict[str, JSON_TYPE] = {}
 
         def loader() -> dict[str, JSON_TYPE]:
-            return {"api_key": "old-key"}
+            return {"openai_api_key": "old-key"}
 
         def saver(config: dict[str, JSON_TYPE]) -> None:
             saved_data.clear()
@@ -74,8 +74,11 @@ class TestAddonConfig:
         addon_config = AddonConfig(loader, saver)
         addon_config.load()
 
-        addon_config.update_setting("api_key", "new-key")
-        assert str(addon_config.get("api_key", "")) == "new-key"
+        assert addon_config.get_api_key("openai") == "old-key"
+        addon_config.update_setting("openai_api_key", "new-key")
+
+        assert addon_config.get("openai_api_key", None) == "new-key"
+        assert addon_config.get_api_key("openai") == "new-key"
 
     def test_default_values(self, empty_addon_config: AddonConfig) -> None:
         """Test default values when config is empty."""
@@ -89,16 +92,17 @@ class TestAddonConfig:
         """Test getting LM client."""
 
         def loader() -> dict[str, JSON_TYPE]:
-            return {"lm_client": "openai"}
+            return {"lm_client": "openai", "model": "gpt-5", "api_key": "test-key"}
 
         def saver(config: dict[str, JSON_TYPE]) -> None:
             pass
 
         addon_config = AddonConfig(loader, saver)
-        client = addon_config.getClient()
+        error, client = addon_config.getClient()
+        assert error is None
         assert isinstance(client, OpenAILMClient)
 
-    def test_get_client_default(self) -> None:
+    def test_get_client_not_configured(self) -> None:
         """Test getting default LM client."""
 
         def loader() -> dict[str, JSON_TYPE]:
@@ -108,8 +112,9 @@ class TestAddonConfig:
             pass
 
         addon_config = AddonConfig(loader, saver)
-        client = addon_config.getClient()
-        assert isinstance(client, DummyLMClient)
+        error, client = addon_config.getClient()
+        assert client is None
+        assert error is not None
 
     def test_is_enabled(self) -> None:
         """Test is_enabled method."""
