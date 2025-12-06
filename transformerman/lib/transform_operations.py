@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, TypedDict
 
 from aqt import mw
 from aqt.operations import QueryOp
@@ -23,6 +23,14 @@ if TYPE_CHECKING:
     from .lm_clients import LMClient, LmResponse
     from .prompt_builder import PromptBuilder
     from .selected_notes import SelectedNotes
+
+
+class TransformResults(TypedDict):
+    """Type definition for transformation results."""
+    updated: int
+    failed: int
+    batches_processed: int
+    error: str | None
 
 
 def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[Callable[[str], None], Callable[[LmResponse], None]]:
@@ -109,7 +117,7 @@ class NoteTransformer:
         batch_selected_notes: SelectedNotes,
         log_request: Callable[[str], None],
         log_response: Callable[[LmResponse], None],
-    ) -> tuple[int, int, dict[NoteId, dict[str, str]]]:
+    ) -> tuple[int, int, dict[NoteId, dict[str, str]], str | None]:
         """
         Get field updates for a single batch of notes (preview mode).
 
@@ -119,12 +127,14 @@ class NoteTransformer:
             log_response: Function to log LM responses.
 
         Returns:
-            Tuple of (updated_count, failed_count, field_updates) for this batch.
+            Tuple of (updated_count, failed_count, field_updates, error) for this batch.
             field_updates is a dict mapping note_id -> dict of field_name -> new_value.
+            error is None if no error, otherwise error message string.
         """
         updated = 0
         failed = 0
         field_updates_dict: dict[NoteId, dict[str, str]] = {}
+        error: str | None = None
 
         try:
             # Build prompt
@@ -140,6 +150,12 @@ class NoteTransformer:
 
             # Log response
             log_response(response)
+
+            # Check for error in response
+            if response.error is not None:
+                error = response.error
+                # Stop processing on first error
+                return updated, failed, field_updates_dict, error
 
             # Parse response
             field_updates = response.get_notes_from_xml()
@@ -171,14 +187,14 @@ class NoteTransformer:
             self.logger.error(f"Error processing batch in preview: {e!r}")
             failed += len(batch_selected_notes.note_ids)
 
-        return updated, failed, field_updates_dict
+        return updated, failed, field_updates_dict, error
 
     def _apply_batch_updates(
         self,
         batch_selected_notes: SelectedNotes,
         log_request: Callable[[str], None],
         log_response: Callable[[LmResponse], None],
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, str | None]:
         """
         Apply updates to a single batch of notes (apply mode).
 
@@ -188,10 +204,12 @@ class NoteTransformer:
             log_response: Function to log LM responses.
 
         Returns:
-            Tuple of (updated_count, failed_count) for this batch.
+            Tuple of (updated_count, failed_count, error) for this batch.
+            error is None if no error, otherwise error message string.
         """
         updated = 0
         failed = 0
+        error: str | None = None
 
         try:
             # Build prompt
@@ -207,6 +225,12 @@ class NoteTransformer:
 
             # Log response
             log_response(response)
+
+            # Check for error in response
+            if response.error is not None:
+                error = response.error
+                # Stop processing on first error
+                return updated, failed, error
 
             # Parse response
             field_updates = response.get_notes_from_xml()
@@ -238,13 +262,13 @@ class NoteTransformer:
             self.logger.error(f"Error processing batch: {e!r}")
             failed += len(batch_selected_notes.note_ids)
 
-        return updated, failed
+        return updated, failed, error
 
     def get_field_updates(
         self,
         progress_callback: Callable[[int, int], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
-    ) -> tuple[dict[str, int], dict[NoteId, dict[str, str]]]:
+    ) -> tuple[TransformResults, dict[NoteId, dict[str, str]]]:
         """
         Get field updates for notes in batches.
 
@@ -259,16 +283,14 @@ class NoteTransformer:
 
         Returns:
             Tuple of (results, field_updates) where:
-            - results: Dictionary with transformation results:
-                - "updated": Number of fields that would be updated
-                - "failed": Number of notes that failed
-                - "batches_processed": Number of batches processed
+            - results: Transformation results dictionary
             - field_updates: dict mapping note_id -> dict of field_name -> new_value
         """
         total_updated = 0
         total_failed = 0
         batch_idx = 0
         all_field_updates: dict[NoteId, dict[str, str]] = {}
+        error: str | None = None
 
         log_request, log_response = create_lm_logger(self.addon_config, self.user_files_dir)
 
@@ -282,9 +304,16 @@ class NoteTransformer:
                 progress_callback(batch_idx, self.num_batches)
 
             # Get field updates for batch (preview mode)
-            updated, failed, batch_field_updates = self._get_batch_field_updates(
+            updated, failed, batch_field_updates, batch_error = self._get_batch_field_updates(
                 batch_selected_notes, log_request, log_response
             )
+
+            # Check for error in batch
+            if batch_error is not None:
+                error = batch_error
+                # Stop processing on first error
+                break
+
             total_updated += updated
             total_failed += failed
             all_field_updates.update(batch_field_updates)
@@ -293,10 +322,11 @@ class NoteTransformer:
         if progress_callback:
             progress_callback(self.num_batches, self.num_batches)
 
-        results = {
+        results: TransformResults = {
             "updated": total_updated,
             "failed": total_failed,
             "batches_processed": batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
+            "error": error,
         }
 
         return results, all_field_updates
@@ -305,7 +335,7 @@ class NoteTransformer:
         self,
         progress_callback: Callable[[int, int], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
-    ) -> dict[str, int]:
+    ) -> TransformResults:
         """
         Transform notes in batches (immediate application).
 
@@ -323,10 +353,12 @@ class NoteTransformer:
                 - "updated": Number of fields updated
                 - "failed": Number of notes that failed
                 - "batches_processed": Number of batches processed
+                - "error": None if no error, otherwise error message string
         """
         total_updated = 0
         total_failed = 0
         batch_idx = 0
+        error: str | None = None
 
         log_request, log_response = create_lm_logger(self.addon_config, self.user_files_dir)
 
@@ -340,9 +372,16 @@ class NoteTransformer:
                 progress_callback(batch_idx, self.num_batches)
 
             # Apply updates to batch (apply mode)
-            updated, failed = self._apply_batch_updates(
+            updated, failed, batch_error = self._apply_batch_updates(
                 batch_selected_notes, log_request, log_response
             )
+
+            # Check for error in batch
+            if batch_error is not None:
+                error = batch_error
+                # Stop processing on first error
+                break
+
             total_updated += updated
             total_failed += failed
 
@@ -350,11 +389,14 @@ class NoteTransformer:
         if progress_callback:
             progress_callback(self.num_batches, self.num_batches)
 
-        return {
+        results: TransformResults = {
             "updated": total_updated,
             "failed": total_failed,
             "batches_processed": batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
+            "error": error,
         }
+
+        return results
 
 
 def transform_notes_with_progress(  # noqa: PLR0913
@@ -369,7 +411,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
     batch_size: int,
     addon_config: AddonConfig,
     user_files_dir: Path,
-    on_success: Callable[[dict[str, int], dict[NoteId, dict[str, str]]], None],
+    on_success: Callable[[TransformResults, dict[NoteId, dict[str, str]]], None],
 ) -> None:
     """
     Transform notes in batches with progress tracking.
@@ -418,7 +460,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
     progress.setMinimumDuration(0)  # Show immediately
     progress.show()
 
-    def process_batches(col: Collection) -> tuple[dict[str, int], dict[NoteId, dict[str, str]]]:
+    def process_batches(col: Collection) -> tuple[TransformResults, dict[NoteId, dict[str, str]]]:
         """Background operation that processes each batch."""
         # Create callbacks for progress and cancellation
         def progress_callback(current: int, total: int) -> None:
@@ -436,7 +478,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
             should_cancel=should_cancel,
         )
 
-    def on_success_callback(result_tuple: tuple[dict[str, int], dict[NoteId, dict[str, str]]]) -> None:
+    def on_success_callback(result_tuple: tuple[TransformResults, dict[NoteId, dict[str, str]]]) -> None:
         """Called when transformation succeeds."""
         progress.close()
         results, field_updates = result_tuple

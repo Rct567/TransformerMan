@@ -61,6 +61,7 @@ def mock_lm_client() -> Mock:
         4: {"Field1": "Content4"},
     })
     mock_response.text_response = "<xml>response</xml>"
+    mock_response.error = None
 
     client.transform = Mock(return_value=mock_response)
     return client
@@ -291,6 +292,7 @@ class TestNoteTransformer:
             4: {"Field1": "Content4"},
         }
         mock_response.text_response = "<xml>response</xml>"
+        mock_response.error = None  # Add error attribute
 
         # Make first batch fail, second batch succeed
         mock_lm_client.transform.side_effect = [Exception("Batch failed"), mock_response]

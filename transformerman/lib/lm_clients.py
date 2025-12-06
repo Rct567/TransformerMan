@@ -200,10 +200,10 @@ class OpenAILMClient(LMClient):
                 return LmResponse("", f"Error parsing AI response: {e}", e)
 
         except requests.exceptions.HTTPError as e:
-            print(str(e))
             error_body = e.response.text if e.response else str(e)
             self.logger.error(f"OpenAI HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
-            return LmResponse("", f"API Error: {e.response.status_code if e.response else 'unknown'}", e)
+            status_code = e.response.status_code if e.response else 'unknown'
+            return LmResponse("", f"API Error {status_code}: {error_body}", e)
         except requests.exceptions.RequestException as e:
             self.logger.error(f"OpenAI Network Error: {e}")
             return LmResponse("", f"Network Error: {e}", e)
@@ -287,7 +287,7 @@ class ClaudeLMClient(LMClient):
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8")
             self.logger.error(f"Claude HTTP Error {e.code}: {error_body}")
-            return LmResponse("", f"API Error: {e.code}", e)
+            return LmResponse("", f"API Error {e.code}: {error_body}", e)
         except urllib.error.URLError as e:
             self.logger.error(f"Claude Network Error: {e}")
             return LmResponse("", f"Network Error: {e.reason}", e)
@@ -362,7 +362,7 @@ class GeminiLMClient(LMClient):
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8")
             self.logger.error(f"Gemini HTTP Error {e.code}: {error_body}")
-            return LmResponse("", f"API Error: {e.code}", e)
+            return LmResponse("", f"API Error {e.code}: {error_body}", e)
         except urllib.error.URLError as e:
             self.logger.error(f"Gemini Network Error: {e}")
             return LmResponse("", f"Network Error: {e.reason}", e)
@@ -436,7 +436,7 @@ class DeepSeekLMClient(LMClient):
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8")
             self.logger.error(f"DeepSeek HTTP Error {e.code}: {error_body}")
-            return LmResponse("", f"API Error: {e.code}", e)
+            return LmResponse("", f"API Error {e.code}: {error_body}", e)
         except urllib.error.URLError as e:
             self.logger.error(f"DeepSeek Network Error: {e}")
             return LmResponse("", f"Network Error: {e.reason}", e)

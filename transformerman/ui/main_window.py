@@ -19,12 +19,12 @@ from aqt.qt import (
     QScrollArea,
     QWidget,
 )
-from aqt.utils import showInfo
+from aqt.utils import showInfo, showWarning
 
 from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 
-from ..lib.transform_operations import transform_notes_with_progress, apply_field_updates
+from ..lib.transform_operations import transform_notes_with_progress, apply_field_updates, TransformResults
 from ..lib.prompt_builder import PromptBuilder
 from ..lib.selected_notes import SelectedNotes
 
@@ -283,8 +283,19 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         if not isinstance(batch_size, int):
             batch_size = 10
 
-        def on_preview_success(results: dict[str, int], field_updates: dict[NoteId, dict[str, str]]) -> None:
+        def on_preview_success(results: TransformResults, field_updates: dict[NoteId, dict[str, str]]) -> None:
             """Handle successful preview."""
+            # Check for error in results
+
+            if results['error']:
+                # Show error with warning
+                showWarning(f"Error during preview:\n\n{results['error']}\n\nNo notes would be updated.", parent=self)
+                # Clear any partial results
+                self.preview_results.clear()
+                self.previewed_note_ids.clear()
+                self.apply_button.setEnabled(False)
+                return
+
             # Store preview results
             self.preview_results = field_updates
             self.previewed_note_ids = list(field_updates.keys())
@@ -341,7 +352,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
     def _update_preview_table_with_results(
         self,
-        results: dict[str, int],
+        results: TransformResults,
         field_updates: dict[NoteId, dict[str, str]],
     ) -> None:
         """Update the preview table with preview results and green highlighting."""
