@@ -162,12 +162,6 @@ class OpenAILMClient(LMClient):
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for OpenAILMClient")
 
-        # Use configured model or fall back to first available
-        if self._model and self._model.strip():
-            model = self._model
-        else:
-            model = self.get_available_models()[0]
-
         import requests
 
         url = "https://api.openai.com/v1/chat/completions"
@@ -176,7 +170,7 @@ class OpenAILMClient(LMClient):
             "Authorization": f"Bearer {self._api_key}",
         }
         data = {
-            "model": model,
+            "model": self._model,
             "messages": [
                 {"role": "user", "content": prompt}
             ],
@@ -206,6 +200,7 @@ class OpenAILMClient(LMClient):
                 return LmResponse("", f"Error parsing AI response: {e}", e)
 
         except requests.exceptions.HTTPError as e:
+            print(str(e))
             error_body = e.response.text if e.response else str(e)
             self.logger.error(f"OpenAI HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
             return LmResponse("", f"API Error: {e.response.status_code if e.response else 'unknown'}", e)
@@ -252,16 +247,11 @@ class ClaudeLMClient(LMClient):
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for ClaudeLMClient")
 
-        # Use configured model or fall back to first available
-        if self._model and self._model.strip():
-            model = self._model
-        else:
-            model = self.get_available_models()[0]
 
         url = "https://api.anthropic.com/v1/messages"
 
         data = {
-            "model": model,
+            "model": self._model,
             "max_tokens": 1024,
             "messages": [
                 {"role": "user", "content": prompt}
@@ -331,12 +321,8 @@ class GeminiLMClient(LMClient):
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for GeminiLMClient")
 
-        # Use configured model or fall back to first available
-        if self._model and self._model.strip():
-            model = self._model
-        else:
-            model = self.get_available_models()[0]
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent"
 
         data = {"contents": [{"parts": [{"text": prompt}]}]}
 
@@ -406,19 +392,13 @@ class DeepSeekLMClient(LMClient):
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for DeepSeekLMClient")
 
-        # Use configured model or fall back to first available
-        if self._model and self._model.strip():
-            model = self._model
-        else:
-            model = self.get_available_models()[0]
-
         url = "https://api.deepseek.com/chat/completions"
 
         data = {
             "messages": [
                 {"role": "user", "content": prompt}
             ],
-            "model": model,
+            "model": self._model,
             "stream": False,
             "temperature": 1.0,
             "max_tokens": 1000,
