@@ -68,6 +68,10 @@ class LMClient(ABC):
         """Return the unique identifier for this LM client."""
         pass
 
+    @staticmethod
+    def api_key_required() -> bool:
+        return True
+
     @abstractmethod
     def transform(self, prompt: str) -> LmResponse:
         pass
@@ -85,6 +89,11 @@ class DummyLMClient(LMClient):
     @override
     def id(self) -> str:
         return "dummy"
+
+    @staticmethod
+    @override
+    def api_key_required() -> bool:
+        return False
 
     @override
     def transform(self, prompt: str) -> LmResponse:

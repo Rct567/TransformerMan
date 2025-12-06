@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .utilities import JSON_TYPE
     from aqt.main import AnkiQt
 
-from .lm_clients import LM_CLIENTS, create_lm_client, LMClient
+from .lm_clients import LM_CLIENTS, create_lm_client, LMClient, get_lm_client_class
 
 
 class AddonConfig:
@@ -104,7 +104,7 @@ class AddonConfig:
         if self.__config is None:
             self.load()
 
-        # Get client name
+        # Lm client name
         client_name = self.get("lm_client", None)
 
         if not isinstance(client_name, str):
@@ -115,10 +115,7 @@ class AddonConfig:
         if client_name not in LM_CLIENTS:
             return f"Unknown LM client '{client_name}' configured", None
 
-        # Get API key for this client
-        api_key = self.get_api_key(client_name)
-
-        # Get model configuration
+        # Model of LM client
         model = self.get("model", None)
 
         if not isinstance(model, str):
@@ -126,13 +123,29 @@ class AddonConfig:
         elif not model:
             return "No model configured", None
 
+        client_class = get_lm_client_class(client_name)
+
+        if not client_class:
+            return f"Unknown LM client '{client_name}' configured", None
+
+        if model not in client_class.get_available_models():
+            return f"Configured model '{model}' is not available for client '{client_name}'", None
+
+        # Api key
+        api_key = ""
+
+        if client_class.api_key_required():
+
+            api_key = self.get_api_key(client_name)
+
+            if not api_key:
+                return f"API key is required for client '{client_name}'", None
+
+        # Create client
         client = create_lm_client(client_name, api_key, model)
 
-        if not client:
-            return "Unknown LM client", None
-
-        if model not in client.get_available_models():
-            return f"Configured model '{model}' is not available for client '{client_name}'", None
+        if client is None:
+            return f"Could not create LM client '{client_name}'", None
 
         return None, client
 
