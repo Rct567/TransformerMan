@@ -22,11 +22,12 @@ from aqt.qt import (
     QMessageBox,
     QCloseEvent,
 )
+from aqt.utils import showWarning
 
 if TYPE_CHECKING:
     from ..lib.addon_config import AddonConfig
 
-from ..lib.lm_clients import LM_CLIENTS, create_lm_client
+from ..lib.lm_clients import LM_CLIENTS, get_lm_client_class
 from ..lib.utilities import override
 
 from .base_dialog import TransformerManBaseDialog
@@ -137,6 +138,16 @@ class SettingsDialog(TransformerManBaseDialog):
 
         current_client = str(self.addon_config.get("lm_client", "dummy"))
 
+        # Check if the configured client is valid
+        if current_client not in LM_CLIENTS:
+            showWarning(
+                f"Unknown LM client '{current_client}' configured. Resetting to 'dummy' client.",
+                title="Configuration Warning",
+                parent=self,
+            )
+            current_client = "dummy"
+            self.addon_config.update_setting("lm_client", current_client)
+
         # Load API key for current client
         api_key = self.addon_config.get_api_key(current_client)
         self.api_key_input.setText(api_key)
@@ -146,7 +157,6 @@ class SettingsDialog(TransformerManBaseDialog):
         self.client_combo.clear()
         self.client_combo.addItems(clients)
 
-        current_client = str(self.addon_config.get("lm_client", "dummy"))
         idx_client = self.client_combo.findText(current_client)
         if idx_client >= 0:
             self.client_combo.setCurrentIndex(idx_client)
@@ -198,10 +208,11 @@ class SettingsDialog(TransformerManBaseDialog):
             self.reset_button.setEnabled(True)
 
     def _populate_models_for_client(self, client_name: str) -> None:
-        # Get API key for this client
-        api_key = self.addon_config.get_api_key(client_name)
-        client = create_lm_client(client_name, api_key, "")
-        models = client.get_available_models()
+        client_class = get_lm_client_class(client_name)
+        if client_class is None:
+            models = []
+        else:
+            models = client_class.get_available_models()
         self.model_combo.clear()
         if models:
             self.model_combo.addItems(models)

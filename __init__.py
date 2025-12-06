@@ -12,7 +12,7 @@ from typing import Any, TYPE_CHECKING
 from aqt import mw as anki_main_window, gui_hooks
 from aqt.main import AnkiQt
 from aqt.qt import QAction
-from aqt.utils import showInfo
+from aqt.utils import showInfo, showWarning
 
 from .transformerman.ui.main_window import TransformerManMainWindow
 from .transformerman.ui.settings_dialog import SettingsDialog
@@ -60,6 +60,14 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
 
     addon_config.reload()
     lm_client = addon_config.getClient()
+
+    if lm_client is None:
+        showWarning(
+            "Unknown LM client configured. Please check your settings.",
+            title="Configuration Error",
+            parent=browser,
+        )
+        return
 
     # Detect dark mode
     is_dark_mode = False

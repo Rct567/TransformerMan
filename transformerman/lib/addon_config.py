@@ -99,7 +99,8 @@ class AddonConfig:
         client_key = f"{client_id}_api_key"
         self.update_setting(client_key, api_key)
 
-    def getClient(self) -> LMClient:
+    def getClient(self) -> Optional[LMClient]:
+        """Return the configured LM client, or None if the client is unknown."""
         if self.__config is None:
             self.load()
 
@@ -112,7 +113,8 @@ class AddonConfig:
         # Get model configuration
         model = str(self.get("model", ""))
 
-        return create_lm_client(client_name, api_key, model)
+        client = create_lm_client(client_name, api_key, model)
+        return client
 
     @staticmethod
     def from_anki_main_window(mw: AnkiQt) -> AddonConfig:

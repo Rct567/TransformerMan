@@ -71,8 +71,9 @@ class LMClient(ABC):
     def transform(self, prompt: str) -> LmResponse:
         pass
 
+    @staticmethod
     @abstractmethod
-    def get_available_models(self) -> list[str]:
+    def get_available_models() -> list[str]:
         pass
 
 
@@ -130,8 +131,9 @@ class DummyLMClient(LMClient):
 
         return LmResponse('\n'.join(response_parts))
 
+    @staticmethod
     @override
-    def get_available_models(self) -> list[str]:
+    def get_available_models() -> list[str]:
         return [
             "mock_content_generator"
         ]
@@ -148,8 +150,9 @@ class OpenAILMClient(LMClient):
     def transform(self, prompt: str) -> LmResponse:
         raise NotImplementedError
 
+    @staticmethod
     @override
-    def get_available_models(self) -> list[str]:
+    def get_available_models() -> list[str]:
         return [
             "gpt-4o",
             "gpt-4o-mini",
@@ -169,8 +172,9 @@ class ClaudeLMClient(LMClient):
     def transform(self, prompt: str) -> LmResponse:
         raise NotImplementedError
 
+    @staticmethod
     @override
-    def get_available_models(self) -> list[str]:
+    def get_available_models() -> list[str]:
         return [
             "claude-3-5-sonnet-latest",
             "claude-3-opus-20240229",
@@ -244,15 +248,32 @@ class GeminiLMClient(LMClient):
             self.logger.error(f"Gemini Unexpected error: {e}")
             return LmResponse("", f"Error: {e!s}", e)
 
+    @staticmethod
     @override
-    def get_available_models(self) -> list[str]:
+    def get_available_models() -> list[str]:
         return [
             "gemini-flash-latest",
             "gemini-2.5-flash",
         ]
 
 
-def create_lm_client(name: str, api_key: str, model: str) -> LMClient:
-    cls_name = LM_CLIENTS.get(name, "DummyLMClient")
-    cls = globals().get(cls_name, DummyLMClient)
+from typing import Optional
+
+
+def create_lm_client(name: str, api_key: str, model: str) -> Optional[LMClient]:
+    if name not in LM_CLIENTS:
+        return None
+    cls_name = LM_CLIENTS[name]
+    cls = globals().get(cls_name)
+    if cls is None:
+        return None
     return cls(api_key, model)
+
+
+def get_lm_client_class(name: str) -> Optional[type[LMClient]]:
+    """Return the LM client class (type) for the given client name."""
+    if name not in LM_CLIENTS:
+        return None
+    cls_name = LM_CLIENTS[name]
+    cls = globals().get(cls_name)
+    return cls
