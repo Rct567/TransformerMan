@@ -148,16 +148,84 @@ class OpenAILMClient(LMClient):
 
     @override
     def transform(self, prompt: str) -> LmResponse:
-        raise NotImplementedError
+        """Transform notes using OpenAI API."""
+        if not self._api_key or not self._api_key.strip():
+            raise ValueError("API key is required for OpenAILMClient")
+
+        # Use configured model or fall back to first available
+        if self._model and self._model.strip():
+            model = self._model
+        else:
+            model = self.get_available_models()[0]
+
+        import requests
+
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._api_key}",
+        }
+        data = {
+            "model": model,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7,
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+
+            # Extract text from response
+            try:
+                choices = result.get("choices")
+                if not choices or not isinstance(choices, list) or len(choices) == 0:
+                    raise KeyError("Missing or empty 'choices' in result")
+                choice = choices[0]
+                message = choice.get("message")
+                if not message or not isinstance(message, dict):
+                    raise KeyError("Missing or invalid 'message' in choice")
+                text = message.get("content")
+                if text is None:
+                    raise KeyError("Missing 'content' in message")
+                return LmResponse(text)
+            except (KeyError, IndexError, TypeError) as e:
+                self.logger.error(f"Error parsing OpenAI response: {e}")
+                return LmResponse("", f"Error parsing AI response: {e}", e)
+
+        except requests.exceptions.HTTPError as e:
+            error_body = e.response.text if e.response else str(e)
+            self.logger.error(f"OpenAI HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
+            return LmResponse("", f"API Error: {e.response.status_code if e.response else 'unknown'}", e)
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"OpenAI Network Error: {e}")
+            return LmResponse("", f"Network Error: {e}", e)
+        except Exception as e:
+            self.logger.error(f"OpenAI Unexpected error: {e}")
+            return LmResponse("", f"Error: {e!s}", e)
 
     @staticmethod
     @override
     def get_available_models() -> list[str]:
         return [
+            # GPT-5 family
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5-nano",
+            "gpt-5-chat",
+            "gpt-5.1",
+            "gpt-5.1-chat",
+            # GPT-4o family (still supported, but older)
             "gpt-4o",
             "gpt-4o-mini",
-            "gpt-4-turbo",
-            "gpt-3.5-turbo",
+            "chatgpt-4o-latest",
+            # Reasoning models
+            "o3-mini",
+            "o3-pro",
+            "o1",
+            "o1-mini",
         ]
 
 
