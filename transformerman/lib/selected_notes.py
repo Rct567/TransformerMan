@@ -60,15 +60,15 @@ class SelectedNotes:
         Returns:
             List of note IDs matching the note type.
         """
-        filtered_ids: list[NoteId] = []
+        filtered_note_ids: list[NoteId] = []
 
         for nid in self.note_ids:
             note = self.get_note(nid)
             notetype = self.col.models.get(note.mid)
             if notetype and notetype['name'] == note_type_name:
-                filtered_ids.append(nid)
+                filtered_note_ids.append(nid)
 
-        return filtered_ids
+        return filtered_note_ids
 
     def get_note_type_counts(self) -> dict[str, int]:
         """
@@ -195,12 +195,12 @@ class SelectedNotes:
         Returns:
             New SelectedNotes instance with filtered note IDs.
         """
-        filtered_ids: list[NoteId] = []
+        filtered_note_ids: list[NoteId] = []
         for nid in self.note_ids:
             note = self.get_note(nid)
             if SelectedNotes.has_empty_field(note, selected_fields):
-                filtered_ids.append(nid)
-        return self.get_selected_notes(filtered_ids)
+                filtered_note_ids.append(nid)
+        return self.get_selected_notes(filtered_note_ids)
 
     def clear_cache(self) -> None:
         """

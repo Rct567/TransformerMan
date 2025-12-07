@@ -174,8 +174,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.current_note_type = note_type_name
 
         # Update notes count
-        filtered_ids = self.selected_notes.filter_by_note_type(note_type_name)
-        self.notes_count_label.setText(f"{len(filtered_ids)} notes selected")
+        filtered_note_ids = self.selected_notes.filter_by_note_type(note_type_name)
+        self.notes_count_label.setText(f"{len(filtered_note_ids)} notes selected")
 
         # Clear existing field widgets
         while self.fields_layout.count():
@@ -213,7 +213,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.fields_layout.setColumnStretch(1, 1)
 
         # Enable preview button if we have notes
-        self.preview_button.setEnabled(len(filtered_ids) > 0)
+        self.preview_button.setEnabled(len(filtered_note_ids) > 0)
 
         self._update_preview_table()
 
@@ -236,10 +236,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         ]
 
         # Get filtered note IDs
-        filtered_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
+        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
 
         # Update the preview table
-        self.preview_table.set_note_fields_update(filtered_ids, selected_fields)
+        self.preview_table.set_note_fields_update(filtered_note_ids, selected_fields)
 
 
 
@@ -374,7 +374,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         ]
 
         # Get filtered note IDs
-        filtered_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
+        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
 
         # Update the preview table with field updates for highlighting
-        self.preview_table.set_note_fields_update(filtered_ids, selected_fields, field_updates)
+        self.preview_table.set_note_fields_update(filtered_note_ids, selected_fields, field_updates)

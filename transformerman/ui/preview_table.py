@@ -87,7 +87,7 @@ class PreviewTable(QTableWidget):
 
     def set_note_fields_update(
         self,
-        filtered_ids: Sequence[NoteId],
+        note_ids: Sequence[NoteId],
         selected_fields: list[str],
         field_updates: dict[NoteId, dict[str, str]] | None = None,
     ) -> None:
@@ -95,11 +95,11 @@ class PreviewTable(QTableWidget):
         Update the table with notes and optional field updates.
 
         Args:
-            filtered_ids: List of note IDs to display.
+            note_ids: List of note IDs to display.
             selected_fields: List of selected field names (column headers).
             field_updates: Optional dictionary of field updates for highlighting.
         """
-        if not filtered_ids or not selected_fields:
+        if not note_ids or not selected_fields:
             self.clear()
             self.setColumnCount(0)
             self.setRowCount(0)
@@ -110,10 +110,10 @@ class PreviewTable(QTableWidget):
         self.setHorizontalHeaderLabels(selected_fields)
 
         # Set row count
-        self.setRowCount(len(filtered_ids))
+        self.setRowCount(len(note_ids))
 
         # Load notes in background
-        self._load_notes_in_background(list(filtered_ids), selected_fields, field_updates)
+        self._load_notes_in_background(list(note_ids), selected_fields, field_updates)
 
 
     def _create_table_item(self, full_content: str, is_highlighted: bool) -> QTableWidgetItem:
@@ -144,7 +144,7 @@ class PreviewTable(QTableWidget):
 
     def _load_notes_in_background(
         self,
-        filtered_ids: list[NoteId],
+        note_ids: list[NoteId],
         selected_fields: list[str],
         field_updates: dict[NoteId, dict[str, str]] | None = None,
     ) -> None:
@@ -152,7 +152,7 @@ class PreviewTable(QTableWidget):
         Load notes in batches in a background thread and update the table as they come in.
 
         Args:
-            filtered_ids: List of note IDs to load.
+            note_ids: List of note IDs to load.
             selected_fields: List of selected field names.
             field_updates: Optional dictionary of field updates for preview highlighting.
         """
@@ -171,7 +171,7 @@ class PreviewTable(QTableWidget):
                 self.highlight_color = QColor(*LIGHT_MODE_HIGHLIGHT_COLOR)
 
         # Store the current state for the background operation
-        current_filtered_ids = filtered_ids.copy()
+        current_ids = note_ids.copy()
         current_selected_fields = selected_fields.copy()
         current_field_updates = field_updates.copy() if field_updates else {}
 
@@ -181,7 +181,7 @@ class PreviewTable(QTableWidget):
             row_index = 0
 
             # Use batched utility function for cleaner batch processing
-            for batch_ids in batched(current_filtered_ids, BATCH_SIZE):
+            for batch_ids in batched(current_ids, BATCH_SIZE):
                 # Convert tuple to list if needed (batched returns tuples)
                 batch_ids_list = list(batch_ids)
 
