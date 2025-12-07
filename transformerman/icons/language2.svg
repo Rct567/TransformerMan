@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .language {
+        fill: none;
+        stroke: #d3d3d3;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+  <!-- Language/translation icon -->
+  <circle class="language" cx="12" cy="12" r="8" />
+  <path class="language" d="M5,12 L19,12" />
+  <path class="language" d="M12,5 L12,19" />
+  <path class="language" d="M8,8 L16,16" />
+  <path class="language" d="M16,8 L8,16" />
+</svg>

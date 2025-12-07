@@ -3,5 +3,6 @@
     "model": "",
     "batch_size": 20,
     "log_lm_requests": false,
-    "log_lm_responses": false
+    "log_lm_responses": false,
+    "show_tm_in_browser_top_menu": false
 }

@@ -14,9 +14,10 @@ from aqt.main import AnkiQt
 from aqt.qt import QAction
 from aqt.utils import showInfo, showWarning
 
-from .transformerman.ui.main_window import TransformerManMainWindow
-from .transformerman.ui.settings_dialog import SettingsDialog
-from .transformerman.lib.addon_config import AddonConfig
+from .transformerman.ui.main_window import TransformerManMainWindow # type: ignore[import-not-found]
+from .transformerman.ui.settings_dialog import SettingsDialog # type: ignore[import-not-found]
+from .transformerman.ui.utilities import insert_action_after, get_tm_icon # type: ignore[import-not-found]
+from .transformerman.lib.addon_config import AddonConfig # type: ignore[import-not-found]
 
 
 if TYPE_CHECKING:
@@ -89,20 +90,21 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
 
 def setup_browser_menu(mw: AnkiQt, browser: Browser, menu: Any, addon_config: AddonConfig) -> None:
     """Add TransformerMan to browser context menu."""
+
     action = QAction(ADDON_NAME, browser)
+    action.setIcon(get_tm_icon())
     action.triggered.connect(lambda: open_main_window(mw, browser, addon_config))
     menu.addAction(action)
 
 
 def setup_browser_top_menu(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) -> None:
     """Add TransformerMan as a clickable button in the Browser's menu bar."""
-    action = QAction(ADDON_NAME, browser)
-    action.triggered.connect(lambda: open_main_window(mw, browser, addon_config))
-
     menu_bar = browser.form.menubar
     if not menu_bar:
         return
 
+    action = QAction(ADDON_NAME, browser)
+    action.triggered.connect(lambda: open_main_window(mw, browser, addon_config))
     menu_bar.addAction(action)
 
 
@@ -112,14 +114,20 @@ if mw:
     assert isinstance(mw, AnkiQt)
 
     addon_config = AddonConfig.from_anki_main_window(mw)
+    addon_config.load()
 
-    # Add settings to Tools menu
-    settings_action = QAction(f"{ADDON_NAME} Settings", mw)
+    # Add settings to 'Tools' menu in main window
+    settings_action = QAction(f"{ADDON_NAME}: API settings", mw)
+    settings_action.setIcon(get_tm_icon())
     settings_action.triggered.connect(lambda: open_settings(mw, addon_config))
-    mw.form.menuTools.addAction(settings_action)
 
-    # Add to browser context menu (right-click menu)
+    # Use the utility function to insert after "Preferences"
+    menu = mw.form.menuTools
+    insert_action_after(menu, "Preferences", settings_action)
+
+    # Add to browser context menu (right-click menu) in browser window
     gui_hooks.browser_will_show_context_menu.append(lambda browser, menu: setup_browser_menu(mw, browser, menu, addon_config))
 
-    # Add to browser top menu bar
-    gui_hooks.browser_menus_did_init.append(lambda browser: setup_browser_top_menu(mw, browser, addon_config))
+    # Add to browser top menu bar in browser window
+    if addon_config.is_enabled("show_tm_in_browser_top_menu", False):
+        gui_hooks.browser_menus_did_init.append(lambda browser: setup_browser_top_menu(mw, browser, addon_config))
