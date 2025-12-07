@@ -82,7 +82,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Preview state
         self.preview_results: dict[NoteId, dict[str, str]] = {}  # note_id -> field_name -> new_value
-        self.previewed_note_ids: list[NoteId] = []
 
         self._setup_ui()
         self._load_note_types()
@@ -292,13 +291,11 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                 showWarning(f"Error during preview:\n\n{results['error']}\n\nNo notes would be updated.", parent=self)
                 # Clear any partial results
                 self.preview_results.clear()
-                self.previewed_note_ids.clear()
                 self.apply_button.setEnabled(False)
                 return
 
             # Store preview results
             self.preview_results = field_updates
-            self.previewed_note_ids = list(field_updates.keys())
 
             # Enable apply button
             self.apply_button.setEnabled(len(field_updates) > 0)
@@ -342,7 +339,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                 showInfo(f"Successfully applied changes to {updated} notes.", parent=self)
                 # Clear preview results and disable apply button
                 self.preview_results.clear()
-                self.previewed_note_ids.clear()
                 self.apply_button.setEnabled(False)
                 # Refresh preview table to show updated values
                 self.selected_notes.clear_cache()
