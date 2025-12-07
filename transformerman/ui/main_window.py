@@ -109,7 +109,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         layout.addLayout(note_type_layout)
 
         # Notes count label
-        self.notes_count_label = QLabel("0 notes selected")
+        self.notes_count_label = QLabel("<b>0 notes selected, 0 notes with empty fields</b>")
         layout.addWidget(self.notes_count_label)
 
         # Fields section
@@ -155,13 +155,52 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
+    def _update_notes_count_label(self) -> None:
+        """Update the notes count label with bold text and empty field count."""
+        if not self.current_note_type:
+            # No note type selected yet
+            self.notes_count_label.setText("<b>0 notes selected, 0 notes with empty fields</b>")
+            return
+
+        # Get filtered note IDs for current note type
+        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
+        total_count = len(filtered_note_ids)
+
+        # Get selected fields
+        selected_fields = {
+            field_name
+            for field_name, checkbox in self.field_checkboxes.items()
+            if checkbox.isChecked()
+        }
+        # Calculate notes with empty fields among selected fields
+        if selected_fields:
+            notes_with_empty_fields = self.selected_notes.filter_by_empty_field(selected_fields)
+            empty_count = len(notes_with_empty_fields.note_ids)
+        else:
+            empty_count = 0  # No fields selected means no empty fields to check
+
+        # Format with proper pluralization
+        note_text = "note" if total_count == 1 else "notes"
+        empty_text = "note" if empty_count == 1 else "notes"
+        field_text = "field" if empty_count == 1 else "fields"
+
+        # Update label with bold HTML
+        label_text = (
+            f"<b>{total_count} {note_text} selected, "
+            f"{empty_count} {empty_text} with empty {field_text}</b>"
+        )
+        self.notes_count_label.setText(label_text)
+
     def _load_note_types(self) -> None:
         """Load note types from selected notes."""
         self.note_type_counts = self.selected_notes.get_note_type_counts()
 
         if not self.note_type_counts:
-            self.notes_count_label.setText("No valid notes selected")
+            self.notes_count_label.setText("<b>No valid notes selected</b>")
             return
+
+        # Block signals during population to avoid triggering _on_note_type_changed prematurely
+        self.note_type_combo.blockSignals(True)
 
         # Populate combo box (already sorted by count)
         for note_type_name in self.note_type_counts.keys():
@@ -171,16 +210,18 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         if self.note_type_combo.count() > 0:
             self.note_type_combo.setCurrentIndex(0)
 
+        # Re-enable signals and manually trigger the change handler
+        self.note_type_combo.blockSignals(False)
+
+        # Manually trigger note type changed for the first item
+        if self.note_type_combo.count() > 0:
+            self._on_note_type_changed(self.note_type_combo.currentText())
+
     def _on_note_type_changed(self, note_type_name: str) -> None:
         """Handle note type selection change."""
         if not note_type_name:
             return
-
         self.current_note_type = note_type_name
-
-        # Update notes count
-        filtered_note_ids = self.selected_notes.filter_by_note_type(note_type_name)
-        self.notes_count_label.setText(f"{len(filtered_note_ids)} notes selected")
 
         # Clear existing field widgets
         while self.fields_layout.count():
@@ -195,7 +236,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Get field names for this note type
         field_names = self.selected_notes.get_field_names(note_type_name)
-
         # Create checkbox and instruction input for each field
         for row, field_name in enumerate(field_names):
             # Checkbox
@@ -217,8 +257,14 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Set column stretch so that instruction column expands
         self.fields_layout.setColumnStretch(1, 1)
 
+        # Get filtered note IDs for preview button state
+        filtered_note_ids = self.selected_notes.filter_by_note_type(note_type_name)
+
         # Enable preview button if we have notes
         self.preview_button.setEnabled(len(filtered_note_ids) > 0)
+
+        # Update notes count label with new counts
+        self._update_notes_count_label()
 
         self._update_preview_table()
 
@@ -229,6 +275,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             instruction_input = self.field_instructions[field_name]
             instruction_input.setEnabled(checkbox.isChecked())
 
+        # Update notes count label since empty field count may have changed
+        self._update_notes_count_label()
         self._update_preview_table()
 
     def _update_preview_table(self) -> None:

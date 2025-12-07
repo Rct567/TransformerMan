@@ -91,10 +91,11 @@ def mock_collection() -> Mock:
         note.note_type = Mock(return_value={"name": "Basic", "id": 123})
         note.fields = ["Front", "Back"]
         note.items.return_value = [("Front", f"Question {note_id}"), ("Back", f"Answer {note_id}")]
-        # Define __getitem__ as a proper function with type hints
-        def getitem_func(self: Mock, key: str) -> str:
-            return {"Front": f"Question {note_id}", "Back": f"Answer {note_id}"}.get(key, "")
-        note.__getitem__ = getitem_func
+        # Define __getitem__ to return field values
+        field_data = {"Front": f"Question {note_id}", "Back": f"Answer {note_id}"}
+        note.__getitem__ = lambda self, key: field_data.get(key, "") # type: ignore
+        # Define __contains__ to check if field exists
+        note.__contains__ = lambda self, key: key in field_data # type: ignore
         return note
 
     collection.get_note.side_effect = get_note_side_effect
@@ -122,10 +123,11 @@ def selected_notes(mock_collection: Mock, test_note_ids: list[NoteId]) -> Select
         note.note_type.return_value = {"name": "Basic", "id": 123}
         note.fields = ["Front", "Back"]
         note.items.return_value = [("Front", f"Question {note_id}"), ("Back", f"Answer {note_id}")]
-        # Define __getitem__ as a proper function with type hints
-        def getitem_func(self: Mock, key: str) -> str:
-            return {"Front": f"Question {note_id}", "Back": f"Answer {note_id}"}.get(key, "")
-        note.__getitem__ = getitem_func
+        # Define __getitem__ to return field values
+        field_data = {"Front": f"Question {note_id}", "Back": f"Answer {note_id}"}
+        note.__getitem__ = lambda self, key: field_data.get(key, "") # type: ignore
+        # Define __contains__ to check if field exists
+        note.__contains__ = lambda self, key: key in field_data # type: ignore
         return note
 
     mock_collection.get_note.side_effect = get_note_side_effect

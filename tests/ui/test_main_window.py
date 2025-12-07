@@ -90,7 +90,13 @@ class TestTransformerManMainWindow:
         assert isinstance(window.note_type_combo, QComboBox)
 
         assert hasattr(window, 'notes_count_label')
-        assert window.notes_count_label.text() != ""
+        # Label should have bold HTML text with empty field count
+        label_text = window.notes_count_label.text()
+        assert label_text != ""
+        assert label_text.startswith("<b>")
+        assert label_text.endswith("</b>")
+        assert "notes selected" in label_text
+        assert "notes with empty fields" in label_text
 
         assert hasattr(window, 'preview_button')
         assert isinstance(window.preview_button, QPushButton)
@@ -114,6 +120,7 @@ class TestTransformerManMainWindow:
         is_dark_mode: bool,
         test_note_ids: list[NoteId],
     ) -> None:
+
         """Test that note type combo box is populated with note types."""
         # Mock SelectedNotes to return specific note type counts
         mock_selected_notes = Mock()
@@ -124,6 +131,7 @@ class TestTransformerManMainWindow:
         # Add methods needed by _on_note_type_changed
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]  # Return first 2 notes
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
+        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
 
         with patch('transformerman.ui.main_window.SelectedNotes', return_value=mock_selected_notes):
             window = TransformerManMainWindow(
@@ -173,6 +181,7 @@ class TestTransformerManMainWindow:
         mock_selected_notes = Mock()
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
+        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
         window.selected_notes = mock_selected_notes
 
         # Set up combo box with Basic note type and trigger change
@@ -233,6 +242,7 @@ class TestTransformerManMainWindow:
         mock_selected_notes = Mock()
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
+        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
         window.selected_notes = mock_selected_notes
 
         # Set up combo box with Basic note type and trigger change
@@ -288,6 +298,7 @@ class TestTransformerManMainWindow:
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]  # Has notes
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
         mock_selected_notes.has_note_with_empty_field.return_value = False  # No empty fields
+        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
         window.selected_notes = mock_selected_notes
 
         # Set up combo box with Basic note type and trigger change
@@ -367,6 +378,7 @@ class TestTransformerManMainWindow:
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
         mock_selected_notes.has_note_with_empty_field.return_value = True
+        mock_selected_notes.filter_by_empty_field.return_value.note_ids = test_note_ids[:1]
         window.selected_notes = mock_selected_notes
 
         # Set up combo box with Basic note type and trigger change
@@ -418,6 +430,7 @@ class TestTransformerManMainWindow:
         # Mock SelectedNotes to return different field names for different note types
         mock_selected_notes = Mock()
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]  # 2 notes
+        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
         def get_field_names_side_effect(note_type: str) -> list[str]:
             field_map = {
                 "Basic": ["Front", "Back"],
