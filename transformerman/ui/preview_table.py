@@ -182,11 +182,9 @@ class PreviewTable(QTableWidget):
 
             # Use batched utility function for cleaner batch processing
             for batch_ids in batched(current_ids, BATCH_SIZE):
-                # Convert tuple to list if needed (batched returns tuples)
-                batch_ids_list = list(batch_ids)
 
                 # Load notes for this batch
-                notes = selected_notes.get_notes(batch_ids_list)
+                notes = selected_notes.get_notes(batch_ids)
 
                 # Process each note in the batch
                 for i, note in enumerate(notes):
