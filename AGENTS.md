@@ -35,6 +35,7 @@
 - Use `from typing import` only for: `Callable`, `Optional`, `TypeVar`, etc.
 - Use `from collections.abc import` for: `Generator`, `Iterator`, `Sequence` etc.
 - Always include return type hints (use `-> None` when appropriate)
+- `from __future__ import annotations` should be at the top of every file (to prevent evaluating type hints at runtime).
 
 ### Naming Conventions
 - Use descriptive variable names
@@ -83,8 +84,7 @@
 
 ### Tests
 - `tests/` - All test files
-- `tests/tools.py` - Shared test utilities
-- `tests/data/` - Test data files
+- `tests/ui/` - UI tests
 
 ## Common Patterns
 
@@ -130,3 +130,5 @@
 4. **Fix issues** if tests fail and run tests again
 5. **Check code**: `ruff check && mypy && pyright`
 6. **Verify** all checks pass before considering task complete
+
+Note: `ruff check`, `mypy`, `pyright` and `pytest` should **ALWAYS** be run before ending a task!
