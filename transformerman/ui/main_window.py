@@ -97,10 +97,15 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Note type selection
         note_type_layout = QHBoxLayout()
-        note_type_layout.addWidget(QLabel("Note Type:"))
+        note_type_text = QLabel("Select note type:")
+        note_type_text.setMinimumWidth(145)
+        note_type_layout.addWidget(note_type_text)
+        # Add spacing between label and combo box
+        note_type_layout.addSpacing(10)
         self.note_type_combo = QComboBox()
         self.note_type_combo.currentTextChanged.connect(self._on_note_type_changed)
-        note_type_layout.addWidget(self.note_type_combo)
+        # Add combo box with stretch factor so it expands horizontally
+        note_type_layout.addWidget(self.note_type_combo, 1)
         layout.addLayout(note_type_layout)
 
         # Notes count label
