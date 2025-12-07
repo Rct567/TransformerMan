@@ -180,6 +180,13 @@ def run_tox() -> None:
     elapsed_time = time.perf_counter() - start_time
     print(f"{GREEN}Tox was successful! ({elapsed_time:.0f} seconds){RESET}")
 
+
+def things_to_type_check() -> list[str]:
+
+    root_dirs = [relative_path(dir) for dir in TEST_TARGET_FOLDER]
+    root_files_to_run = [relative_path(py_file) for py_file in PROJECT_ROOT.glob('*.py')]
+    return root_dirs + root_files_to_run
+
 def run_mypy(options: Sequence[str]) -> None:
     """Run mypy."""
     print("="*60)
@@ -189,18 +196,9 @@ def run_mypy(options: Sequence[str]) -> None:
     ensure_packages_installed(["mypy"])
 
     if "staged" in options:
-        # Only check staged Python files
         check_staged_files(["mypy"], "mypy")
     else:
-        # Check all files (original behavior)
-        root_files_to_run = [
-            relative_path(py_file)
-            for py_file in PROJECT_ROOT.glob('*.py')
-            if py_file.name != "__init__.py"
-        ]
-        run_and_print_on_failure(["mypy"] + [relative_path(dir) for dir in TEST_TARGET_FOLDER] + root_files_to_run, "Mypy")
-
-        run_and_print_on_failure(["mypy", "./__init__.py", "--ignore-missing-imports"], "Mypy")
+        run_and_print_on_failure(["mypy"] + things_to_type_check(),  "Mypy")
 
     elapsed_time = time.perf_counter() - start_time
     print(f"{GREEN} Mypy was successful! ({elapsed_time:.0f} seconds){RESET}")
@@ -215,14 +213,9 @@ def run_ruff(options: Sequence[str]) -> None:
     ensure_packages_installed(["ruff"])
 
     if "staged" in options:
-        # Only check staged Python files
         check_staged_files(["ruff", "check"], "ruff")
     else:
-        # Check all files (original behavior)
-        run_and_print_on_failure(["ruff", "check"] + [relative_path(dir) for dir in TEST_TARGET_FOLDER], "Ruff")
-
-        root_files_to_run = [relative_path(py_file) for py_file in PROJECT_ROOT.glob('*.py')]
-        run_and_print_on_failure(["ruff", "check"] + root_files_to_run, "Ruff")
+        run_and_print_on_failure(["ruff", "check"] + things_to_type_check(), "Ruff")
 
     elapsed_time = time.perf_counter() - start_time
     print(f"{GREEN} Ruff was successful! ({elapsed_time:.0f} seconds){RESET}")
@@ -236,14 +229,9 @@ def run_pyright(options: Sequence[str]) -> None:
     ensure_packages_installed(["pyright"])
 
     if "staged" in options:
-        # Only check staged Python files
         check_staged_files(["pyright"], "pyright")
     else:
-        # Check all files (original behavior)
-        run_and_print_on_failure(["pyright"] + [relative_path(dir) for dir in TEST_TARGET_FOLDER], "Pyright")
-
-        root_files_to_run = [relative_path(py_file) for py_file in PROJECT_ROOT.glob('*.py')]
-        run_and_print_on_failure(["pyright"] + root_files_to_run, "Pyright")
+        run_and_print_on_failure(["pyright"] + things_to_type_check(), "Pyright")
 
     elapsed_time = time.perf_counter() - start_time
     print(f"{GREEN} Pyright was successful! ({elapsed_time:.0f} seconds){RESET}")
