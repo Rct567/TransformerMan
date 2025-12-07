@@ -17,6 +17,10 @@ if TYPE_CHECKING:
 from aqt.qt import QWidget, QTableWidgetItem
 
 from transformerman.ui.preview_table import PreviewTable
+from transformerman.lib.selected_notes import SelectedNotes
+from tests.tools import with_test_collection, MockCollection, test_collection as test_collection_fixture
+
+col = test_collection_fixture
 
 
 class TestPreviewTable:
@@ -46,31 +50,35 @@ class TestPreviewTable:
         # Should have minimum height
         assert table.minimumHeight() >= 150
 
+    @with_test_collection("empty_collection")
     def test_set_selected_notes(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        selected_notes: Mock,
+        col: MockCollection,
     ) -> None:
         """Test that selected notes can be set."""
         table = PreviewTable(parent_widget, is_dark_mode)
         qtbot.addWidget(table)
 
+        selected_notes = SelectedNotes(col, [])
         table.set_selected_notes(selected_notes)
 
         assert table.selected_notes is selected_notes
 
+    @with_test_collection("empty_collection")
     def test_set_note_fields_update_with_empty_data(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        selected_notes: Mock,
+        col: MockCollection,
     ) -> None:
         """Test that table handles empty note IDs or fields."""
         table = PreviewTable(parent_widget, is_dark_mode)
         qtbot.addWidget(table)
+        selected_notes = SelectedNotes(col, [])
         table.set_selected_notes(selected_notes)
 
         # Test with empty note IDs
@@ -85,6 +93,7 @@ class TestPreviewTable:
         assert table.rowCount() == 0
         assert table.columnCount() == 0
 
+    @with_test_collection("empty_collection")
     @patch('transformerman.ui.preview_table.QueryOp')
     def test_table_headers_set(
         self,
@@ -92,13 +101,14 @@ class TestPreviewTable:
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        selected_notes: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
     ) -> None:
         """Test that table headers are set correctly."""
         table = PreviewTable(parent_widget, is_dark_mode)
         qtbot.addWidget(table)
+        selected_notes = SelectedNotes(col, [])
         table.set_selected_notes(selected_notes)
 
         # Mock QueryOp to avoid requiring main window
@@ -170,6 +180,7 @@ class TestPreviewTable:
         # Note: We can't easily test highlighting without setting up the full
         # field_updates scenario, but the method should handle it
 
+    @with_test_collection("empty_collection")
     @patch('transformerman.ui.preview_table.QueryOp')
     def test_background_loading_setup(
         self,
@@ -177,13 +188,14 @@ class TestPreviewTable:
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        selected_notes: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
     ) -> None:
         """Test that background loading is set up correctly."""
         table = PreviewTable(parent_widget, is_dark_mode)
         qtbot.addWidget(table)
+        selected_notes = SelectedNotes(col, [])
         table.set_selected_notes(selected_notes)
 
         selected_fields_list = list(test_selected_fields)
@@ -210,6 +222,7 @@ class TestPreviewTable:
         # QueryOp should have been created
         mock_query_op.assert_called_once()
 
+    @with_test_collection("empty_collection")
     @patch('transformerman.ui.preview_table.QueryOp')
     def test_table_with_field_updates(
         self,
@@ -217,7 +230,7 @@ class TestPreviewTable:
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        selected_notes: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
         test_field_updates: dict[NoteId, dict[str, str]],
@@ -225,6 +238,7 @@ class TestPreviewTable:
         """Test that table handles field updates for highlighting."""
         table = PreviewTable(parent_widget, is_dark_mode)
         qtbot.addWidget(table)
+        selected_notes = SelectedNotes(col, [])
         table.set_selected_notes(selected_notes)
 
         selected_fields_list = list(test_selected_fields)

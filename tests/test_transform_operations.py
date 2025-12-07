@@ -9,21 +9,14 @@ from unittest.mock import Mock, MagicMock
 import pytest
 
 from transformerman.lib.transform_operations import NoteTransformer, create_lm_logger
+from tests.tools import test_collection as test_collection_fixture
+
+col = test_collection_fixture
 
 
 if TYPE_CHECKING:
     from pathlib import Path
     from anki.notes import NoteId
-
-
-
-@pytest.fixture
-def mock_collection() -> Mock:
-    """Create a mock Anki collection."""
-    col = Mock()
-    col.get_note = Mock()
-    col.update_note = Mock()
-    return col
 
 
 @pytest.fixture
@@ -91,7 +84,6 @@ def mock_user_files_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def note_transformer(
-    mock_collection: Mock,
     mock_selected_notes: Mock,
     mock_lm_client: Mock,
     mock_prompt_builder: Mock,
@@ -99,6 +91,13 @@ def note_transformer(
     mock_user_files_dir: Path,
 ) -> NoteTransformer:
     """Create a NoteTransformer instance for testing."""
+    # We'll create a real collection for this fixture
+    # But tests that use this fixture will need to mock collection methods
+    # This is a temporary solution - ideally tests should use @with_test_collection
+    mock_collection = Mock()
+    mock_collection.get_note = Mock()
+    mock_collection.update_note = Mock()
+
     return NoteTransformer(
         col=mock_collection,
         selected_notes=mock_selected_notes,
@@ -118,7 +117,6 @@ class TestNoteTransformer:
 
     def test_init_validates_notes_with_empty_fields(
         self,
-        mock_collection: Mock,
         mock_selected_notes: Mock,
         mock_lm_client: Mock,
         mock_prompt_builder: Mock,
@@ -133,6 +131,11 @@ class TestNoteTransformer:
         mock_selected_notes_without_empty.filter_by_empty_field = Mock()
         mock_selected_notes_without_empty.batched = Mock()
         mock_selected_notes.get_selected_notes = Mock(return_value=mock_selected_notes_without_empty)
+
+        # Create a mock collection
+        mock_collection = Mock()
+        mock_collection.get_note = Mock()
+        mock_collection.update_note = Mock()
 
         with pytest.raises(ValueError, match="No notes with empty fields found"):
             NoteTransformer(
@@ -151,7 +154,6 @@ class TestNoteTransformer:
     def test_transform_processes_all_batches(
         self,
         note_transformer: NoteTransformer,
-        mock_collection: Mock,
         mock_lm_client: Mock,
         mock_prompt_builder: Mock,
     ) -> None:
@@ -164,7 +166,7 @@ class TestNoteTransformer:
             note.__setitem__ = Mock()
             mock_notes.append(note)
 
-        mock_collection.get_note.side_effect = mock_notes
+        note_transformer.col.get_note.side_effect = mock_notes # type: ignore
 
         # Run transformation (immediate application)
         results = note_transformer.transform()
@@ -179,12 +181,11 @@ class TestNoteTransformer:
         mock_prompt_builder.build_prompt.assert_called()
 
         # Verify notes were updated
-        assert mock_collection.update_note.call_count == 4
+        assert note_transformer.col.update_note.call_count == 4 # type: ignore
 
     def test_transform_with_progress_callback(
         self,
         note_transformer: NoteTransformer,
-        mock_collection: Mock,
     ) -> None:
         """Test that transform calls progress callback."""
         # Mock notes
@@ -195,7 +196,7 @@ class TestNoteTransformer:
             note.__setitem__ = Mock()
             mock_notes.append(note)
 
-        mock_collection.get_note.side_effect = mock_notes
+        note_transformer.col.get_note.side_effect = mock_notes # type: ignore
 
         # Track progress calls
         progress_calls = []
@@ -214,7 +215,6 @@ class TestNoteTransformer:
     def test_transform_with_cancellation(
         self,
         note_transformer: NoteTransformer,
-        mock_collection: Mock,
     ) -> None:
         """Test that transform respects cancellation."""
         # Mock notes for first batch only
@@ -225,7 +225,7 @@ class TestNoteTransformer:
             note.__setitem__ = Mock()
             mock_notes.append(note)
 
-        mock_collection.get_note.side_effect = mock_notes
+        note_transformer.col.get_note.side_effect = mock_notes # type: ignore
 
         # Cancel after first batch
         cancel_after = [0]
@@ -238,12 +238,11 @@ class TestNoteTransformer:
 
         # Verify only first batch was processed
         assert results["batches_processed"] == 1
-        assert mock_collection.update_note.call_count == 2  # Only first batch notes
+        assert note_transformer.col.update_note.call_count == 2  # type: ignore # Only first batch notes
 
     def test_transform_handles_note_update_errors(
         self,
         note_transformer: NoteTransformer,
-        mock_collection: Mock,
     ) -> None:
         """Test that transform handles note update errors gracefully."""
         # Mock notes with one failing
@@ -255,11 +254,11 @@ class TestNoteTransformer:
 
             # Make second note fail
             if i == 1:
-                mock_collection.update_note.side_effect = [Exception("Update failed"), None, None, None]
+                note_transformer.col.update_note.side_effect = [Exception("Update failed"), None, None, None] # type: ignore
 
             mock_notes.append(note)
 
-        mock_collection.get_note.side_effect = mock_notes
+        note_transformer.col.get_note.side_effect = mock_notes # type: ignore
 
         # Run transformation
         results = note_transformer.transform()
@@ -272,7 +271,6 @@ class TestNoteTransformer:
         self,
         note_transformer: NoteTransformer,
         mock_lm_client: Mock,
-        mock_collection: Mock,
     ) -> None:
         """Test that transform handles batch processing errors gracefully."""
         # Mock notes for both batches
@@ -283,7 +281,7 @@ class TestNoteTransformer:
             note.__setitem__ = Mock()
             mock_notes.append(note)
 
-        mock_collection.get_note.side_effect = mock_notes
+        note_transformer.col.get_note.side_effect = mock_notes # type: ignore
 
         # Create a proper mock response for the second batch
         mock_response = MagicMock()
@@ -308,7 +306,6 @@ class TestNoteTransformer:
     def test_transform_only_updates_empty_fields(
         self,
         note_transformer: NoteTransformer,
-        mock_collection: Mock,
     ) -> None:
         """Test that transform only updates empty fields."""
         # Mock notes with some non-empty fields
@@ -323,7 +320,7 @@ class TestNoteTransformer:
             note.__setitem__ = Mock()
             mock_notes.append(note)
 
-        mock_collection.get_note.side_effect = mock_notes
+        note_transformer.col.get_note.side_effect = mock_notes # type: ignore
 
         # Run transformation
         results = note_transformer.transform()

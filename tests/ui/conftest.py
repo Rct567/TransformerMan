@@ -15,7 +15,6 @@ import pytest
 from aqt.qt import QWidget, QMessageBox
 
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
-from transformerman.lib.selected_notes import SelectedNotes
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -63,76 +62,9 @@ def parent_widget(qtbot: QtBot) -> QWidget:
 
 
 @pytest.fixture
-def mock_collection() -> Mock:
-    """Mock Anki collection."""
-    collection = Mock(spec_set=["get_note", "models", "find_notes"])
-
-    # Mock models to return proper dict-like objects
-    mock_model = {"name": "Basic", "id": 123, "flds": [{"name": "Front"}, {"name": "Back"}]}
-    collection.models = Mock()
-    collection.models.all.return_value = [mock_model]
-
-    # Mock models.get to return the mock model when called with ID 123
-    def models_get_side_effect(model_id: int) -> dict[str, Any] | None:
-        if model_id == 123:
-            return mock_model
-        return None
-
-    collection.models.get = Mock(side_effect=models_get_side_effect)
-
-    # Mock find_notes to return empty list
-    collection.find_notes.return_value = []
-
-    # Mock get_note to return a mock note with proper attributes
-    def get_note_side_effect(note_id: NoteId) -> Mock:
-        note = Mock()
-        note.id = note_id
-        note.mid = 123  # Model ID
-        note.note_type = Mock(return_value={"name": "Basic", "id": 123})
-        note.fields = ["Front", "Back"]
-        note.items.return_value = [("Front", f"Question {note_id}"), ("Back", f"Answer {note_id}")]
-        # Define __getitem__ to return field values
-        field_data = {"Front": f"Question {note_id}", "Back": f"Answer {note_id}"}
-        note.__getitem__ = lambda self, key: field_data.get(key, "") # type: ignore
-        # Define __contains__ to check if field exists
-        note.__contains__ = lambda self, key: key in field_data # type: ignore
-        return note
-
-    collection.get_note.side_effect = get_note_side_effect
-
-    return collection
-
-
-@pytest.fixture
 def test_note_ids() -> list[NoteId]:
     """Test note IDs for testing."""
     return [cast('NoteId', 123), cast('NoteId', 456), cast('NoteId', 789)]
-
-
-@pytest.fixture
-def selected_notes(mock_collection: Mock, test_note_ids: list[NoteId]) -> SelectedNotes:
-    """
-    Real SelectedNotes instance with mocked collection.
-
-    Uses real SelectedNotes class with a mocked collection to avoid database dependencies.
-    """
-    # Mock get_note to return a mock note
-    def get_note_side_effect(note_id: NoteId) -> Mock:
-        note = Mock()
-        note.id = note_id
-        note.note_type.return_value = {"name": "Basic", "id": 123}
-        note.fields = ["Front", "Back"]
-        note.items.return_value = [("Front", f"Question {note_id}"), ("Back", f"Answer {note_id}")]
-        # Define __getitem__ to return field values
-        field_data = {"Front": f"Question {note_id}", "Back": f"Answer {note_id}"}
-        note.__getitem__ = lambda self, key: field_data.get(key, "") # type: ignore
-        # Define __contains__ to check if field exists
-        note.__contains__ = lambda self, key: key in field_data # type: ignore
-        return note
-
-    mock_collection.get_note.side_effect = get_note_side_effect
-
-    return SelectedNotes(mock_collection, test_note_ids)
 
 
 @pytest.fixture
