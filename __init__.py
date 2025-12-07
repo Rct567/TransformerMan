@@ -60,7 +60,7 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
         return
 
     addon_config.reload()
-    error, lm_client = addon_config.getClient()
+    lm_client, error = addon_config.get_client()
 
     if lm_client is None:
 

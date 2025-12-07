@@ -98,7 +98,7 @@ class TestAddonConfig:
             pass
 
         addon_config = AddonConfig(loader, saver)
-        error, client = addon_config.getClient()
+        client, error = addon_config.get_client()
         assert error is None
         assert isinstance(client, OpenAILMClient)
 
@@ -112,7 +112,7 @@ class TestAddonConfig:
             pass
 
         addon_config = AddonConfig(loader, saver)
-        error, client = addon_config.getClient()
+        client, error  = addon_config.get_client()
         assert client is None
         assert error is not None
 
