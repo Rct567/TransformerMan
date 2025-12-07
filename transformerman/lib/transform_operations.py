@@ -7,10 +7,11 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, TypedDict
+from typing import TYPE_CHECKING, Callable, TypedDict, Any
 
 from aqt import mw
 from aqt.operations import QueryOp
+from aqt.operations.note import update_notes
 from aqt.utils import showInfo
 from aqt.qt import QProgressDialog, QWidget, Qt
 
@@ -273,7 +274,6 @@ class NoteTransformer:
         Get field updates for notes in batches.
 
         Makes API calls to get field updates but does not apply them.
-        Use apply_field_updates() later to apply the stored updates.
 
         Args:
             progress_callback: Optional callback for progress reporting.
@@ -497,24 +497,27 @@ def transform_notes_with_progress(  # noqa: PLR0913
     ).failure(on_failure).run_in_background()
 
 
-def apply_field_updates(
+def apply_field_updates_with_operation(
+    parent: QWidget,
     col: Collection,
     field_updates: dict[NoteId, dict[str, str]],
     logger: logging.Logger,
-) -> dict[str, int]:
+    on_success: Callable[[dict[str, int]], None] | None = None,
+    on_failure: Callable[[Exception], None] | None = None,
+) -> None:
     """
-    Apply stored field updates to the Anki collection.
+    Apply stored field updates to the Anki collection using update_notes operation.
 
     Args:
+        parent: Parent widget for the operation.
         col: Anki collection.
         field_updates: Dictionary mapping note_id -> dict of field_name -> new_value.
-
-    Returns:
-        Dictionary with application results:
-            - "updated": Number of notes updated
-            - "failed": Number of notes that failed
+        logger: Logger instance.
+        on_success: Callback called with results dict when operation succeeds.
+        on_failure: Callback called with exception when operation fails.
     """
-    updated = 0
+    # Collect notes that need updating
+    notes_to_update = []
     failed = 0
 
     for note_id, updates in field_updates.items():
@@ -528,14 +531,28 @@ def apply_field_updates(
                     note_updated = True
 
             if note_updated:
-                col.update_note(note)
-                updated += 1
-
+                notes_to_update.append(note)
         except Exception as e:
-            logger.error(f"Error applying updates to note {note_id}: {e!r}")
+            logger.error(f"Error preparing note {note_id} for update: {e!r}")
             failed += 1
 
-    return {
-        "updated": updated,
-        "failed": failed,
-    }
+    if not notes_to_update:
+        # No notes to update, call on_success immediately
+        if on_success:
+            on_success({"updated": 0, "failed": failed})
+        return
+
+    # Run update_notes operation
+    def on_op_success(changes: Any) -> None:
+        """Called when update_notes operation succeeds."""
+        if on_success:
+            on_success({"updated": len(notes_to_update), "failed": failed})
+
+    def on_op_failure(exception: Exception) -> None:
+        """Called when update_notes operation fails."""
+        logger.error(f"Error in update_notes operation: {exception!r}")
+        if on_failure:
+            on_failure(exception)
+
+    # Run the operation
+    update_notes(parent=parent, notes=notes_to_update).success(on_op_success).failure(on_op_failure).run_in_background()

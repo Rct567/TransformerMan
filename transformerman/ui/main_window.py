@@ -24,7 +24,7 @@ from aqt.utils import showInfo, showWarning
 from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 
-from ..lib.transform_operations import transform_notes_with_progress, apply_field_updates, TransformResults
+from ..lib.transform_operations import transform_notes_with_progress, apply_field_updates_with_operation, TransformResults
 from ..lib.prompt_builder import PromptBuilder
 from ..lib.selected_notes import SelectedNotes
 
@@ -332,23 +332,36 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             showInfo("No preview results to apply. Please run Preview first.", parent=self)
             return
 
-        # Apply field updates
-        results = apply_field_updates(self.col, self.preview_results, self.logger)
+        # Apply field updates using operation (which will trigger Browser refresh)
+        def on_success(results: dict[str, int]) -> None:
+            """Handle successful application of field updates."""
+            updated = results.get("updated", 0)
+            failed = results.get("failed", 0)
 
-        # Show results
-        updated = results.get("updated", 0)
-        failed = results.get("failed", 0)
+            if updated > 0:
+                showInfo(f"Successfully applied changes to {updated} notes.", parent=self)
+                # Clear preview results and disable apply button
+                self.preview_results.clear()
+                self.previewed_note_ids.clear()
+                self.apply_button.setEnabled(False)
+                # Refresh preview table to show updated values
+                self._update_preview_table()
+            else:
+                showInfo(f"No notes were updated. {failed} notes failed.", parent=self)
 
-        if updated > 0:
-            showInfo(f"Successfully applied changes to {updated} notes.", parent=self)
-            # Clear preview results and disable apply button
-            self.preview_results.clear()
-            self.previewed_note_ids.clear()
-            self.apply_button.setEnabled(False)
-            # Refresh preview table to show updated values
-            self._update_preview_table()
-        else:
-            showInfo(f"No notes were updated. {failed} notes failed.", parent=self)
+        def on_failure(exception: Exception) -> None:
+            """Handle failure of field updates operation."""
+            self.logger.error(f"Error applying field updates: {exception!r}")
+            showInfo(f"Error applying changes: {exception!s}", parent=self)
+
+        apply_field_updates_with_operation(
+            parent=self,
+            col=self.col,
+            field_updates=self.preview_results,
+            logger=self.logger,
+            on_success=on_success,
+            on_failure=on_failure,
+        )
 
     def _update_preview_table_with_results(
         self,
