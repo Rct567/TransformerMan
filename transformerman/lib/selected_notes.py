@@ -201,3 +201,9 @@ class SelectedNotes:
             if SelectedNotes.has_empty_field(note, selected_fields):
                 filtered_ids.append(nid)
         return self.get_selected_notes(filtered_ids)
+
+    def clear_cache(self) -> None:
+        """
+        Clear the note cache.
+        """
+        self._note_cache.clear()

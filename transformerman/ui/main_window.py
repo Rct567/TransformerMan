@@ -345,6 +345,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                 self.previewed_note_ids.clear()
                 self.apply_button.setEnabled(False)
                 # Refresh preview table to show updated values
+                self.selected_notes.clear_cache()
                 self._update_preview_table()
             else:
                 showInfo(f"No notes were updated. {failed} notes failed.", parent=self)
