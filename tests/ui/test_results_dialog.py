@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from unittest.mock import Mock
     from pytestqt.qtbot import QtBot
     from anki.notes import NoteId
 
@@ -17,15 +16,23 @@ from aqt.qt import QWidget, QLabel, QPushButton, Qt
 
 from transformerman.ui.results_dialog import ResultsDialog
 
+from tests.tools import (
+    MockCollection,
+    with_test_collection,
+    test_collection as test_collection_fixture
+)
+
+col = test_collection_fixture
 
 class TestResultsDialog:
     """Test class for ResultsDialog."""
 
+    @with_test_collection("empty_collection")
     def test_dialog_creation(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        mock_collection: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
         test_note_type_name: str,
@@ -34,7 +41,7 @@ class TestResultsDialog:
         """Test that results dialog can be created."""
         dialog = ResultsDialog(
             parent=parent_widget,
-            col=mock_collection,
+            col=col,
             note_ids=test_note_ids,
             selected_fields=test_selected_fields,
             note_type_name=test_note_type_name,
@@ -43,7 +50,7 @@ class TestResultsDialog:
         qtbot.addWidget(dialog)
 
         assert dialog.parent() is parent_widget
-        assert dialog.col is mock_collection
+        assert dialog.col is col
         assert dialog.note_ids == test_note_ids
         assert dialog.selected_fields == test_selected_fields
         assert dialog.note_type_name == test_note_type_name
@@ -56,11 +63,12 @@ class TestResultsDialog:
         assert dialog.minimumWidth() >= 500
         assert dialog.minimumHeight() >= 300
 
+    @with_test_collection("empty_collection")
     def test_ui_components_created(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        mock_collection: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
         test_note_type_name: str,
@@ -69,7 +77,7 @@ class TestResultsDialog:
         """Test that all UI components are created."""
         dialog = ResultsDialog(
             parent=parent_widget,
-            col=mock_collection,
+            col=col,
             note_ids=test_note_ids,
             selected_fields=test_selected_fields,
             note_type_name=test_note_type_name,
@@ -85,11 +93,12 @@ class TestResultsDialog:
         assert isinstance(dialog.close_button, QPushButton)
         assert dialog.close_button.text() == "Close"
 
+    @with_test_collection("empty_collection")
     def test_results_displayed(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        mock_collection: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
         test_note_type_name: str,
@@ -98,7 +107,7 @@ class TestResultsDialog:
         """Test that transformation results are displayed."""
         dialog = ResultsDialog(
             parent=parent_widget,
-            col=mock_collection,
+            col=col,
             note_ids=test_note_ids,
             selected_fields=test_selected_fields,
             note_type_name=test_note_type_name,
@@ -119,11 +128,12 @@ class TestResultsDialog:
         assert "<p" in label_text
         assert "style=" in label_text  # Should have styling
 
+    @with_test_collection("empty_collection")
     def test_results_with_zero_updated(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        mock_collection: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
         test_note_type_name: str,
@@ -137,7 +147,7 @@ class TestResultsDialog:
 
         dialog = ResultsDialog(
             parent=parent_widget,
-            col=mock_collection,
+            col=col,
             note_ids=test_note_ids,
             selected_fields=test_selected_fields,
             note_type_name=test_note_type_name,
@@ -151,11 +161,12 @@ class TestResultsDialog:
         assert "0" in label_text
         assert "3" in label_text  # failed count
 
+    @with_test_collection("empty_collection")
     def test_results_with_only_success(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        mock_collection: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
         test_note_type_name: str,
@@ -169,7 +180,7 @@ class TestResultsDialog:
 
         dialog = ResultsDialog(
             parent=parent_widget,
-            col=mock_collection,
+            col=col,
             note_ids=test_note_ids,
             selected_fields=test_selected_fields,
             note_type_name=test_note_type_name,
@@ -183,11 +194,12 @@ class TestResultsDialog:
         assert "10" in label_text
         assert "0" in label_text
 
+    @with_test_collection("empty_collection")
     def test_close_button_functionality(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        mock_collection: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
         test_note_type_name: str,
@@ -196,7 +208,7 @@ class TestResultsDialog:
         """Test that close button works."""
         dialog = ResultsDialog(
             parent=parent_widget,
-            col=mock_collection,
+            col=col,
             note_ids=test_note_ids,
             selected_fields=test_selected_fields,
             note_type_name=test_note_type_name,
@@ -216,11 +228,12 @@ class TestResultsDialog:
         qtbot.waitUntil(lambda: not dialog.isVisible())
         assert not dialog.isVisible()
 
+    @with_test_collection("empty_collection")
     def test_dialog_inherits_geometry_saving(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        mock_collection: Mock,
+        col: MockCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: set[str],
         test_note_type_name: str,
@@ -229,7 +242,7 @@ class TestResultsDialog:
         """Test that dialog inherits geometry saving from base class."""
         dialog = ResultsDialog(
             parent=parent_widget,
-            col=mock_collection,
+            col=col,
             note_ids=test_note_ids,
             selected_fields=test_selected_fields,
             note_type_name=test_note_type_name,
