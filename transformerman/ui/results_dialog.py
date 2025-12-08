@@ -48,7 +48,7 @@ class ResultsDialog(TransformerManBaseDialog):
                 - "failed": Number of notes that failed
                 - "batches_processed": Number of batches processed
         """
-        super().__init__(parent)
+        super().__init__(parent, True)
         self.col = col
         self.note_ids = note_ids
         self.selected_fields = selected_fields

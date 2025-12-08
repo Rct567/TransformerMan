@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class TransformerManBaseDialog(QDialog):
     """Base dialog for TransformerMan with geometry saving/restoring."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None, is_dark_mode: bool) -> None:
         """
         Initialize the base dialog.
 
@@ -29,7 +29,7 @@ class TransformerManBaseDialog(QDialog):
         """
         super().__init__(parent)
         # Set the TransformerMan icon
-        self.setWindowIcon(get_tm_icon())
+        self.setWindowIcon(get_tm_icon(is_dark_mode))
         # Generate a unique geometry key based on the class name
         geometry_key = f"transformerman_{self.__class__.__name__}"
         restoreGeom(self, geometry_key)

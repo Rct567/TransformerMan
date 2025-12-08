@@ -46,6 +46,10 @@ def open_settings(mw: AnkiQt, addon_config: AddonConfig) -> None:
     dialog = SettingsDialog(mw, addon_config)
     dialog.exec()
 
+def is_dark_mode(mw: AnkiQt) -> bool:
+    # Detect dark mode
+    return mw.app.styleSheet().lower().find("dark") != -1
+
 
 def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) -> None:
     """Open the main TransformerMan window from card browser."""
@@ -71,14 +75,9 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
         )
         return
 
-    # Detect dark mode
-    is_dark_mode = False
-    if mw and mw.app:
-        is_dark_mode = mw.app.styleSheet().lower().find("dark") != -1
-
     window = TransformerManMainWindow(
         parent=browser,
-        is_dark_mode=is_dark_mode,
+        is_dark_mode=is_dark_mode(mw),
         col=mw.col,
         note_ids=note_ids,
         lm_client=lm_client,
@@ -92,7 +91,7 @@ def setup_browser_menu(mw: AnkiQt, browser: Browser, menu: Any, addon_config: Ad
     """Add TransformerMan to browser context menu."""
 
     action = QAction(ADDON_NAME, browser)
-    action.setIcon(get_tm_icon())
+    action.setIcon(get_tm_icon(is_dark_mode(mw)))
     action.triggered.connect(lambda: open_main_window(mw, browser, addon_config))
     menu.addAction(action)
 
@@ -118,7 +117,7 @@ if mw:
 
     # Add settings to 'Tools' menu in main window
     settings_action = QAction(f"{ADDON_NAME}: API settings", mw)
-    settings_action.setIcon(get_tm_icon())
+    settings_action.setIcon(get_tm_icon(is_dark_mode(mw)))
     settings_action.triggered.connect(lambda: open_settings(mw, addon_config))
 
     # Use the utility function to insert after "Preferences"

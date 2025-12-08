@@ -44,7 +44,7 @@ class SettingsDialog(TransformerManBaseDialog):
             parent: Parent widget.
             addon_config: Addon configuration instance.
         """
-        super().__init__(parent)
+        super().__init__(parent, True)
         self.addon_config = addon_config
         self._is_loading_settings = False  # Flag to prevent save button from enabling during initial setup
 

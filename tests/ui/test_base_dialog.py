@@ -23,7 +23,7 @@ class TestTransformerManBaseDialog:
 
     def test_dialog_creation(self, qtbot: QtBot, parent_widget: QWidget) -> None:
         """Test that dialog can be created and has correct parent."""
-        dialog = TransformerManBaseDialog(parent_widget)
+        dialog = TransformerManBaseDialog(parent_widget, True)
         qtbot.addWidget(dialog)
 
         assert dialog.parent() is parent_widget
@@ -34,9 +34,9 @@ class TestTransformerManBaseDialog:
         qtbot.waitExposed(dialog)
         assert dialog.isVisible()
 
-    def test_close_event_saves_geometry(self, qtbot: QtBot) -> None:
+    def test_close_event_saves_geometry(self, qtbot: QtBot, parent_widget: QWidget) -> None:
         """Test that close event triggers geometry saving."""
-        dialog = TransformerManBaseDialog()
+        dialog = TransformerManBaseDialog(parent_widget, True)
         qtbot.addWidget(dialog)
 
         with patch('transformerman.ui.base_dialog.saveGeom') as mock_save:
@@ -60,10 +60,10 @@ class TestTransformerManBaseDialog:
 
 
 
-    def test_multiple_dialogs_unique(self, qtbot: QtBot) -> None:
+    def test_multiple_dialogs_unique(self, qtbot: QtBot, parent_widget: QWidget) -> None:
         """Test that multiple dialogs can be created independently."""
-        dialog1 = TransformerManBaseDialog()
-        dialog2 = TransformerManBaseDialog()
+        dialog1 = TransformerManBaseDialog(None, True)
+        dialog2 = TransformerManBaseDialog(None, True)
         qtbot.addWidget(dialog1)
         qtbot.addWidget(dialog2)
 

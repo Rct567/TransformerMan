@@ -63,7 +63,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             addon_config: Addon configuration instance.
             user_files_dir: Directory for user files.
         """
-        super().__init__(parent)
+        super().__init__(parent, is_dark_mode)
         self.is_dark_mode = is_dark_mode
         self.col = col
         self.note_ids = note_ids

@@ -14,9 +14,18 @@ if TYPE_CHECKING:
     from aqt.qt import QAction, QMenu
 
 
-def get_tm_icon() -> QIcon:
+
+
+def get_tm_icon(dark_mode: bool) -> QIcon:
     """Get the TransformerMan icon."""
-    icon_path = Path(__file__).parent.parent / "icons" / "butterfly_solo_2.svg"
+
+    icon_folder = Path(__file__).parent.parent / "icons"
+
+    if dark_mode:
+        icon_path = icon_folder / "butterfly_solo_2_no_color_light.svg"
+    else:
+        icon_path = icon_folder / "butterfly_solo_2_no_color.svg"
+
     if icon_path.exists():
         return QIcon(str(icon_path))
     return QIcon()
