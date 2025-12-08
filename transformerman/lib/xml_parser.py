@@ -45,9 +45,10 @@ def notes_from_xml(xml_response: str) -> dict[NoteId, dict[str, str]]:
             fields = re.findall(field_pattern, note_content)
 
             if fields:
-                # NoteId is an int at runtime, so casting to int is sufficient
-                # but for type checking we treat it as NoteId
-                result[cast("NoteId", int(nid))] = {field_name: field_value for field_name, field_value in fields}
+                result[cast("NoteId", int(nid))] = {
+                    field_name: unescape_xml_content(field_value)
+                    for field_name, field_value in fields
+                }
 
         return result
 

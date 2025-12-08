@@ -48,6 +48,30 @@ class TestXmlParser:
         assert result[NoteId(123)]["Front"] == "Q1"
         assert result[NoteId(456)]["Back"] == "A2"
 
+    def test_parse_xml_with_escaped_content(self) -> None:
+        """Test parsing XML response with escaped content."""
+        # Use escape_xml_content to generate the escaped XML
+        # This ensures we're testing with the same escaping that would be used in production
+        front_content = "x < y & z > 0"
+        back_content = '"Hello" & \'World\''
+
+        escaped_front = escape_xml_content(front_content)
+        escaped_back = escape_xml_content(back_content)
+
+        xml = f'''<notes model="Basic">
+  <note nid="123" deck="Test">
+    <field name="Front">{escaped_front}</field>
+    <field name="Back">{escaped_back}</field>
+  </note>
+</notes>'''
+
+        from anki.notes import NoteId
+        result = notes_from_xml(xml)
+
+        assert 123 in result
+        assert result[NoteId(123)]["Front"] == front_content
+        assert result[NoteId(123)]["Back"] == back_content
+
     def test_parse_empty_response(self) -> None:
         """Test parsing empty XML response."""
         xml = '<notes></notes>'
