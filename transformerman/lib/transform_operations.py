@@ -10,8 +10,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Callable, TypedDict, Any
 
 from aqt import mw
-from aqt.operations import QueryOp
-from aqt.operations.note import update_notes
+from aqt.operations import QueryOp, CollectionOp
 from aqt.utils import showInfo
 from aqt.qt import QProgressDialog, QWidget, Qt
 
@@ -37,17 +36,22 @@ class TransformResults(TypedDict):
 def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[Callable[[str], None], Callable[[LmResponse], None]]:
     """Create logging functions for LM requests and responses."""
     logs_dir = user_files_dir / 'logs'
-    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    log_requests_enabled = addon_config.is_enabled("log_lm_requests", False)
+    log_responses_enabled = addon_config.is_enabled("log_lm_responses", False)
+
+    if log_requests_enabled or log_responses_enabled:
+        logs_dir.mkdir(parents=True, exist_ok=True)
 
     def log_request(prompt: str) -> None:
-        if addon_config.is_enabled("log_lm_requests", False):
+        if log_requests_enabled:
             requests_file = logs_dir / 'lm_requests.log'
             timestamp = datetime.now().isoformat()
             with requests_file.open('a', encoding='utf-8') as f:
                 f.write(f"[{timestamp}] {prompt}\n\n")
 
     def log_response(response: LmResponse) -> None:
-        if addon_config.is_enabled("log_lm_responses", False):
+        if log_responses_enabled:
             responses_file = logs_dir / 'lm_responses.log'
             timestamp = datetime.now().isoformat()
             with responses_file.open('a', encoding='utf-8') as f:
@@ -113,7 +117,7 @@ class NoteTransformer:
         self.batches = notes_to_transform.batched(self.batch_size)
         self.num_batches = len(self.batches)
 
-    def _get_batch_field_updates(
+    def _get_field_updates_for_batch(
         self,
         batch_selected_notes: SelectedNotes,
         log_request: Callable[[str], None],
@@ -190,80 +194,6 @@ class NoteTransformer:
 
         return updated, failed, field_updates_dict, error
 
-    def _apply_batch_updates(
-        self,
-        batch_selected_notes: SelectedNotes,
-        log_request: Callable[[str], None],
-        log_response: Callable[[LmResponse], None],
-    ) -> tuple[int, int, str | None]:
-        """
-        Apply updates to a single batch of notes (apply mode).
-
-        Args:
-            batch_selected_notes: Batch of notes to process.
-            log_request: Function to log LM requests.
-            log_response: Function to log LM responses.
-
-        Returns:
-            Tuple of (updated_count, failed_count, error) for this batch.
-            error is None if no error, otherwise error message string.
-        """
-        updated = 0
-        failed = 0
-        error: str | None = None
-
-        try:
-            # Build prompt
-            prompt = self.prompt_builder.build_prompt(
-                self.col, batch_selected_notes, self.selected_fields, self.note_type_name
-            )
-
-            # Log request
-            log_request(prompt)
-
-            # Get LM response
-            response = self.lm_client.transform(prompt)
-
-            # Log response
-            log_response(response)
-
-            # Check for error in response
-            if response.error is not None:
-                error = response.error
-                # Stop processing on first error
-                return updated, failed, error
-
-            # Parse response
-            field_updates = response.get_notes_from_xml()
-
-            # Apply updates to notes
-            for nid in batch_selected_notes.note_ids:
-                try:
-                    note = self.col.get_note(nid)
-                    updates = field_updates.get(nid, {})
-                    note_updated = False
-
-                    for field_name, content in updates.items():
-                        # Only update if field is in selected fields and is empty
-                        if field_name in self.selected_fields and not note[field_name].strip():
-                            note[field_name] = content
-                            note_updated = True
-
-                    if note_updated:
-                        # Actually update the note in the collection
-                        self.col.update_note(note)
-                        updated += 1
-
-                except Exception as e:
-                    self.logger.error(f"Error updating note {nid}: {e!r}")
-                    failed += 1
-                    continue
-
-        except Exception as e:
-            self.logger.error(f"Error processing batch: {e!r}")
-            failed += len(batch_selected_notes.note_ids)
-
-        return updated, failed, error
 
     def get_field_updates(
         self,
@@ -304,7 +234,7 @@ class NoteTransformer:
                 progress_callback(batch_idx, self.num_batches)
 
             # Get field updates for batch (preview mode)
-            updated, failed, batch_field_updates, batch_error = self._get_batch_field_updates(
+            num_updated, num_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
                 batch_selected_notes, log_request, log_response
             )
 
@@ -314,8 +244,8 @@ class NoteTransformer:
                 # Stop processing on first error
                 break
 
-            total_updated += updated
-            total_failed += failed
+            total_updated += num_updated
+            total_failed += num_failed
             all_field_updates.update(batch_field_updates)
 
         # Report completion
@@ -331,72 +261,6 @@ class NoteTransformer:
 
         return results, all_field_updates
 
-    def transform(
-        self,
-        progress_callback: Callable[[int, int], None] | None = None,
-        should_cancel: Callable[[], bool] | None = None,
-    ) -> TransformResults:
-        """
-        Transform notes in batches (immediate application).
-
-        Makes API calls to get field updates and applies them immediately.
-        This is the old workflow for direct transformation without preview.
-
-        Args:
-            progress_callback: Optional callback for progress reporting.
-                Called with (current_batch, total_batches).
-            should_cancel: Optional callback to check if operation should be canceled.
-                Should return True if operation should be canceled.
-
-        Returns:
-            Dictionary with transformation results:
-                - "updated": Number of fields updated
-                - "failed": Number of notes that failed
-                - "batches_processed": Number of batches processed
-                - "error": None if no error, otherwise error message string
-        """
-        total_updated = 0
-        total_failed = 0
-        batch_idx = 0
-        error: str | None = None
-
-        log_request, log_response = create_lm_logger(self.addon_config, self.user_files_dir)
-
-        for batch_idx, batch_selected_notes in enumerate(self.batches):
-            # Check if operation should be canceled
-            if should_cancel and should_cancel():
-                break
-
-            # Report progress
-            if progress_callback:
-                progress_callback(batch_idx, self.num_batches)
-
-            # Apply updates to batch (apply mode)
-            updated, failed, batch_error = self._apply_batch_updates(
-                batch_selected_notes, log_request, log_response
-            )
-
-            # Check for error in batch
-            if batch_error is not None:
-                error = batch_error
-                # Stop processing on first error
-                break
-
-            total_updated += updated
-            total_failed += failed
-
-        # Report completion
-        if progress_callback:
-            progress_callback(self.num_batches, self.num_batches)
-
-        results: TransformResults = {
-            "updated": total_updated,
-            "failed": total_failed,
-            "batches_processed": batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
-            "error": error,
-        }
-
-        return results
 
 
 def transform_notes_with_progress(  # noqa: PLR0913
@@ -542,17 +406,17 @@ def apply_field_updates_with_operation(
             on_success({"updated": 0, "failed": failed})
         return
 
-    # Run update_notes operation
+    # Run CollectionOp to update notes
     def on_op_success(changes: Any) -> None:
-        """Called when update_notes operation succeeds."""
+        """Called when update notes operation succeeds."""
         if on_success:
             on_success({"updated": len(notes_to_update), "failed": failed})
 
     def on_op_failure(exception: Exception) -> None:
-        """Called when update_notes operation fails."""
-        logger.error(f"Error in update_notes operation: {exception!r}")
+        """Called when update notes operation fails."""
+        logger.error(f"Error in update notes operation: {exception!r}")
         if on_failure:
             on_failure(exception)
 
     # Run the operation
-    update_notes(parent=parent, notes=notes_to_update).success(on_op_success).failure(on_op_failure).run_in_background()
+    CollectionOp(parent, lambda col: col.update_notes(notes_to_update)).success(on_op_success).failure(on_op_failure).run_in_background()

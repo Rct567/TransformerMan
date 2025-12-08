@@ -4,13 +4,17 @@ Tests for transform operations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest.mock import Mock, MagicMock
+from typing import TYPE_CHECKING, cast, Callable, Any
+from unittest.mock import Mock, MagicMock, patch
 import pytest
 
-from transformerman.lib.transform_operations import NoteTransformer, create_lm_logger
+from transformerman.lib.transform_operations import (
+    NoteTransformer,
+    create_lm_logger,
+    apply_field_updates_with_operation,
+)
 from transformerman.lib.selected_notes import SelectedNotes
-from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
+from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.prompt_builder import PromptBuilder
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, MockCollection
 
@@ -19,6 +23,7 @@ col = test_collection_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from anki.notes import NoteId
 
 
 
@@ -76,13 +81,13 @@ class TestNoteTransformer:
             )
 
     @with_test_collection("two_deck_collection")
-    def test_transform_processes_all_batches(
+    def test_get_field_updates_returns_correct_updates(
         self,
         col: MockCollection,
         mock_addon_config: Mock,
         mock_user_files_dir: Path,
     ) -> None:
-        """Test that transform processes all batches."""
+        """Test that get_field_updates returns correct field updates in preview mode."""
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
         assert model is not None
@@ -120,30 +125,38 @@ class TestNoteTransformer:
             user_files_dir=mock_user_files_dir,
         )
 
-        # Run transformation (immediate application)
-        results = transformer.transform()
+        # Get field updates (preview mode)
+        results, field_updates = transformer.get_field_updates()
 
         # Verify results
-        assert results["updated"] == 4  # All 4 notes should be updated
+        assert results["updated"] == 4  # All 4 notes should have updates
         assert results["failed"] == 0
         assert results["batches_processed"] == 2  # 2 batches of size 2
+        assert results["error"] is None
 
-        # Verify notes were updated in the collection with dummy content
+        # Verify field updates contain expected content
+        assert len(field_updates) == 4
+        for nid in note_ids:
+            assert nid in field_updates
+            assert "Front" in field_updates[nid]
+            assert field_updates[nid]["Front"] == "Mock content for Front"
+
+        # Verify notes were NOT updated in the collection (preview mode)
         for nid in note_ids:
             note = col.get_note(nid)
-            # DummyLMClient fills empty fields with "Mock content for Front"
-            assert note["Front"] == "Mock content for Front"
-            # Back field should remain unchanged (non-empty)
+            # Should still be empty (preview mode doesn't apply updates)
+            assert note["Front"] == ""
+            # Back field unchanged
             assert note["Back"] == "some back"
 
     @with_test_collection("two_deck_collection")
-    def test_transform_with_progress_callback(
+    def test_get_field_updates_with_progress_callback(
         self,
         col: MockCollection,
         mock_addon_config: Mock,
         mock_user_files_dir: Path,
     ) -> None:
-        """Test that transform calls progress callback."""
+        """Test that get_field_updates calls progress callback."""
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
         assert model is not None
@@ -186,8 +199,8 @@ class TestNoteTransformer:
         def progress_callback(current: int, total: int) -> None:
             progress_calls.append((current, total))
 
-        # Run transformation with progress callback
-        transformer.transform(progress_callback=progress_callback)
+        # Get field updates with progress callback
+        transformer.get_field_updates(progress_callback=progress_callback)
 
         # Verify progress was reported
         assert len(progress_calls) == 3  # 2 batches + completion
@@ -195,22 +208,14 @@ class TestNoteTransformer:
         assert progress_calls[1] == (1, 2)  # Second batch
         assert progress_calls[2] == (2, 2)  # Completion
 
-        # Verify notes were updated in the collection with dummy content
-        for nid in note_ids:
-            note = col.get_note(nid)
-            # DummyLMClient fills empty fields with "Mock content for Front"
-            assert note["Front"] == "Mock content for Front"
-            # Back field should remain unchanged (non-empty)
-            assert note["Back"] == "some back"
-
     @with_test_collection("two_deck_collection")
-    def test_transform_with_cancellation(
+    def test_get_field_updates_with_cancellation(
         self,
         col: MockCollection,
         mock_addon_config: Mock,
         mock_user_files_dir: Path,
     ) -> None:
-        """Test that transform respects cancellation."""
+        """Test that get_field_updates respects cancellation."""
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
         assert model is not None
@@ -254,114 +259,30 @@ class TestNoteTransformer:
             cancel_after[0] += 1
             return cancel_after[0] > 1  # Cancel after first check
 
-        # Run transformation with cancellation
-        results = transformer.transform(should_cancel=should_cancel)
+        # Get field updates with cancellation
+        results, field_updates = transformer.get_field_updates(should_cancel=should_cancel)
 
         # Verify only first batch was processed
         assert results["batches_processed"] == 1
-        # Only first batch notes should be updated (2 notes)
-        # Since DummyLMClient fills empty fields, we can check that only first two notes have been updated
-        # Actually the transformer will have updated the first two notes (since batch size 2)
-        # The second batch should not have been processed due to cancellation.
-        # We can verify that notes 3 and 4 still have empty fields? Wait, they were never processed.
-        # However, the DummyLMClient would have been called only for the first batch.
-        # Let's verify that the first two notes have been updated, and the last two notes remain empty.
+        # Only first batch notes should have updates (2 notes)
+        assert len(field_updates) == 2
+
+        # Verify that only first two notes have updates
         for i, nid in enumerate(note_ids):
-            note = col.get_note(nid)
             if i < 2:
-                # First batch: updated
-                assert note["Front"] == "Mock content for Front"
+                assert nid in field_updates
+                assert field_updates[nid]["Front"] == "Mock content for Front"
             else:
-                # Second batch: not updated (still empty)
-                assert note["Front"] == ""
-            # Back field unchanged
-            assert note["Back"] == "some back"
+                assert nid not in field_updates
 
     @with_test_collection("two_deck_collection")
-    def test_transform_handles_note_update_errors(
+    def test_get_field_updates_handles_batch_errors(
         self,
         col: MockCollection,
         mock_addon_config: Mock,
         mock_user_files_dir: Path,
     ) -> None:
-        """Test that transform handles note update errors gracefully."""
-        # Create 4 new notes with empty fields
-        model = col.models.by_name("Basic")
-        assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
-
-        note_ids = []
-        for _ in range(4):
-            note = col.new_note(model)
-            note["Front"] = ""  # Empty field
-            note["Back"] = "some back"
-            col.add_note(note, deck_id)
-            note_ids.append(note.id)
-
-        # Use real SelectedNotes instance
-        selected_notes = SelectedNotes(col, note_ids)
-
-        # Create a real DummyLMClient
-        dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
-
-        # Create a real PromptBuilder
-        prompt_builder = PromptBuilder()
-
-        # Create NoteTransformer with batch size 2
-        transformer = NoteTransformer(
-            col=col,
-            selected_notes=selected_notes,
-            note_ids=note_ids,
-            lm_client=dummy_client,
-            prompt_builder=prompt_builder,
-            selected_fields={"Front"},
-            note_type_name="Basic",
-            batch_size=2,
-            addon_config=mock_addon_config,
-            user_files_dir=mock_user_files_dir,
-        )
-
-        # Patch col.update_note to raise an exception for the second note (index 1)
-        from unittest.mock import patch
-        from typing import Any
-        original_update_note = col.update_note
-        call_count = 0
-        def mock_update_note(note: Any) -> Any:
-            nonlocal call_count
-            call_count += 1
-            if call_count == 2:  # second note update
-                raise Exception("Update failed")
-            return original_update_note(note)
-
-        with patch.object(col, 'update_note', side_effect=mock_update_note):
-            # Run transformation
-            results = transformer.transform()
-
-        # Verify results show one failure
-        assert results["failed"] == 1
-        assert results["updated"] == 3  # Other 3 notes updated successfully
-
-        # Verify that the first, third, and fourth notes were updated
-        for i, nid in enumerate(note_ids):
-            note = col.get_note(nid)
-            if i == 1:  # second note (failed)
-                # Should still be empty because update failed
-                assert note["Front"] == ""
-            else:
-                # Should be updated with dummy content
-                assert note["Front"] == "Mock content for Front"
-            # Back field unchanged
-            assert note["Back"] == "some back"
-
-    @with_test_collection("two_deck_collection")
-    def test_transform_handles_batch_errors(
-        self,
-        col: MockCollection,
-        mock_addon_config: Mock,
-        mock_user_files_dir: Path,
-    ) -> None:
-        """Test that transform handles batch processing errors gracefully."""
+        """Test that get_field_updates handles batch processing errors gracefully."""
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
         assert model is not None
@@ -386,9 +307,6 @@ class TestNoteTransformer:
         dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
         # Patch transform to raise an exception for the first batch and return a valid response for the second batch
-        from unittest.mock import patch
-        from transformerman.lib.lm_clients import LmResponse
-
         # Create a proper mock response for the second batch
         mock_response = MagicMock(spec=LmResponse)
         # The second batch contains note_ids[2] and note_ids[3]
@@ -415,34 +333,34 @@ class TestNoteTransformer:
                 user_files_dir=mock_user_files_dir,
             )
 
-            # Run transformation
-            results = transformer.transform()
+            # Get field updates
+            results, field_updates = transformer.get_field_updates()
 
         # Verify results show failures for first batch only
         assert results["failed"] == 2  # 2 notes in first batch
-        assert results["updated"] == 2  # 2 notes in second batch updated
+        assert results["updated"] == 2  # 2 notes in second batch have updates
         assert results["batches_processed"] == 2  # Both batches attempted
+        assert results["error"] is None  # No error in response
 
-        # Verify that notes from first batch remain empty, second batch updated
+        # Verify that notes from first batch have no updates, second batch has updates
+        assert len(field_updates) == 2
         for i, nid in enumerate(note_ids):
-            note = col.get_note(nid)
             if i < 2:
-                # First batch: empty (failed)
-                assert note["Front"] == ""
+                # First batch: no updates (failed)
+                assert nid not in field_updates
             else:
-                # Second batch: updated with mock content
-                assert note["Front"] == f"Content{i+1}"
-            # Back field unchanged
-            assert note["Back"] == "some back"
+                # Second batch: has updates
+                assert nid in field_updates
+                assert field_updates[nid]["Front"] == f"Content{i+1}"
 
     @with_test_collection("two_deck_collection")
-    def test_transform_only_updates_empty_fields(
+    def test_get_field_updates_only_returns_updates_for_empty_fields(
         self,
         col: MockCollection,
         mock_addon_config: Mock,
         mock_user_files_dir: Path,
     ) -> None:
-        """Test that transform only updates empty fields."""
+        """Test that get_field_updates only returns updates for empty fields."""
         # Create 4 new notes with mixed empty/non-empty fields
         model = col.models.by_name("Basic")
         assert model is not None
@@ -483,85 +401,332 @@ class TestNoteTransformer:
             user_files_dir=mock_user_files_dir,
         )
 
-        # Run transformation
-        results = transformer.transform()
+        # Get field updates
+        results, field_updates = transformer.get_field_updates()
 
-        # Verify only empty fields were updated
+        # Verify only empty fields have updates
         assert results["updated"] == 2  # Only first 2 notes (empty fields)
         assert results["failed"] == 0
-        assert results["batches_processed"] == 1  # Only one batch (notes with empty fields)
+        # Only one batch (notes with empty fields) - notes with non-empty fields are filtered out
+        assert results["batches_processed"] == 1
 
-        # Verify that empty fields were updated, non-empty fields unchanged
+        # Verify that only empty fields have updates
+        assert len(field_updates) == 2
+        for i, nid in enumerate(note_ids):
+            if i < 2:
+                # Empty field should have update
+                assert nid in field_updates
+                assert field_updates[nid]["Front"] == "Mock content for Front"
+            else:
+                # Non-empty field should not have update
+                assert nid not in field_updates
+
+
+class TestApplyFieldUpdatesWithOperation:
+    """Test class for apply_field_updates_with_operation function."""
+
+    @with_test_collection("two_deck_collection")
+    def test_apply_field_updates_with_operation_applies_updates(
+        self,
+        col: MockCollection,
+    ) -> None:
+        """Test that apply_field_updates_with_operation applies field updates."""
+        # Create 4 new notes with empty fields
+        model = col.models.by_name("Basic")
+        assert model is not None
+        deck = col.decks.all()[0]
+        deck_id = deck["id"]
+
+        note_ids = []
+        for i in range(4):
+            note = col.new_note(model)
+            note["Front"] = ""  # Empty field
+            note["Back"] = f"back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
+
+        # Create field updates to apply
+        field_updates = {
+            note_ids[0]: {"Front": "Updated content 1"},
+            note_ids[1]: {"Front": "Updated content 2"},
+            note_ids[2]: {"Front": "Updated content 3"},
+            note_ids[3]: {"Front": "Updated content 4"},
+        }
+
+        # Mock logger
+        logger = Mock()
+
+        # Track success callback
+        success_results = []
+        def on_success(results: dict[str, int]) -> None:
+            success_results.append(results)
+
+        # Mock parent widget
+        parent = Mock()
+
+        # Mock CollectionOp to update notes synchronously
+        with patch('transformerman.lib.transform_operations.CollectionOp') as MockCollectionOp:
+            # Configure mock to call success callback immediately
+            def mock_collection_op_call(parent: Mock, op_func: Callable) -> Mock:
+                # Execute the operation function synchronously to update notes
+                # The op_func takes a collection and returns changes
+                changes = op_func(col)
+                # Create a mock operation
+                mock_op = Mock()
+                # When success is called, call the callback with changes
+                def success(callback: Callable[[Any], None]) -> Mock:
+                    callback(changes)
+                    return mock_op
+                mock_op.success = success
+                mock_op.failure = lambda callback: mock_op # type: ignore
+                mock_op.run_in_background = Mock()
+                return mock_op
+            MockCollectionOp.side_effect = mock_collection_op_call
+
+            # Mock mw and taskman to avoid AssertionError
+            with patch('aqt.mw') as mock_mw:
+                mock_taskman = Mock()
+                mock_mw.taskman = mock_taskman
+
+                # Apply field updates
+                apply_field_updates_with_operation(
+                    parent=parent,
+                    col=col,
+                    field_updates=field_updates,
+                    logger=logger,
+                    on_success=on_success,
+                )
+
+            # Verify CollectionOp was called
+            assert MockCollectionOp.called, "CollectionOp was not called"
+            # Verify it was called with the right arguments
+            assert MockCollectionOp.call_args[0][0] is parent
+            # The second argument should be a lambda that calls col.update_notes
+
+        # Verify notes were updated in the collection
         for i, nid in enumerate(note_ids):
             note = col.get_note(nid)
-            if i < 2:
-                # Empty field should be filled with dummy content
-                assert note["Front"] == "Mock content for Front"
-            else:
-                # Non-empty field should remain unchanged (not processed)
-                assert note["Front"] == "Already filled"
-            # Back field unchanged
-            assert note["Back"] == "some back"
+            assert note["Front"] == f"Updated content {i+1}"
+            assert note["Back"] == f"back {i}"
+
+        # Verify success callback was called
+        assert len(success_results) == 1
+        assert success_results[0]["updated"] == 4
+        assert success_results[0]["failed"] == 0
+
+    @with_test_collection("two_deck_collection")
+    def test_apply_field_updates_with_operation_handles_nonexistent_fields(
+        self,
+        col: MockCollection,
+    ) -> None:
+        """Test that apply_field_updates_with_operation handles nonexistent fields."""
+        # Create a new note
+        model = col.models.by_name("Basic")
+        assert model is not None
+        deck = col.decks.all()[0]
+        deck_id = deck["id"]
+
+        note = col.new_note(model)
+        note["Front"] = ""  # Empty field
+        note["Back"] = "back"
+        col.add_note(note, deck_id)
+
+        # Create field updates with nonexistent field
+        field_updates = {
+            note.id: {
+                "Front": "Updated content",  # Valid field
+                "NonexistentField": "Some content",  # Nonexistent field
+            }
+        }
+
+        # Mock logger
+        logger = Mock()
+
+        # Track success callback
+        success_results = []
+        def on_success(results: dict[str, int]) -> None:
+            success_results.append(results)
+
+        # Mock parent widget
+        parent = Mock()
+
+        # Mock CollectionOp to update notes synchronously
+        with patch('transformerman.lib.transform_operations.CollectionOp') as MockCollectionOp:
+            # Configure mock to call success callback immediately
+            def mock_collection_op_call(parent: Mock, op_func: Callable) -> Mock:
+                # Execute the operation function synchronously to update notes
+                # The op_func takes a collection and returns changes
+                changes = op_func(col)
+                # Create a mock operation
+                mock_op = Mock()
+                # When success is called, call the callback with changes
+                def success(callback: Callable[[Any], None]) -> Mock:
+                    callback(changes)
+                    return mock_op
+                mock_op.success = success
+                mock_op.failure = lambda callback: mock_op # type: ignore
+                mock_op.run_in_background = Mock()
+                return mock_op
+            MockCollectionOp.side_effect = mock_collection_op_call
+
+            # Mock mw and taskman to avoid AssertionError
+            with patch('aqt.mw') as mock_mw:
+                mock_taskman = Mock()
+                mock_mw.taskman = mock_taskman
+
+                # Apply field updates
+                apply_field_updates_with_operation(
+                    parent=parent,
+                    col=col,
+                    field_updates=field_updates,
+                    logger=logger,
+                    on_success=on_success,
+                )
+
+        # Verify only valid field was updated
+        updated_note = col.get_note(note.id)
+        assert updated_note["Front"] == "Updated content"
+        assert updated_note["Back"] == "back"  # Unchanged
+
+        # Verify success callback was called
+        assert len(success_results) == 1
+        assert success_results[0]["updated"] == 1
+        assert success_results[0]["failed"] == 0
+
+    @with_test_collection("two_deck_collection")
+    def test_apply_field_updates_with_operation_handles_note_not_found(
+        self,
+        col: MockCollection,
+    ) -> None:
+        """Test that apply_field_updates_with_operation handles note not found."""
+        # Create field updates for a non-existent note ID
+        field_updates = {
+            cast("NoteId", 999999): {"Front": "Updated content"},  # Non-existent note ID
+        }
+
+        # Mock logger
+        logger = Mock()
+
+        # Track success callback
+        success_results = []
+        def on_success(results: dict[str, int]) -> None:
+            success_results.append(results)
+
+        # Mock parent widget
+        parent = Mock()
+
+        # Apply field updates
+        apply_field_updates_with_operation(
+            parent=parent,
+            col=col,
+            field_updates=field_updates,
+            logger=logger,
+            on_success=on_success,
+        )
+
+        # Verify success callback was called with failure
+        assert len(success_results) == 1
+        assert success_results[0]["updated"] == 0
+        assert success_results[0]["failed"] == 1
+
+        # Verify error was logged
+        logger.error.assert_called_once()
+
+    @with_test_collection("two_deck_collection")
+    def test_apply_field_updates_with_operation_no_updates(
+        self,
+        col: MockCollection,
+    ) -> None:
+        """Test that apply_field_updates_with_operation handles empty field updates."""
+        # Create field updates with no notes
+        field_updates: dict[NoteId, dict[str, str]] = {}
+
+        # Mock logger
+        logger = Mock()
+
+        # Track success callback
+        success_results = []
+        def on_success(results: dict[str, int]) -> None:
+            success_results.append(results)
+
+        # Mock parent widget
+        parent = Mock()
+
+        # Apply field updates
+        apply_field_updates_with_operation(
+            parent=parent,
+            col=col,
+            field_updates=field_updates,
+            logger=logger,
+            on_success=on_success,
+        )
+
+        # Verify success callback was called immediately
+        assert len(success_results) == 1
+        assert success_results[0]["updated"] == 0
+        assert success_results[0]["failed"] == 0
 
 
 class TestCreateLmLogger:
     """Test class for create_lm_logger function."""
 
-    def test_logging_disabled(
+    def test_create_lm_logger_disabled_logging(
         self,
         mock_addon_config: Mock,
         mock_user_files_dir: Path,
     ) -> None:
-        """Test that logging functions do nothing when logging is disabled."""
-        mock_addon_config.is_enabled.return_value = False
+        """Test that create_lm_logger returns functions that don't log when disabled."""
+        # Configure mock to return False for both settings
+        def is_enabled(setting: str, default: bool) -> bool:
+            return False
+
+        mock_addon_config.is_enabled = is_enabled
 
         log_request, log_response = create_lm_logger(mock_addon_config, mock_user_files_dir)
 
         # Call logging functions
-        log_request("Test prompt")
-        log_response(Mock(text_response="Test response"))
+        log_request("test prompt")
+        log_response(MagicMock(spec=LmResponse, text_response="test response"))
 
-        # Verify no log files were created (directory may exist but should be empty)
+        # Verify no files were created (since logging is disabled)
         logs_dir = mock_user_files_dir / 'logs'
-        if logs_dir.exists():
-            # Directory might exist from mkdir, but should have no log files
-            requests_file = logs_dir / 'lm_requests.log'
-            responses_file = logs_dir / 'lm_responses.log'
-            assert not requests_file.exists()
-            assert not responses_file.exists()
+        assert not logs_dir.exists()
 
-    def test_logging_enabled(
+    def test_create_lm_logger_enabled_logging(
         self,
         mock_addon_config: Mock,
         mock_user_files_dir: Path,
     ) -> None:
-        """Test that logging functions write to files when logging is enabled."""
-        mock_addon_config.is_enabled.return_value = True
+        """Test that create_lm_logger returns functions that log when enabled."""
+        # Configure mock to return True for both settings
+        def is_enabled(setting: str, default: bool) -> bool:
+            return True
+
+        mock_addon_config.is_enabled = is_enabled
 
         log_request, log_response = create_lm_logger(mock_addon_config, mock_user_files_dir)
 
         # Call logging functions
-        log_request("Test prompt")
+        test_prompt = "test prompt"
+        test_response = MagicMock(spec=LmResponse, text_response="test response")
 
-        mock_response = Mock()
-        mock_response.text_response = "Test response"
-        log_response(mock_response)
+        log_request(test_prompt)
+        log_response(test_response)
 
         # Verify files were created and contain expected content
         logs_dir = mock_user_files_dir / 'logs'
         assert logs_dir.exists()
 
+        # Check request log
         requests_file = logs_dir / 'lm_requests.log'
         assert requests_file.exists()
-
-        responses_file = logs_dir / 'lm_responses.log'
-        assert responses_file.exists()
-
-        # Check file contents
         with requests_file.open('r', encoding='utf-8') as f:
             content = f.read()
-            assert "Test prompt" in content
+            assert test_prompt in content
 
+        # Check response log
+        responses_file = logs_dir / 'lm_responses.log'
+        assert responses_file.exists()
         with responses_file.open('r', encoding='utf-8') as f:
             content = f.read()
-            assert "Test response" in content
+            assert test_response.text_response in content
