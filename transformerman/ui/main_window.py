@@ -400,10 +400,19 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             # Update preview table with green highlighting
             self._update_preview_table_with_results(results, field_updates)
 
-            # Show preview summary
-            updated = results.get("updated", 0)
-            failed = results.get("failed", 0)
-            showInfo(f"Preview complete:\n\n{updated} notes would be updated\n{failed} notes failed", parent=self)
+            # Show summary of results used for preview
+            num_updated = results['num_notes_updated']
+            num_notes_failed = results['num_notes_failed']
+            num_batches_processed = results['num_batches_processed']
+
+            result_info_text = f"Preview complete:\n\n{num_updated} notes would be updated."
+
+            if num_notes_failed > 0:
+                result_info_text += f"\n{num_notes_failed} notes failed."
+            if num_batches_processed > 1:
+                result_info_text += f"\n{num_batches_processed} batches processed."
+
+            showInfo(result_info_text, parent=self)
 
         transform_notes_with_progress(
             parent=self,

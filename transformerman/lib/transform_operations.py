@@ -27,9 +27,9 @@ if TYPE_CHECKING:
 
 class TransformResults(TypedDict):
     """Type definition for transformation results."""
-    updated: int
-    failed: int
-    batches_processed: int
+    num_notes_updated: int
+    num_notes_failed: int
+    num_batches_processed: int
     error: str | None
 
 
@@ -136,8 +136,8 @@ class NoteTransformer:
             field_updates is a dict mapping note_id -> dict of field_name -> new_value.
             error is None if no error, otherwise error message string.
         """
-        updated = 0
-        failed = 0
+        num_notes_updated = 0
+        num_notes_failed = 0
         field_updates_dict: dict[NoteId, dict[str, str]] = {}
         error: str | None = None
 
@@ -160,7 +160,7 @@ class NoteTransformer:
             if response.error is not None:
                 error = response.error
                 # Stop processing on first error
-                return updated, failed, field_updates_dict, error
+                return num_notes_updated, num_notes_failed, field_updates_dict, error
 
             # Parse response
             field_updates = response.get_notes_from_xml()
@@ -181,18 +181,18 @@ class NoteTransformer:
                     if batch_field_updates:
                         # Store field updates for preview
                         field_updates_dict[nid] = batch_field_updates
-                        updated += 1
+                        num_notes_updated += 1
 
                 except Exception as e:
                     self.logger.error(f"Error processing note {nid} in preview: {e!r}")
-                    failed += 1
+                    num_notes_failed += 1
                     continue
 
         except Exception as e:
             self.logger.error(f"Error processing batch in preview: {e!r}")
-            failed += len(batch_selected_notes.note_ids)
+            num_notes_failed += len(batch_selected_notes.note_ids)
 
-        return updated, failed, field_updates_dict, error
+        return num_notes_updated, num_notes_failed, field_updates_dict, error
 
 
     def get_field_updates(
@@ -234,7 +234,7 @@ class NoteTransformer:
                 progress_callback(batch_idx, self.num_batches)
 
             # Get field updates for batch (preview mode)
-            num_updated, num_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
+            num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
                 batch_selected_notes, log_request, log_response
             )
 
@@ -244,8 +244,8 @@ class NoteTransformer:
                 # Stop processing on first error
                 break
 
-            total_updated += num_updated
-            total_failed += num_failed
+            total_updated += num_notes_updated
+            total_failed += num_notes_failed
             all_field_updates.update(batch_field_updates)
 
         # Report completion
@@ -253,9 +253,9 @@ class NoteTransformer:
             progress_callback(self.num_batches, self.num_batches)
 
         results: TransformResults = {
-            "updated": total_updated,
-            "failed": total_failed,
-            "batches_processed": batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
+            "num_notes_updated": total_updated,
+            "num_notes_failed": total_failed,
+            "num_batches_processed": batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
             "error": error,
         }
 
@@ -407,7 +407,7 @@ def apply_field_updates_with_operation(
         return
 
     # Run CollectionOp to update notes
-    def on_op_success(changes: Any) -> None:
+    def on_op_success(_: Any) -> None:
         """Called when update notes operation succeeds."""
         if on_success:
             on_success({"updated": len(notes_to_update), "failed": failed})

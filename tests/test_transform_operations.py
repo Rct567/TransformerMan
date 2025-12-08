@@ -129,9 +129,9 @@ class TestNoteTransformer:
         results, field_updates = transformer.get_field_updates()
 
         # Verify results
-        assert results["updated"] == 4  # All 4 notes should have updates
-        assert results["failed"] == 0
-        assert results["batches_processed"] == 2  # 2 batches of size 2
+        assert results["num_notes_updated"] == 4  # All 4 notes should have updates
+        assert results["num_notes_failed"] == 0
+        assert results["num_batches_processed"] == 2  # 2 batches of size 2
         assert results["error"] is None
 
         # Verify field updates contain expected content
@@ -263,7 +263,7 @@ class TestNoteTransformer:
         results, field_updates = transformer.get_field_updates(should_cancel=should_cancel)
 
         # Verify only first batch was processed
-        assert results["batches_processed"] == 1
+        assert results["num_batches_processed"] == 1
         # Only first batch notes should have updates (2 notes)
         assert len(field_updates) == 2
 
@@ -337,9 +337,9 @@ class TestNoteTransformer:
             results, field_updates = transformer.get_field_updates()
 
         # Verify results show failures for first batch only
-        assert results["failed"] == 2  # 2 notes in first batch
-        assert results["updated"] == 2  # 2 notes in second batch have updates
-        assert results["batches_processed"] == 2  # Both batches attempted
+        assert results["num_notes_failed"] == 2  # 2 notes in first batch
+        assert results["num_notes_updated"] == 2  # 2 notes in second batch have updates
+        assert results["num_batches_processed"] == 2  # Both batches attempted
         assert results["error"] is None  # No error in response
 
         # Verify that notes from first batch have no updates, second batch has updates
@@ -405,10 +405,10 @@ class TestNoteTransformer:
         results, field_updates = transformer.get_field_updates()
 
         # Verify only empty fields have updates
-        assert results["updated"] == 2  # Only first 2 notes (empty fields)
-        assert results["failed"] == 0
+        assert results["num_notes_updated"] == 2  # Only first 2 notes (empty fields)
+        assert results["num_notes_failed"] == 0
         # Only one batch (notes with empty fields) - notes with non-empty fields are filtered out
-        assert results["batches_processed"] == 1
+        assert results["num_batches_processed"] == 1
 
         # Verify that only empty fields have updates
         assert len(field_updates) == 2
