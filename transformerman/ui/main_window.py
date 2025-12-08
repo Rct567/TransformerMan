@@ -206,10 +206,9 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         selected_fields = self._get_selected_fields()
         # Calculate notes with empty fields among selected fields
         if selected_fields:
-            notes_with_empty_fields = self.selected_notes.filter_by_empty_field(selected_fields)
-            empty_count = len(notes_with_empty_fields.note_ids)
+            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(selected_fields))
         else:
-            empty_count = 0  # No fields selected
+            num_notes_empty_field = 0  # No fields selected
 
         # Calculate API calls needed using helper method
         api_calls_needed = self._get_api_calls_needed(selected_fields)
@@ -217,13 +216,13 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Format with proper pluralization
         note_text = "note" if total_count == 1 else "notes"
-        empty_text = "note" if empty_count == 1 else "notes"
-        field_text = "field" if empty_count == 1 else "fields"
+        empty_text = "note" if num_notes_empty_field == 1 else "notes"
+        field_text = "field" if num_notes_empty_field == 1 else "fields"
 
         # Update label with bold HTML
         label_text = (
             f"<b>{total_count} {note_text} selected, "
-            f"{empty_count} {empty_text} with empty {field_text} ({api_calls_needed} {api_text})</b>"
+            f"{num_notes_empty_field} {empty_text} with empty {field_text} ({api_calls_needed} {api_text})</b>"
         )
         self.notes_count_label.setText(label_text)
 
@@ -364,7 +363,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Show warning if API calls > 10
         if api_calls_needed > 10:
             # Need to get empty count for warning message
-            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(selected_fields).note_ids)
+            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(selected_fields))
 
             warning_message = (
                 f"This preview will require {api_calls_needed} API calls.\n\n"

@@ -44,6 +44,7 @@ class TestTransformerManMainWindow:
         # Mock SelectedNotes instance
         mock_selected_notes = Mock()
         mock_selected_notes.get_note_type_counts.return_value = {}
+        mock_selected_notes.__len__ = Mock(return_value=0)
         mock_selected_notes_cls.return_value = mock_selected_notes
 
         window = TransformerManMainWindow(
@@ -91,8 +92,10 @@ class TestTransformerManMainWindow:
         mock_selected_notes = Mock()
         mock_selected_notes.get_note_type_counts.return_value = {"Basic": 3}
         mock_selected_notes.get_field_names.return_value = []
+        mock_selected_notes.__len__ = Mock(return_value=0)
         mock_empty_filter = Mock()
         mock_empty_filter.note_ids = []
+        mock_empty_filter.__len__ = Mock(return_value=0)
         mock_selected_notes.filter_by_empty_field.return_value = mock_empty_filter
         mock_selected_notes.filter_by_note_type.return_value = []
         mock_selected_notes_cls.return_value = mock_selected_notes
@@ -157,6 +160,7 @@ class TestTransformerManMainWindow:
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]  # Return first 2 notes
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
         mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
+        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
 
         with patch('transformerman.ui.main_window.SelectedNotes', return_value=mock_selected_notes):
             window = TransformerManMainWindow(
@@ -200,6 +204,8 @@ class TestTransformerManMainWindow:
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
         mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
+        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
+        mock_selected_notes.__len__ = Mock(return_value=0)
         mock_selected_notes_cls.return_value = mock_selected_notes
 
         window = TransformerManMainWindow(
@@ -265,6 +271,8 @@ class TestTransformerManMainWindow:
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
         mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
+        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
+        mock_selected_notes.__len__ = Mock(return_value=0)
         mock_selected_notes_cls.return_value = mock_selected_notes
 
         window = TransformerManMainWindow(
@@ -325,6 +333,8 @@ class TestTransformerManMainWindow:
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
         mock_selected_notes.has_note_with_empty_field.return_value = False  # No empty fields
         mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
+        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
+        mock_selected_notes.__len__ = Mock(return_value=0)
         mock_selected_notes_cls.return_value = mock_selected_notes
 
         window = TransformerManMainWindow(
@@ -375,6 +385,7 @@ class TestTransformerManMainWindow:
         # Mock SelectedNotes instance
         mock_selected_notes = Mock()
         mock_selected_notes.get_note_type_counts.return_value = {}
+        mock_selected_notes.__len__ = Mock(return_value=0)
         mock_selected_notes_cls.return_value = mock_selected_notes
 
         window = TransformerManMainWindow(
@@ -417,6 +428,8 @@ class TestTransformerManMainWindow:
         mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
         mock_selected_notes.has_note_with_empty_field.return_value = True
         mock_selected_notes.filter_by_empty_field.return_value.note_ids = test_note_ids[:1]
+        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=1)
+        mock_selected_notes.__len__ = Mock(return_value=0)
         mock_selected_notes_cls.return_value = mock_selected_notes
 
         window = TransformerManMainWindow(
@@ -473,6 +486,8 @@ class TestTransformerManMainWindow:
         mock_selected_notes.get_note_type_counts.return_value = {}
         mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]  # 2 notes
         mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
+        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
+        mock_selected_notes.__len__ = Mock(return_value=0)
         def get_field_names_side_effect(note_type: str) -> list[str]:
             field_map = {
                 "Basic": ["Front", "Back"],

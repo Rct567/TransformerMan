@@ -204,7 +204,9 @@ class SelectedNotes:
         return self.get_selected_notes(filtered_note_ids)
 
     def clear_cache(self) -> None:
-        """
-        Clear the note cache.
-        """
+        """Clear the note cache."""
         self._note_cache.clear()
+
+    def __len__(self) -> int:
+        """Return the number of notes in the selection."""
+        return len(self.note_ids)

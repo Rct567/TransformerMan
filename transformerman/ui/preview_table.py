@@ -157,7 +157,7 @@ class PreviewTable(QTableWidget):
             field_updates: Optional dictionary of field updates for preview highlighting.
         """
         selected_notes = self.selected_notes
-        if not selected_notes:
+        if selected_notes is None:
             return
 
         # Create appropriate color for highlighting based on dark mode
