@@ -5,6 +5,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
+
 from typing import TYPE_CHECKING
 
 from aqt.qt import (
@@ -20,6 +21,7 @@ from .base_dialog import TransformerManBaseDialog
 if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
+    from collections.abc import Sequence
 
 
 class ResultsDialog(TransformerManBaseDialog):
@@ -30,7 +32,7 @@ class ResultsDialog(TransformerManBaseDialog):
         parent: QWidget,
         col: Collection,
         note_ids: list[NoteId],
-        selected_fields: set[str],
+        selected_fields: Sequence[str],
         note_type_name: str,
         results: dict[str, int],
     ) -> None:
@@ -41,7 +43,7 @@ class ResultsDialog(TransformerManBaseDialog):
             parent: Parent widget.
             col: Anki collection.
             note_ids: List of note IDs that were transformed.
-            selected_fields: Set of field names that were selected for filling.
+            selected_fields: Sequence of field names that were selected for filling.
             note_type_name: Name of the note type.
             results: Dictionary with transformation results:
                 - "updated": Number of fields updated

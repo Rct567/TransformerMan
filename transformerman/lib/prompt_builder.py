@@ -26,7 +26,7 @@ class PromptBuilder:
         self,
         col: Collection,
         target_notes: SelectedNotes,
-        selected_fields: set[str],
+        selected_fields: Sequence[str],
         note_type_name: str,
     ) -> str:
         """
@@ -94,7 +94,7 @@ class PromptBuilder:
         self,
         col: Collection,
         target_notes: SelectedNotes,
-        selected_fields: set[str],
+        selected_fields: Sequence[str],
         note_type_name: str,
         max_examples: int = 3,
     ) -> Sequence[Note]:
@@ -109,7 +109,7 @@ class PromptBuilder:
         Args:
             col: Anki collection.
             target_notes: SelectedNotes instance (to avoid selecting them as examples).
-            selected_fields: Set of field names to consider.
+            selected_fields: Sequence of field names to consider.
             note_type_name: Name of the note type.
             max_examples: Maximum number of examples to return.
 
@@ -178,7 +178,7 @@ class PromptBuilder:
         self,
         notes: Sequence[Note],
         note_type_name: str,
-        fields_included: set[str],
+        fields_included: Sequence[str],
     ) -> str:
         """
         Format notes as XML-like structure.
@@ -186,7 +186,7 @@ class PromptBuilder:
         Args:
             notes: List of notes to format.
             note_type_name: Name of the note type.
-            fields_included: Set of field names to include.
+            fields_included: Sequence of field names to include.
 
         Returns:
             XML-like string representation.

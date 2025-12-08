@@ -70,7 +70,7 @@ class NoteTransformer:
         note_ids: Sequence[NoteId],
         lm_client: LMClient,
         prompt_builder: PromptBuilder,
-        selected_fields: set[str],
+        selected_fields: Sequence[str],
         note_type_name: str,
         batch_size: int,
         addon_config: AddonConfig,
@@ -85,7 +85,7 @@ class NoteTransformer:
             note_ids: List of note IDs to transform.
             lm_client: LM client instance.
             prompt_builder: Prompt builder instance.
-            selected_fields: Set of field names to fill.
+            selected_fields: Sequence of field names to fill.
             note_type_name: Name of the note type.
             batch_size: Number of notes per batch.
             addon_config: Addon configuration instance.
@@ -270,7 +270,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
     note_ids: Sequence[NoteId],
     lm_client: LMClient,
     prompt_builder: PromptBuilder,
-    selected_fields: set[str],
+    selected_fields: Sequence[str],
     note_type_name: str,
     batch_size: int,
     addon_config: AddonConfig,
@@ -290,7 +290,7 @@ def transform_notes_with_progress(  # noqa: PLR0913
         note_ids: List of note IDs to transform.
         lm_client: LM client instance.
         prompt_builder: Prompt builder instance.
-        selected_fields: Set of field names to fill.
+        selected_fields: Sequence of field names to fill.
         note_type_name: Name of the note type.
         batch_size: Number of notes per batch.
         addon_config: Addon configuration instance.

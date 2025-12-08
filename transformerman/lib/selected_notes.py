@@ -156,25 +156,26 @@ class SelectedNotes:
         return []
 
     @staticmethod
-    def has_empty_field(note: Note, selected_fields: set[str]) -> bool:
+    def has_empty_field(note: Note, selected_fields: Sequence[str]) -> bool:
         """
         Check if a note has any empty fields among the selected fields.
 
         Args:
             note: The note to check.
-            selected_fields: Set of field names to consider.
+            selected_fields: Sequence of field names to consider.
 
         Returns:
             True if the note has at least one empty field in selected_fields, False otherwise.
         """
-        return any(not note[field].strip() for field in selected_fields if field in note)
+        selected_fields_set = set(selected_fields)
+        return any(not note[field].strip() for field in selected_fields_set if field in note)
 
-    def has_note_with_empty_field(self, selected_fields: set[str]) -> bool:
+    def has_note_with_empty_field(self, selected_fields: Sequence[str]) -> bool:
         """
         Check if any note in this SelectedNotes instance has empty fields.
 
         Args:
-            selected_fields: Set of field names to consider.
+            selected_fields: Sequence of field names to consider.
 
         Returns:
             True if at least one note has empty fields in selected_fields, False otherwise.
@@ -185,12 +186,12 @@ class SelectedNotes:
                 return True
         return False
 
-    def filter_by_empty_field(self, selected_fields: set[str]) -> SelectedNotes:
+    def filter_by_empty_field(self, selected_fields: Sequence[str]) -> SelectedNotes:
         """
         Return a new SelectedNotes instance containing only notes that have at least one empty field among selected_fields.
 
         Args:
-            selected_fields: Set of field names to consider.
+            selected_fields: Sequence of field names to consider.
 
         Returns:
             New SelectedNotes instance with filtered note IDs.

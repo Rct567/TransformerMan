@@ -7,12 +7,14 @@ and highlighting capabilities.
 
 from __future__ import annotations
 
+
 from typing import TYPE_CHECKING, cast, Any
 from unittest.mock import Mock, patch
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
     from anki.notes import NoteId
+    from collections.abc import Sequence
 
 from aqt.qt import QWidget, QColor
 
@@ -93,7 +95,7 @@ class TestPreviewTable:
         is_dark_mode: bool,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
     ) -> None:
         """Test that table headers are set correctly."""
         table = PreviewTable(parent_widget, is_dark_mode)
@@ -135,7 +137,7 @@ class TestPreviewTable:
         is_dark_mode: bool,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
         test_field_updates: dict[NoteId, dict[str, str]],
     ) -> None:
         """Test that table highlights cells with field updates."""
@@ -278,7 +280,7 @@ class TestPreviewTable:
         is_dark_mode: bool,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
     ) -> None:
         """Test that background loading is set up correctly."""
         table = PreviewTable(parent_widget, is_dark_mode)
@@ -320,7 +322,7 @@ class TestPreviewTable:
         is_dark_mode: bool,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
         test_field_updates: dict[NoteId, dict[str, str]],
     ) -> None:
         """Test that table handles field updates for highlighting."""

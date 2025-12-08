@@ -6,11 +6,13 @@ Tests the ResultsDialog class which displays transformation results.
 
 from __future__ import annotations
 
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
     from anki.notes import NoteId
+    from collections.abc import Sequence
 
 from aqt.qt import QWidget, QLabel, QPushButton, Qt
 
@@ -34,7 +36,7 @@ class TestResultsDialog:
         parent_widget: QWidget,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
         test_note_type_name: str,
         test_transform_results: dict[str, int],
     ) -> None:
@@ -70,7 +72,7 @@ class TestResultsDialog:
         parent_widget: QWidget,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
         test_note_type_name: str,
         test_transform_results: dict[str, int],
     ) -> None:
@@ -100,7 +102,7 @@ class TestResultsDialog:
         parent_widget: QWidget,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
         test_note_type_name: str,
         test_transform_results: dict[str, int],
     ) -> None:
@@ -135,7 +137,7 @@ class TestResultsDialog:
         parent_widget: QWidget,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
         test_note_type_name: str,
     ) -> None:
         """Test results display when no notes were updated."""
@@ -168,7 +170,7 @@ class TestResultsDialog:
         parent_widget: QWidget,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
         test_note_type_name: str,
     ) -> None:
         """Test results display when all notes succeeded."""
@@ -201,7 +203,7 @@ class TestResultsDialog:
         parent_widget: QWidget,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
         test_note_type_name: str,
         test_transform_results: dict[str, int],
     ) -> None:
@@ -235,7 +237,7 @@ class TestResultsDialog:
         parent_widget: QWidget,
         col: MockCollection,
         test_note_ids: list[NoteId],
-        test_selected_fields: set[str],
+        test_selected_fields: Sequence[str],
         test_note_type_name: str,
         test_transform_results: dict[str, int],
     ) -> None:

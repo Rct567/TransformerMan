@@ -5,6 +5,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 from aqt.qt import (
@@ -19,7 +20,7 @@ from aqt.qt import (
     QScrollArea,
     QWidget,
 )
-from aqt.utils import showInfo, showWarning
+from aqt.utils import showInfo, showWarning, askUserDialog
 
 from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     from ..lib.lm_clients import LMClient
     from ..lib.addon_config import AddonConfig
     from anki.notes import NoteId
+    from collections.abc import Sequence
 
 
 class TransformerManMainWindow(TransformerManBaseDialog):
@@ -109,7 +111,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         layout.addLayout(note_type_layout)
 
         # Notes count label
-        self.notes_count_label = QLabel("<b>0 notes selected, 0 notes with empty fields</b>")
+        self.notes_count_label = QLabel("<b>0 notes selected, 0 notes with empty fields (0 API calls)</b>")
         layout.addWidget(self.notes_count_label)
 
         # Fields section
@@ -155,11 +157,45 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
+    def _get_batch_size(self) -> int:
+        """Get the batch size from addon configuration with validation."""
+        batch_size = self.addon_config.get("batch_size", 10)
+        if not isinstance(batch_size, int) or batch_size <= 0:
+            batch_size = 10
+        return batch_size
+
+    def _get_api_calls_needed(self, selected_fields: Sequence[str]) -> int:
+        """Calculate the number of API calls needed for the given selected fields. """
+        if not selected_fields:
+            return 0
+
+        notes_with_empty_fields = self.selected_notes.filter_by_empty_field(selected_fields)
+        empty_count = len(notes_with_empty_fields.note_ids)
+
+        if empty_count == 0:
+            return 0
+
+        batch_size = self._get_batch_size()
+        return math.ceil(empty_count / batch_size)
+
+    def _get_selected_fields(self) -> list[str]:
+        """
+        Get the currently selected field names.
+
+        Returns:
+            List of selected field names.
+        """
+        return [
+            field_name
+            for field_name, checkbox in self.field_checkboxes.items()
+            if checkbox.isChecked()
+        ]
+
     def _update_notes_count_label(self) -> None:
         """Update the notes count label with bold text and empty field count."""
         if not self.current_note_type:
             # No note type selected yet
-            self.notes_count_label.setText("<b>0 notes selected, 0 notes with empty fields</b>")
+            self.notes_count_label.setText("<b>0 notes selected, 0 notes with empty fields (0 API calls)</b>")
             return
 
         # Get filtered note IDs for current note type
@@ -167,17 +203,17 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         total_count = len(filtered_note_ids)
 
         # Get selected fields
-        selected_fields = {
-            field_name
-            for field_name, checkbox in self.field_checkboxes.items()
-            if checkbox.isChecked()
-        }
+        selected_fields = self._get_selected_fields()
         # Calculate notes with empty fields among selected fields
         if selected_fields:
             notes_with_empty_fields = self.selected_notes.filter_by_empty_field(selected_fields)
             empty_count = len(notes_with_empty_fields.note_ids)
         else:
-            empty_count = 0  # No fields selected means no empty fields to check
+            empty_count = 0  # No fields selected
+
+        # Calculate API calls needed using helper method
+        api_calls_needed = self._get_api_calls_needed(selected_fields)
+        api_text = "API call" if api_calls_needed == 1 else "API calls"
 
         # Format with proper pluralization
         note_text = "note" if total_count == 1 else "notes"
@@ -187,7 +223,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Update label with bold HTML
         label_text = (
             f"<b>{total_count} {note_text} selected, "
-            f"{empty_count} {empty_text} with empty {field_text}</b>"
+            f"{empty_count} {empty_text} with empty {field_text} ({api_calls_needed} {api_text})</b>"
         )
         self.notes_count_label.setText(label_text)
 
@@ -282,11 +318,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
     def _update_preview_table(self) -> None:
         """Update the preview table with data from selected notes."""
         # Get selected fields
-        selected_fields = [
-            field_name
-            for field_name, checkbox in self.field_checkboxes.items()
-            if checkbox.isChecked()
-        ]
+        selected_fields = self._get_selected_fields()
 
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
@@ -299,11 +331,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
     def _on_preview_clicked(self) -> None:
         """Handle preview button click."""
         # Get selected fields
-        selected_fields = {
-            field_name
-            for field_name, checkbox in self.field_checkboxes.items()
-            if checkbox.isChecked()
-        }
+        selected_fields = self._get_selected_fields()
 
         if not selected_fields:
             showInfo("Please select at least one field to fill.", parent=self)
@@ -327,13 +355,29 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             showInfo("No notes to transform.", parent=self)
             return
 
+        # Calculate API calls needed using helper method
+        api_calls_needed = self._get_api_calls_needed(selected_fields)
+
+        # Get batch size for transformation (needed regardless of warning)
+        batch_size = self._get_batch_size()
+
+        # Show warning if API calls > 10
+        if api_calls_needed > 10:
+            # Need to get empty count for warning message
+            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(selected_fields).note_ids)
+
+            warning_message = (
+                f"This preview will require {api_calls_needed} API calls.\n\n"
+                f"Notes with empty fields: {num_notes_empty_field}\n"
+                f"Batch size: {batch_size}\n\n"
+                "Do you want to continue?"
+            )
+
+            if askUserDialog(warning_message, buttons=["Continue", "Cancel"], parent=self).run() != "Continue":
+                return
+
         # Create prompt builder
         prompt_builder = PromptBuilder(field_instructions)
-
-        # Start preview transformation
-        batch_size = self.addon_config.get("batch_size", 10)
-        if not isinstance(batch_size, int):
-            batch_size = 10
 
         def on_preview_success(results: TransformResults, field_updates: dict[NoteId, dict[str, str]]) -> None:
             """Handle successful preview."""
@@ -396,6 +440,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                 # Refresh preview table to show updated values
                 self.selected_notes.clear_cache()
                 self._update_preview_table()
+                # Update notes count label since empty field count has changed
+                self._update_notes_count_label()
             else:
                 showInfo(f"No notes were updated. {failed} notes failed.", parent=self)
 
