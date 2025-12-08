@@ -23,14 +23,7 @@ ModelName = NewType('ModelName', str)
 
 if TYPE_CHECKING:
     from anki.notes import NoteId
-
-LM_CLIENTS = {
-    "dummy": "DummyLMClient",
-    "openai": "OpenAILMClient",
-    "claude": "ClaudeLMClient",
-    "gemini": "GeminiLMClient",
-    "deepseek": "DeepSeekLMClient",
-}
+    from typing import Optional
 
 
 class LmResponse:
@@ -462,14 +455,19 @@ class DeepSeekLMClient(LMClient):
         ]
 
 
-from typing import Optional
 
-
+LM_CLIENTS = {
+    "dummy": DummyLMClient,
+    "openai": OpenAILMClient,
+    "claude": ClaudeLMClient,
+    "gemini": GeminiLMClient,
+    "deepseek": DeepSeekLMClient,
+}
 
 def get_lm_client_class(name: str) -> Optional[type[LMClient]]:
     """Return the LM client class (type) for the given client name."""
     if name not in LM_CLIENTS:
         return None
-    cls_name = LM_CLIENTS[name]
+    cls_name = LM_CLIENTS[name].__name__
     cls = globals().get(cls_name)
     return cls
