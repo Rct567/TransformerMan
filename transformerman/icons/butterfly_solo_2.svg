@@ -1,0 +1,41 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+
+  
+  <!-- Butterfly body -->
+  <ellipse cx="128" cy="128" rx="12" ry="85" fill="#2c3e50"/>
+  
+  <!-- Butterfly head -->
+  <circle cx="128" cy="60" r="18" fill="#2c3e50"/>
+  
+  <!-- Antennae -->
+  <path d="M 128 50 Q 105 20 95 10" stroke="#2c3e50" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M 128 50 Q 151 20 161 10" stroke="#2c3e50" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <circle cx="95" cy="10" r="6" fill="#2c3e50"/>
+  <circle cx="161" cy="10" r="6" fill="#2c3e50"/>
+  
+  <!-- Upper left wing -->
+  <path d="M 116 80 Q 10 25 3 75 Q -2 120 28 145 Q 65 160 116 115 Z" fill="#e74c3c" opacity="0.9"/>
+  
+  <!-- Upper right wing -->
+  <path d="M 140 80 Q 246 25 253 75 Q 258 120 228 145 Q 191 160 140 115 Z" fill="#e74c3c" opacity="0.9"/>
+  
+  <!-- Lower left wing -->
+  <path d="M 116 140 Q 8 170 2 215 Q -1 245 38 254 Q 78 256 116 185 Z" fill="#3498db" opacity="0.9"/>
+  
+  <!-- Lower right wing -->
+  <path d="M 140 140 Q 248 170 254 215 Q 257 245 218 254 Q 178 256 140 185 Z" fill="#3498db" opacity="0.9"/>
+  
+  <!-- Wing details - upper left -->
+  <circle cx="55" cy="100" r="15" fill="#ffffff" opacity="0.6"/>
+  
+  <!-- Wing details - upper right -->
+  <circle cx="201" cy="100" r="15" fill="#ffffff" opacity="0.6"/>
+  
+  <!-- Wing details - lower left -->
+  <circle cx="50" cy="200" r="20" fill="#ffffff" opacity="0.6"/>
+  <circle cx="75" cy="180" r="10" fill="#ffffff" opacity="0.5"/>
+  
+  <!-- Wing details - lower right -->
+  <circle cx="206" cy="200" r="20" fill="#ffffff" opacity="0.6"/>
+  <circle cx="181" cy="180" r="10" fill="#ffffff" opacity="0.5"/>
+</svg>

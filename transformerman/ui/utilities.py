@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 def get_tm_icon() -> QIcon:
     """Get the TransformerMan icon."""
-    icon_path = Path(__file__).parent.parent / "icons" / "language2.svg"
+    icon_path = Path(__file__).parent.parent / "icons" / "butterfly_solo_2.svg"
     if icon_path.exists():
         return QIcon(str(icon_path))
     return QIcon()

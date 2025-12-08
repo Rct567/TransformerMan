@@ -1,0 +1,55 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a90e2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7b68ee;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="leftWing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b9d;stop-opacity:0.9" />
+      <stop offset="50%" style="stop-color:#c44569;stop-opacity:0.85" />
+      <stop offset="100%" style="stop-color:#8e44ad;stop-opacity:0.9" />
+    </linearGradient>
+    <linearGradient id="rightWing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd93d;stop-opacity:0.9" />
+      <stop offset="50%" style="stop-color:#f39c12;stop-opacity:0.85" />
+      <stop offset="100%" style="stop-color:#e74c3c;stop-opacity:0.9" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Body -->
+  <ellipse cx="128" cy="128" rx="12" ry="55" fill="url(#bodyGrad)"/>
+  
+  <!-- Antennae -->
+  <path d="M 124 75 Q 118 50, 108 35" fill="none" stroke="#4a90e2" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 132 75 Q 138 50, 148 35" fill="none" stroke="#4a90e2" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="108" cy="35" r="5" fill="#4a90e2"/>
+  <circle cx="148" cy="35" r="5" fill="#4a90e2"/>
+  
+  <!-- Left wings -->
+  <path d="M 116 95 Q 50 50, 35 80 Q 20 110, 55 125 Q 70 130, 116 115 Z" 
+        fill="url(#leftWing)" stroke="#8e44ad" stroke-width="2" opacity="0.95"/>
+  <path d="M 116 160 Q 50 205, 35 175 Q 20 145, 55 130 Q 70 128, 116 140 Z" 
+        fill="url(#leftWing)" stroke="#8e44ad" stroke-width="2" opacity="0.95"/>
+  
+  <!-- Right wings -->
+  <path d="M 140 95 Q 206 50, 221 80 Q 236 110, 201 125 Q 186 130, 140 115 Z" 
+        fill="url(#rightWing)" stroke="#e74c3c" stroke-width="2" opacity="0.95"/>
+  <path d="M 140 160 Q 206 205, 221 175 Q 236 145, 201 130 Q 186 128, 140 140 Z" 
+        fill="url(#rightWing)" stroke="#e74c3c" stroke-width="2" opacity="0.95"/>
+  
+  <!-- Wing patterns -->
+  <circle cx="80" cy="105" r="8" fill="#ffffff" opacity="0.5"/>
+  <circle cx="176" cy="105" r="8" fill="#ffffff" opacity="0.5"/>
+  <circle cx="80" cy="150" r="6" fill="#ffffff" opacity="0.5"/>
+  <circle cx="176" cy="150" r="6" fill="#ffffff" opacity="0.5"/>
+  
+  <!-- Sparkle effects around butterfly -->
+  <circle cx="220" cy="75" r="3" fill="#ffd93d" opacity="0.8"/>
+  <circle cx="215" cy="180" r="3" fill="#ffd93d" opacity="0.8"/>
+  <circle cx="165" cy="55" r="2.5" fill="#ffffff" opacity="0.9"/>
+  <circle cx="195" cy="200" r="2.5" fill="#ffffff" opacity="0.9"/>
+  <circle cx="36" cy="75" r="3" fill="#ff6b9d" opacity="0.8"/>
+  <circle cx="41" cy="180" r="3" fill="#ff6b9d" opacity="0.8"/>
+  <circle cx="91" cy="55" r="2.5" fill="#ffffff" opacity="0.9"/>
+  <circle cx="61" cy="200" r="2.5" fill="#ffffff" opacity="0.9"/>
+</svg>
