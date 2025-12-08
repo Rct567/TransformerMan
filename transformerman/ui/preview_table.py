@@ -50,7 +50,8 @@ class PreviewTable(QTableWidget):
     """Table widget for displaying note previews with background loading."""
 
     selected_notes: SelectedNotes | None
-    highlight_color: QColor | None
+    highlight_color: QColor
+    is_highlighted: bool
 
     def __init__(
         self,
@@ -75,9 +76,17 @@ class PreviewTable(QTableWidget):
             vertical_header.setVisible(False)
         self.setMinimumHeight(150)
 
+        # Set highlight color based on dark mode (always available)
+        if self.is_dark_mode:
+            # Dark mode - use a darker green
+            self.highlight_color = QColor(*DARK_MODE_HIGHLIGHT_COLOR)
+        else:
+            # Light mode - use a light green
+            self.highlight_color = QColor(*LIGHT_MODE_HIGHLIGHT_COLOR)
+
         # State
         self.selected_notes = None
-        self.highlight_color = None
+        self.is_highlighted = False
 
 
     def set_selected_notes(self, selected_notes: SelectedNotes) -> None:
@@ -136,7 +145,7 @@ class PreviewTable(QTableWidget):
         item = QTableWidgetItem(display_content)
         item.setToolTip(full_content)
 
-        if is_highlighted and self.highlight_color:
+        if is_highlighted and self.is_highlighted:
             item.setBackground(self.highlight_color)
 
         return item
@@ -160,15 +169,8 @@ class PreviewTable(QTableWidget):
         if selected_notes is None:
             return
 
-        # Create appropriate color for highlighting based on dark mode
-        self.highlight_color = None
-        if field_updates is not None:
-            if self.is_dark_mode:
-                # Dark mode - use a darker green
-                self.highlight_color = QColor(*DARK_MODE_HIGHLIGHT_COLOR)
-            else:
-                # Light mode - use a light green
-                self.highlight_color = QColor(*LIGHT_MODE_HIGHLIGHT_COLOR)
+        # Set whether the table should be in highlighted mode
+        self.is_highlighted = field_updates is not None
 
         # Store the current state for the background operation
         current_ids = note_ids.copy()

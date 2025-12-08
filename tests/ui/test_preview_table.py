@@ -173,8 +173,8 @@ class TestPreviewTable:
             test_field_updates
         )
 
-        # Verify highlight color is set when field updates are provided
-        assert table.highlight_color is not None
+        # Verify table is in highlighted mode when field updates are provided
+        assert table.is_highlighted is True
         assert isinstance(table.highlight_color, QColor)
 
         # Verify the color is valid (not transparent/empty)
@@ -234,7 +234,7 @@ class TestPreviewTable:
                             # Should not be highlighted
                             assert item.background().color() != table.highlight_color
 
-        # Also test that without field updates, no highlight color is set
+        # Also test that without field updates, table is not in highlighted mode
         table2 = PreviewTable(parent_widget, is_dark_mode)
         qtbot.addWidget(table2)
         table2.set_selected_notes(selected_notes)
@@ -263,8 +263,11 @@ class TestPreviewTable:
             None  # No field updates
         )
 
-        # Without field updates, highlight color should not be set
-        assert table2.highlight_color is None
+        # Without field updates, table should not be in highlighted mode
+        assert table2.is_highlighted is False
+        # But highlight_color should still be set (always set in constructor)
+        assert table2.highlight_color is not None
+        assert isinstance(table2.highlight_color, QColor)
 
         # Table structure should still be set up
         assert table2.rowCount() == len(test_note_ids)
@@ -347,7 +350,9 @@ class TestPreviewTable:
             test_field_updates
         )
 
-        # Should set highlight color based on dark mode
+        # Should be in highlighted mode when field updates are provided
+        assert table.is_highlighted is True
+        # Highlight color should always be set (in constructor)
         assert table.highlight_color is not None
 
         # Table structure should be set up
@@ -356,4 +361,3 @@ class TestPreviewTable:
 
         # QueryOp should have been created
         mock_query_op.assert_called_once()
-
