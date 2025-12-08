@@ -14,7 +14,6 @@ else:
 
 
 T = TypeVar('T')
-K = TypeVar('K')
 
 
 # batched for Python < 3.12
