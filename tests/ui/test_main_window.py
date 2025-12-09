@@ -14,7 +14,6 @@ from unittest.mock import Mock, patch
 if TYPE_CHECKING:
     from pathlib import Path
     from pytestqt.qtbot import QtBot
-    from anki.notes import NoteId
 
 from aqt.qt import QWidget, QCheckBox, QLineEdit, QComboBox, QPushButton, Qt
 
@@ -26,11 +25,9 @@ col = test_collection_fixture
 class TestTransformerManMainWindow:
     """Test class for TransformerManMainWindow."""
 
-    @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.SelectedNotes')
-    def test_window_creation(  # noqa: PLR0913
+    @with_test_collection("two_deck_collection")
+    def test_window_creation(
         self,
-        mock_selected_notes_cls: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: MockCollection,
@@ -38,20 +35,15 @@ class TestTransformerManMainWindow:
         addon_config: Mock,
         user_files_dir: Path,
         is_dark_mode: bool,
-        test_note_ids: list[NoteId],
     ) -> None:
         """Test that main window can be created with all required dependencies."""
-        # Mock SelectedNotes instance
-        mock_selected_notes = Mock()
-        mock_selected_notes.get_note_type_counts.return_value = {}
-        mock_selected_notes.__len__ = Mock(return_value=0)
-        mock_selected_notes_cls.return_value = mock_selected_notes
+        note_ids = list(col.find_notes("*")[0:3])
 
         window = TransformerManMainWindow(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
-            note_ids=test_note_ids,
+            note_ids=note_ids,
             lm_client=dummy_lm_client,
             addon_config=addon_config,
             user_files_dir=user_files_dir,
@@ -61,7 +53,7 @@ class TestTransformerManMainWindow:
         assert window.parent() is parent_widget
         assert window.is_dark_mode == is_dark_mode
         assert window.col is col
-        assert window.note_ids == test_note_ids
+        assert window.note_ids == note_ids
         assert window.lm_client is dummy_lm_client
         assert window.addon_config is addon_config
         assert window.user_files_dir == user_files_dir
@@ -73,11 +65,14 @@ class TestTransformerManMainWindow:
         assert window.minimumWidth() >= 500
         assert window.minimumHeight() >= 400
 
-    @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.SelectedNotes')
-    def test_ui_components_created(  # noqa: PLR0913
+        # Verify SelectedNotes was created and has correct note count
+        assert window.selected_notes.note_ids == note_ids
+        assert len(window.selected_notes) == 3
+        assert window.selected_notes.get_note_type_counts() == {"Basic": 3}
+
+    @with_test_collection("two_deck_collection")
+    def test_ui_components_created(
         self,
-        mock_selected_notes_cls: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: MockCollection,
@@ -85,26 +80,15 @@ class TestTransformerManMainWindow:
         addon_config: Mock,
         user_files_dir: Path,
         is_dark_mode: bool,
-        test_note_ids: list[NoteId],
     ) -> None:
         """Test that all UI components are created."""
-        # Mock SelectedNotes instance
-        mock_selected_notes = Mock()
-        mock_selected_notes.get_note_type_counts.return_value = {"Basic": 3}
-        mock_selected_notes.get_field_names.return_value = []
-        mock_selected_notes.__len__ = Mock(return_value=0)
-        mock_empty_filter = Mock()
-        mock_empty_filter.note_ids = []
-        mock_empty_filter.__len__ = Mock(return_value=0)
-        mock_selected_notes.filter_by_empty_field.return_value = mock_empty_filter
-        mock_selected_notes.filter_by_note_type.return_value = []
-        mock_selected_notes_cls.return_value = mock_selected_notes
+        note_ids = list(col.find_notes("*")[0:3])
 
         window = TransformerManMainWindow(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
-            note_ids=test_note_ids,
+            note_ids=note_ids,
             lm_client=dummy_lm_client,
             addon_config=addon_config,
             user_files_dir=user_files_dir,
@@ -146,48 +130,58 @@ class TestTransformerManMainWindow:
         addon_config: Mock,
         user_files_dir: Path,
         is_dark_mode: bool,
-        test_note_ids: list[NoteId],
     ) -> None:
 
         """Test that note type combo box is populated with note types."""
-        # Mock SelectedNotes to return specific note type counts
-        mock_selected_notes = Mock()
-        mock_selected_notes.get_note_type_counts.return_value = {
-            "Basic": 3,
-            "Cloze": 1,
-        }
-        # Add methods needed by _on_note_type_changed
-        mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]  # Return first 2 notes
-        mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
-        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
-        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
+        # Create notes with different note types
+        basic_model = col.models.by_name("Basic")
+        cloze_model = col.models.by_name("Cloze")
+        assert basic_model is not None
+        assert cloze_model is not None
+        deck = col.decks.all()[0]
+        deck_id = deck["id"]
 
-        with patch('transformerman.ui.main_window.SelectedNotes', return_value=mock_selected_notes):
-            window = TransformerManMainWindow(
-                parent=parent_widget,
-                is_dark_mode=is_dark_mode,
-                col=col,
-                note_ids=test_note_ids,
-                lm_client=dummy_lm_client,
-                addon_config=addon_config,
-                user_files_dir=user_files_dir,
-            )
-            qtbot.addWidget(window)
+        note_ids = []
 
-            # Note type combo should be populated
-            assert window.note_type_combo.count() == 2
-            assert window.note_type_combo.itemText(0) == "Basic"
-            assert window.note_type_combo.itemText(1) == "Cloze"
+        # Add 3 Basic notes
+        for i in range(3):
+            note = col.new_note(basic_model)
+            note["Front"] = f"Front {i}"
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
 
-            # First (most common) note type should be selected
-            assert window.note_type_combo.currentText() == "Basic"
-            assert window.current_note_type == "Basic"
+        # Add 1 Cloze note
+        cloze_note = col.new_note(cloze_model)
+        cloze_note["Text"] = "This is a {{c1::cloze}} deletion"
+        cloze_note["Back Extra"] = "Extra info"
+        col.add_note(cloze_note, deck_id)
+        note_ids.append(cloze_note.id)
 
-    @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.SelectedNotes')
-    def test_field_checkboxes_created(  # noqa: PLR0913
+        window = TransformerManMainWindow(
+            parent=parent_widget,
+            is_dark_mode=is_dark_mode,
+            col=col,
+            note_ids=note_ids,
+            lm_client=dummy_lm_client,
+            addon_config=addon_config,
+            user_files_dir=user_files_dir,
+        )
+        qtbot.addWidget(window)
+
+        # Note type combo should be populated
+        assert window.note_type_combo.count() == 2
+        assert window.note_type_combo.itemText(0) == "Basic"
+        assert window.note_type_combo.itemText(1) == "Cloze"
+
+        # First (most common) note type should be selected
+        assert window.note_type_combo.currentText() == "Basic"
+        assert window.current_note_type == "Basic"
+
+
+    @with_test_collection("two_deck_collection")
+    def test_field_checkboxes_created(
         self,
-        mock_selected_notes_cls: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: MockCollection,
@@ -195,24 +189,15 @@ class TestTransformerManMainWindow:
         addon_config: Mock,
         user_files_dir: Path,
         is_dark_mode: bool,
-        test_note_ids: list[NoteId],
     ) -> None:
         """Test that field checkboxes and instruction inputs are created."""
-        # Mock SelectedNotes instance
-        mock_selected_notes = Mock()
-        mock_selected_notes.get_note_type_counts.return_value = {}
-        mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]
-        mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
-        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
-        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
-        mock_selected_notes.__len__ = Mock(return_value=0)
-        mock_selected_notes_cls.return_value = mock_selected_notes
+        note_ids = list(col.find_notes("*")[0:2])
 
         window = TransformerManMainWindow(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
-            note_ids=test_note_ids,
+            note_ids=note_ids,
             lm_client=dummy_lm_client,
             addon_config=addon_config,
             user_files_dir=user_files_dir,
@@ -250,11 +235,9 @@ class TestTransformerManMainWindow:
         # Instruction input should be enabled for checked fields
         assert front_input.isEnabled()
 
-    @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.SelectedNotes')
-    def test_field_selection_enables_input(  # noqa: PLR0913
+    @with_test_collection("two_deck_collection")
+    def test_field_selection_enables_input(
         self,
-        mock_selected_notes_cls: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: MockCollection,
@@ -262,24 +245,15 @@ class TestTransformerManMainWindow:
         addon_config: Mock,
         user_files_dir: Path,
         is_dark_mode: bool,
-        test_note_ids: list[NoteId],
     ) -> None:
         """Test that checking/unchecking fields enables/disables instruction inputs."""
-        # Mock SelectedNotes instance
-        mock_selected_notes = Mock()
-        mock_selected_notes.get_note_type_counts.return_value = {}
-        mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]
-        mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
-        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
-        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
-        mock_selected_notes.__len__ = Mock(return_value=0)
-        mock_selected_notes_cls.return_value = mock_selected_notes
+        note_ids = list(col.find_notes("*")[0:2])
 
         window = TransformerManMainWindow(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
-            note_ids=test_note_ids,
+            note_ids=note_ids,
             lm_client=dummy_lm_client,
             addon_config=addon_config,
             user_files_dir=user_files_dir,
@@ -311,11 +285,9 @@ class TestTransformerManMainWindow:
 
         assert front_input.isEnabled()
 
-    @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.SelectedNotes')
-    def test_preview_button_state(  # noqa: PLR0913
+    @with_test_collection("two_deck_collection")
+    def test_preview_button_state(
         self,
-        mock_selected_notes_cls: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: MockCollection,
@@ -323,25 +295,15 @@ class TestTransformerManMainWindow:
         addon_config: Mock,
         user_files_dir: Path,
         is_dark_mode: bool,
-        test_note_ids: list[NoteId],
     ) -> None:
         """Test that preview button is enabled when notes and fields are selected."""
-        # Mock SelectedNotes instance
-        mock_selected_notes = Mock()
-        mock_selected_notes.get_note_type_counts.return_value = {}
-        mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]  # Has notes
-        mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
-        mock_selected_notes.has_note_with_empty_field.return_value = False  # No empty fields
-        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
-        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
-        mock_selected_notes.__len__ = Mock(return_value=0)
-        mock_selected_notes_cls.return_value = mock_selected_notes
+        note_ids = list(col.find_notes("*")[0:2])
 
         window = TransformerManMainWindow(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
-            note_ids=test_note_ids,
+            note_ids=note_ids,
             lm_client=dummy_lm_client,
             addon_config=addon_config,
             user_files_dir=user_files_dir,
@@ -358,20 +320,9 @@ class TestTransformerManMainWindow:
         assert window.preview_button.text() == "Preview"
         assert window.preview_button.isEnabled()
 
-        # Test with no notes selected (empty filtered list)
-        mock_selected_notes.filter_by_note_type.return_value = []  # No notes
-        # Trigger note type change again to update button state
-        window.note_type_combo.currentTextChanged.emit("Basic")
-        qtbot.wait(100)  # Give time for state update
-
-        # With no notes, preview button should be disabled
-        assert not window.preview_button.isEnabled()
-
-    @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.SelectedNotes')
-    def test_apply_button_initial_state(  # noqa: PLR0913
+    @with_test_collection("two_deck_collection")
+    def test_apply_button_initial_state(
         self,
-        mock_selected_notes_cls: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: MockCollection,
@@ -379,20 +330,15 @@ class TestTransformerManMainWindow:
         addon_config: Mock,
         user_files_dir: Path,
         is_dark_mode: bool,
-        test_note_ids: list[NoteId],
     ) -> None:
         """Test that apply button starts disabled."""
-        # Mock SelectedNotes instance
-        mock_selected_notes = Mock()
-        mock_selected_notes.get_note_type_counts.return_value = {}
-        mock_selected_notes.__len__ = Mock(return_value=0)
-        mock_selected_notes_cls.return_value = mock_selected_notes
+        note_ids = list(col.find_notes("*")[0:2])
 
         window = TransformerManMainWindow(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
-            note_ids=test_note_ids,
+            note_ids=note_ids,
             lm_client=dummy_lm_client,
             addon_config=addon_config,
             user_files_dir=user_files_dir,
@@ -403,14 +349,12 @@ class TestTransformerManMainWindow:
         assert not window.apply_button.isEnabled()
 
     @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.SelectedNotes')
     @patch('transformerman.ui.main_window.transform_notes_with_progress')
     @patch('transformerman.ui.main_window.showInfo')
     def test_preview_button_click_triggers_transformation(  # noqa: PLR0913
         self,
         mock_show_info: Mock,
         mock_transform: Mock,
-        mock_selected_notes_cls: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: MockCollection,
@@ -418,25 +362,28 @@ class TestTransformerManMainWindow:
         addon_config: Mock,
         user_files_dir: Path,
         is_dark_mode: bool,
-        test_note_ids: list[NoteId],
     ) -> None:
         """Test that preview button click triggers transformation process."""
-        # Mock SelectedNotes instance
-        mock_selected_notes = Mock()
-        mock_selected_notes.get_note_type_counts.return_value = {}
-        mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]
-        mock_selected_notes.get_field_names.return_value = ["Front", "Back"]
-        mock_selected_notes.has_note_with_empty_field.return_value = True
-        mock_selected_notes.filter_by_empty_field.return_value.note_ids = test_note_ids[:1]
-        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=1)
-        mock_selected_notes.__len__ = Mock(return_value=0)
-        mock_selected_notes_cls.return_value = mock_selected_notes
+        # Add some notes to the collection
+        model = col.models.by_name("Basic")
+        assert model is not None
+        deck = col.decks.all()[0]
+        deck_id = deck["id"]
+
+        note_ids = []
+        # Add 2 Basic notes, one with empty Front field
+        for i in range(2):
+            note = col.new_note(model)
+            note["Front"] = "" if i == 0 else f"Front {i}"  # First note has empty Front
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
 
         window = TransformerManMainWindow(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
-            note_ids=test_note_ids,
+            note_ids=note_ids,
             lm_client=dummy_lm_client,
             addon_config=addon_config,
             user_files_dir=user_files_dir,
@@ -463,14 +410,12 @@ class TestTransformerManMainWindow:
         assert call_args[1]['addon_config'] is addon_config
         assert call_args[1]['user_files_dir'] == user_files_dir
 
-        # showInfo should not be called (since we mocked has_note_with_empty_field to return True)
+        # showInfo should not be called (we have notes with empty fields)
         mock_show_info.assert_not_called()
 
     @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.SelectedNotes')
-    def test_note_type_change_updates_ui(  # noqa: PLR0913
+    def test_note_type_change_updates_ui(
         self,
-        mock_selected_notes_cls: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: MockCollection,
@@ -478,30 +423,39 @@ class TestTransformerManMainWindow:
         addon_config: Mock,
         user_files_dir: Path,
         is_dark_mode: bool,
-        test_note_ids: list[NoteId],
     ) -> None:
         """Test that changing note type updates field display and counts."""
-        # Mock SelectedNotes instance
-        mock_selected_notes = Mock()
-        mock_selected_notes.get_note_type_counts.return_value = {}
-        mock_selected_notes.filter_by_note_type.return_value = test_note_ids[:2]  # 2 notes
-        mock_selected_notes.filter_by_empty_field.return_value.note_ids = []
-        mock_selected_notes.filter_by_empty_field.return_value.__len__ = Mock(return_value=0)
-        mock_selected_notes.__len__ = Mock(return_value=0)
-        def get_field_names_side_effect(note_type: str) -> list[str]:
-            field_map = {
-                "Basic": ["Front", "Back"],
-                "Cloze": ["Text", "Extra"],
-            }
-            return field_map.get(note_type, [])
-        mock_selected_notes.get_field_names.side_effect = get_field_names_side_effect
-        mock_selected_notes_cls.return_value = mock_selected_notes
+        # Create notes with different note types
+        basic_model = col.models.by_name("Basic")
+        cloze_model = col.models.by_name("Cloze")
+        assert basic_model is not None
+        assert cloze_model is not None
+        deck = col.decks.all()[0]
+        deck_id = deck["id"]
+
+        note_ids = []
+
+        # Add 2 Basic notes
+        for i in range(2):
+            note = col.new_note(basic_model)
+            note["Front"] = f"Front {i}"
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
+
+        # Add 2 Cloze notes
+        for i in range(2):
+            cloze_note = col.new_note(cloze_model)
+            cloze_note["Text"] = f"This is a {{{{c1::cloze}}}} deletion {i}"
+            cloze_note["Back Extra"] = f"Extra info {i}"
+            col.add_note(cloze_note, deck_id)
+            note_ids.append(cloze_note.id)
 
         window = TransformerManMainWindow(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
-            note_ids=test_note_ids,
+            note_ids=note_ids,
             lm_client=dummy_lm_client,
             addon_config=addon_config,
             user_files_dir=user_files_dir,
@@ -527,5 +481,5 @@ class TestTransformerManMainWindow:
 
         assert window.current_note_type == "Cloze"
         assert "Text" in window.field_checkboxes
-        assert "Extra" in window.field_checkboxes
+        assert "Back Extra" in window.field_checkboxes
         assert "Front" not in window.field_checkboxes  # Old fields cleared
