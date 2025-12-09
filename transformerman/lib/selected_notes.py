@@ -21,8 +21,9 @@ class SelectedNotes:
     """Manages selected notes for transformation."""
 
     note_ids: Sequence[NoteId]
+    _note_cache: dict[NoteId, Note]
 
-    def __init__(self, col: Collection, note_ids: Sequence[NoteId]) -> None:
+    def __init__(self, col: Collection, note_ids: Sequence[NoteId], note_cache: dict[NoteId, Note] | None = None) -> None:
         """
         Initialize with collection and selected note IDs.
 
@@ -32,7 +33,7 @@ class SelectedNotes:
         """
         self.col = col
         self.note_ids = note_ids
-        self._note_cache: dict[NoteId, Note] = {}
+        self._note_cache = note_cache if note_cache else {}
         self.logger = logging.getLogger(__name__)
 
     def get_note(self, nid: NoteId) -> Note:
@@ -234,7 +235,7 @@ class SelectedNotes:
         Returns:
             New SelectedNotes instance.
         """
-        return SelectedNotes(self.col, note_ids)
+        return SelectedNotes(self.col, note_ids, self._note_cache)
 
     def get_field_names(self, note_type_name: str) -> list[str]:
         """
