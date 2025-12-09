@@ -296,7 +296,7 @@ class TestTransformerManMainWindow:
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
-        """Test that preview button is enabled when notes and fields are selected."""
+        """Test that preview button state reflects whether there are empty fields to fill."""
         note_ids = list(col.find_notes("*")[0:2])
 
         window = TransformerManMainWindow(
@@ -316,9 +316,10 @@ class TestTransformerManMainWindow:
         window.note_type_combo.currentTextChanged.emit("Basic")
         qtbot.waitUntil(lambda: len(window.field_checkboxes) > 0)
 
-        # With notes selected and fields checked, preview button should be enabled
+        # With notes selected and fields checked but no empty fields,
+        # preview button should be disabled (nothing to transform)
         assert window.preview_button.text() == "Preview"
-        assert window.preview_button.isEnabled()
+        assert not window.preview_button.isEnabled()
 
     @with_test_collection("two_deck_collection")
     def test_apply_button_initial_state(

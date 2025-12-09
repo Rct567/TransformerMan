@@ -155,14 +155,15 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Preview button
         self.preview_button = QPushButton("Preview")
         self.preview_button.clicked.connect(self._on_preview_clicked)
-        self.preview_button.setEnabled(False)
         button_layout.addWidget(self.preview_button)
 
         # Apply button
         self.apply_button = QPushButton("Apply")
         self.apply_button.clicked.connect(self._on_apply_clicked)
-        self.apply_button.setEnabled(False)
         button_layout.addWidget(self.apply_button)
+
+        # Set initial button states
+        self.update_buttons_state()
 
         button_layout.addStretch()
         layout.addLayout(button_layout)
@@ -283,16 +284,16 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Set column stretch so that instruction column expands
         self.fields_layout.setColumnStretch(1, 1)
 
-        # Get filtered note IDs for preview button state
-        filtered_note_ids = self.selected_notes.filter_by_note_type(note_type_name)
-
-        # Enable preview button if we have notes
-        self.preview_button.setEnabled(len(filtered_note_ids) > 0)
+        # Clear preview results since they're no longer valid for the new note type
+        self.preview_results.clear()
 
         # Update notes count label with new counts
         self._update_notes_count_label()
 
         self._update_preview_table()
+
+        # Update button states
+        self.update_buttons_state()
 
     def _on_field_selection_changed(self) -> None:
         """Handle field checkbox state changes."""
@@ -301,9 +302,15 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             instruction_input = self.field_instructions[field_name]
             instruction_input.setEnabled(checkbox.isChecked())
 
+        # Clear preview results since they're no longer valid with new field selection
+        self.preview_results.clear()
+
         # Update notes count label since empty field count may have changed
         self._update_notes_count_label()
         self._update_preview_table()
+
+        # Update button states
+        self.update_buttons_state()
 
     def _update_preview_table(self) -> None:
         """Update the preview table with data from selected notes."""
@@ -313,6 +320,30 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
         # Update the preview table
         self.preview_table.set_note_fields_update(filtered_note_ids, selected_fields)
+
+    def update_buttons_state(self) -> None:
+        """Update the enabled/disabled state of all buttons based on current state."""
+        # Preview button conditions
+        preview_enabled = False
+        if self.current_note_type:
+            filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
+            selected_fields = self._get_selected_fields()
+            # Enable preview if we have notes AND at least one field selected
+            # AND no preview results exist (would generate same results)
+            # AND there are notes with empty fields to fill
+            preview_enabled = (
+                len(filtered_note_ids) > 0
+                and len(selected_fields) > 0
+                and len(self.preview_results) == 0
+                and self.selected_notes.has_note_with_empty_field(selected_fields)
+            )
+
+        # Apply button conditions
+        apply_enabled = len(self.preview_results) > 0
+
+        # Update buttons
+        self.preview_button.setEnabled(preview_enabled)
+        self.apply_button.setEnabled(apply_enabled)
 
     def _on_preview_clicked(self) -> None:
         """Handle preview button click."""
@@ -374,14 +405,14 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                 showWarning(f"Error during preview:\n\n{results['error']}\n\nNo notes would be updated.", parent=self)
                 # Clear any partial results
                 self.preview_results.clear()
-                self.apply_button.setEnabled(False)
+                self.update_buttons_state()
                 return
 
             # Store preview results
             self.preview_results = field_updates
 
-            # Enable apply button
-            self.apply_button.setEnabled(len(field_updates) > 0)
+            # Update button states
+            self.update_buttons_state()
 
             # Update preview table with green highlighting
             self._update_preview_table_with_results(results, field_updates)
@@ -422,14 +453,15 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             if updated > 0:
                 showInfo(f"Successfully applied changes to {updated} notes.", parent=self)
-                # Clear preview results and disable apply button
+                # Clear preview results
                 self.preview_results.clear()
-                self.apply_button.setEnabled(False)
                 # Refresh preview table to show updated values
                 self.selected_notes.clear_cache()
                 self._update_preview_table()
                 # Update notes count label since empty field count has changed
                 self._update_notes_count_label()
+                # Update button states
+                self.update_buttons_state()
             else:
                 showInfo(f"No notes were updated. {failed} notes failed.", parent=self)
 
