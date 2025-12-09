@@ -154,11 +154,13 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Preview button
         self.preview_button = QPushButton("Preview")
+        self.preview_button.setToolTip("Preview transformation")
         self.preview_button.clicked.connect(self._on_preview_clicked)
         button_layout.addWidget(self.preview_button)
 
         # Apply button
         self.apply_button = QPushButton("Apply")
+        self.apply_button.setToolTip("Apply transformation")
         self.apply_button.clicked.connect(self._on_apply_clicked)
         button_layout.addWidget(self.apply_button)
 
