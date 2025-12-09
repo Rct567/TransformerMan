@@ -4,14 +4,14 @@ Tests for transform operations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast, Callable, Any
+from typing import TYPE_CHECKING, Callable, Any, cast
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
 from transformerman.lib.transform_operations import (
     NoteTransformer,
-    create_lm_logger,
     apply_field_updates_with_operation,
+    create_lm_logger,
 )
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
@@ -22,17 +22,11 @@ col = test_collection_fixture
 
 
 if TYPE_CHECKING:
-    from pathlib import Path
     from anki.notes import NoteId
+    from pathlib import Path
+    from transformerman.lib.addon_config import AddonConfig
 
 
-
-@pytest.fixture
-def mock_addon_config() -> Mock:
-    """Create a mock AddonConfig."""
-    config = Mock()
-    config.is_enabled = Mock(return_value=False)
-    return config
 
 
 @pytest.fixture
@@ -49,7 +43,7 @@ class TestNoteTransformer:
     def test_init_validates_notes_with_empty_fields(
         self,
         col: MockCollection,
-        mock_addon_config: Mock,
+        addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
         """Test that __init__ validates notes have empty fields."""
@@ -76,7 +70,7 @@ class TestNoteTransformer:
                 selected_fields=["Front"],  # Field that exists and is non-empty
                 note_type_name="Basic",
                 max_prompt_size=500000,
-                addon_config=mock_addon_config,
+                addon_config=addon_config,
                 user_files_dir=mock_user_files_dir,
             )
 
@@ -84,7 +78,7 @@ class TestNoteTransformer:
     def test_get_field_updates_returns_correct_updates(
         self,
         col: MockCollection,
-        mock_addon_config: Mock,
+        addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
         """Test that get_field_updates returns correct field updates in preview mode."""
@@ -121,7 +115,7 @@ class TestNoteTransformer:
             selected_fields=["Front"],
             note_type_name="Basic",
             max_prompt_size=1000,
-            addon_config=mock_addon_config,
+            addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
         )
 
@@ -153,7 +147,7 @@ class TestNoteTransformer:
     def test_get_field_updates_with_progress_callback(
         self,
         col: MockCollection,
-        mock_addon_config: Mock,
+        addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
         """Test that get_field_updates calls progress callback."""
@@ -190,7 +184,7 @@ class TestNoteTransformer:
             selected_fields=["Front"],
             note_type_name="Basic",
             max_prompt_size=500000,
-            addon_config=mock_addon_config,
+            addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
         )
 
@@ -211,7 +205,7 @@ class TestNoteTransformer:
     def test_get_field_updates_with_cancellation(
         self,
         col: MockCollection,
-        mock_addon_config: Mock,
+        addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
         """Test that get_field_updates respects cancellation."""
@@ -248,7 +242,7 @@ class TestNoteTransformer:
             selected_fields=["Front"],
             note_type_name="Basic",
             max_prompt_size=500000,
-            addon_config=mock_addon_config,
+            addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
         )
 
@@ -272,7 +266,7 @@ class TestNoteTransformer:
     def test_get_field_updates_handles_batch_errors(
         self,
         col: MockCollection,
-        mock_addon_config: Mock,
+        addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
         """Test that get_field_updates handles batch processing errors gracefully."""
@@ -322,7 +316,7 @@ class TestNoteTransformer:
                 selected_fields=["Front"],
                 note_type_name="Basic",
                 max_prompt_size=500000,
-                addon_config=mock_addon_config,
+                addon_config=addon_config,
                 user_files_dir=mock_user_files_dir,
             )
 
@@ -344,7 +338,7 @@ class TestNoteTransformer:
     def test_get_field_updates_only_returns_updates_for_empty_fields(
         self,
         col: MockCollection,
-        mock_addon_config: Mock,
+        addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
         """Test that get_field_updates only returns updates for empty fields."""
@@ -384,7 +378,7 @@ class TestNoteTransformer:
             selected_fields=["Front"],
             note_type_name="Basic",
             max_prompt_size=500000,
-            addon_config=mock_addon_config,
+            addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
         )
 
@@ -659,17 +653,12 @@ class TestCreateLmLogger:
 
     def test_create_lm_logger_disabled_logging(
         self,
-        mock_addon_config: Mock,
+        addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
         """Test that create_lm_logger returns functions that don't log when disabled."""
-        # Configure mock to return False for both settings
-        def is_enabled(setting: str, default: bool) -> bool:
-            return False
-
-        mock_addon_config.is_enabled = is_enabled
-
-        log_request, log_response = create_lm_logger(mock_addon_config, mock_user_files_dir)
+        # Ensure logging is disabled (default config already has False for both)
+        log_request, log_response = create_lm_logger(addon_config, mock_user_files_dir)
 
         # Call logging functions
         log_request("test prompt")
@@ -681,17 +670,15 @@ class TestCreateLmLogger:
 
     def test_create_lm_logger_enabled_logging(
         self,
-        mock_addon_config: Mock,
+        addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
         """Test that create_lm_logger returns functions that log when enabled."""
-        # Configure mock to return True for both settings
-        def is_enabled(setting: str, default: bool) -> bool:
-            return True
+        # Enable logging by updating config
+        addon_config.update_setting("log_lm_requests", True)
+        addon_config.update_setting("log_lm_responses", True)
 
-        mock_addon_config.is_enabled = is_enabled
-
-        log_request, log_response = create_lm_logger(mock_addon_config, mock_user_files_dir)
+        log_request, log_response = create_lm_logger(addon_config, mock_user_files_dir)
 
         # Call logging functions
         test_prompt = "test prompt"

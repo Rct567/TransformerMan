@@ -7,7 +7,7 @@ Follows project guideline: "Use pytest fixtures, but try to use the real thing w
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -67,35 +67,6 @@ def test_note_ids() -> list[NoteId]:
     return [cast('NoteId', 123), cast('NoteId', 456), cast('NoteId', 789)]
 
 
-@pytest.fixture
-def addon_config() -> Mock:
-    """
-    Mock AddonConfig for UI tests.
-
-    Returns a Mock that behaves like AddonConfig for UI testing.
-    """
-    config = Mock(spec_set=["get", "get_api_key", "set_api_key", "update_setting", "reload", "get_max_prompt_size"])
-
-    # Default configuration values
-    def get_side_effect(key: str, default: Any = None) -> Any:
-        config_dict = {
-            "lm_client": "dummy",
-            "model": "mock_content_generator",
-            "batch_size": 10,
-            "log_lm_requests": False,
-            "log_lm_responses": False,
-            "max_prompt_size": 500000,
-        }
-        return config_dict.get(key, default)
-    config.get.side_effect = get_side_effect
-
-    config.get_api_key.return_value = "test-api-key"
-    config.set_api_key.return_value = None
-    config.update_setting.return_value = None
-    config.reload.return_value = None
-    config.get_max_prompt_size.return_value = 500000
-
-    return config
 
 
 @pytest.fixture

@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 if TYPE_CHECKING:
     from pathlib import Path
     from pytestqt.qtbot import QtBot
+    from transformerman.lib.addon_config import AddonConfig
 
 from aqt.qt import QWidget, QCheckBox, QLineEdit, QComboBox, QPushButton, Qt
 
@@ -32,7 +33,7 @@ class TestTransformerManMainWindow:
         parent_widget: QWidget,
         col: MockCollection,
         dummy_lm_client: Mock,
-        addon_config: Mock,
+        addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
@@ -77,7 +78,7 @@ class TestTransformerManMainWindow:
         parent_widget: QWidget,
         col: MockCollection,
         dummy_lm_client: Mock,
-        addon_config: Mock,
+        addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
@@ -127,7 +128,7 @@ class TestTransformerManMainWindow:
         parent_widget: QWidget,
         col: MockCollection,
         dummy_lm_client: Mock,
-        addon_config: Mock,
+        addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
@@ -186,7 +187,7 @@ class TestTransformerManMainWindow:
         parent_widget: QWidget,
         col: MockCollection,
         dummy_lm_client: Mock,
-        addon_config: Mock,
+        addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
@@ -242,7 +243,7 @@ class TestTransformerManMainWindow:
         parent_widget: QWidget,
         col: MockCollection,
         dummy_lm_client: Mock,
-        addon_config: Mock,
+        addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
@@ -292,7 +293,7 @@ class TestTransformerManMainWindow:
         parent_widget: QWidget,
         col: MockCollection,
         dummy_lm_client: Mock,
-        addon_config: Mock,
+        addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
@@ -328,7 +329,7 @@ class TestTransformerManMainWindow:
         parent_widget: QWidget,
         col: MockCollection,
         dummy_lm_client: Mock,
-        addon_config: Mock,
+        addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
@@ -360,7 +361,7 @@ class TestTransformerManMainWindow:
         parent_widget: QWidget,
         col: MockCollection,
         dummy_lm_client: Mock,
-        addon_config: Mock,
+        addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
@@ -426,7 +427,7 @@ class TestTransformerManMainWindow:
         parent_widget: QWidget,
         col: MockCollection,
         dummy_lm_client: Mock,
-        addon_config: Mock,
+        addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
@@ -452,7 +453,7 @@ class TestTransformerManMainWindow:
         # Add 2 Cloze notes
         for i in range(2):
             cloze_note = col.new_note(cloze_model)
-            cloze_note["Text"] = f"This is a {{{{c1::cloze}}}} deletion {i}"
+            cloze_note["Text"] = f"This is a {{c1::cloze}} deletion {i}"
             cloze_note["Back Extra"] = f"Extra info {i}"
             col.add_note(cloze_note, deck_id)
             note_ids.append(cloze_note.id)

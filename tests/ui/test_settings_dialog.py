@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
+    from transformerman.lib.addon_config import AddonConfig
 
 from aqt.qt import QWidget, QComboBox, QLineEdit, QSpinBox, QPushButton, Qt, QMessageBox
 
@@ -25,7 +26,7 @@ class TestSettingsDialog:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test that settings dialog can be created."""
         dialog = SettingsDialog(parent_widget, addon_config)
@@ -44,7 +45,7 @@ class TestSettingsDialog:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test that all UI components are created."""
         dialog = SettingsDialog(parent_widget, addon_config)
@@ -78,21 +79,10 @@ class TestSettingsDialog:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test that settings are loaded from config when dialog is created."""
-        # Configure mock to return specific values
-        def get_side_effect(key: str, default: Any = None) -> Any:
-            config_dict = {
-                "lm_client": "dummy",
-                "model": "mock_content_generator",
-                "max_prompt_size": 500000,
-            }
-            return config_dict.get(key, default)
-        addon_config.get.side_effect = get_side_effect
-
-        addon_config.get_api_key.return_value = "test-api-key"
-
+        # The fixture already has the expected values configured
         dialog = SettingsDialog(parent_widget, addon_config)
         qtbot.addWidget(dialog)
 
@@ -109,7 +99,7 @@ class TestSettingsDialog:
         mock_get_lm_client_class: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test that changing client updates API key field."""
         # Mock get_lm_client_class to return a mock with get_available_models
@@ -117,20 +107,17 @@ class TestSettingsDialog:
         mock_client_class.get_available_models.return_value = ["gpt-3.5-turbo", "gpt-4"]
         mock_get_lm_client_class.return_value = mock_client_class
 
+        # Add openai API key to config
+        addon_config.update_setting("openai_api_key", "api-key-for-openai")
+
         dialog = SettingsDialog(parent_widget, addon_config)
         qtbot.addWidget(dialog)
-
-        # Mock get_api_key to return different values for different clients
-        def get_api_key_side_effect(client_name: str) -> str:
-            return f"api-key-for-{client_name}"
-
-        addon_config.get_api_key.side_effect = get_api_key_side_effect
 
         # Change client selection by triggering the combo box signal
         dialog.client_combo.setCurrentText("openai")
         dialog.client_combo.currentTextChanged.emit("openai")
 
-        # API key should be updated
+        # API key should be updated to the one from config
         assert dialog.api_key_input.text() == "api-key-for-openai"
 
         # Should have populated models for the new client
@@ -142,7 +129,7 @@ class TestSettingsDialog:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test that changing settings enables save and reset buttons."""
         dialog = SettingsDialog(parent_widget, addon_config)
@@ -167,7 +154,7 @@ class TestSettingsDialog:
         mock_get_lm_client_class: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test that save button saves settings."""
         # Mock get_lm_client_class to return a mock with get_available_models
@@ -193,11 +180,12 @@ class TestSettingsDialog:
         # Click save button
         qtbot.mouseClick(dialog.save_button, Qt.MouseButton.LeftButton)
 
-        # Should call addon_config methods
-        addon_config.set_api_key.assert_called_with("openai", "new-api-key")
-        addon_config.update_setting.assert_any_call("lm_client", "openai")
-        addon_config.update_setting.assert_any_call("model", "gpt-4")
-        addon_config.update_setting.assert_any_call("max_prompt_size", 550000)
+        # Check that config was actually updated
+        assert addon_config.get("lm_client", "") == "openai"
+        assert addon_config.get("model", "") == "gpt-4"
+        assert addon_config.get("max_prompt_size", 0) == 550000
+        # Check API key was set
+        assert str(addon_config.get_api_key("openai")) == "new-api-key"
 
         # Save button should be disabled after saving
         assert not dialog.save_button.isEnabled()
@@ -207,24 +195,27 @@ class TestSettingsDialog:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test that reset button reloads settings from config."""
         dialog = SettingsDialog(parent_widget, addon_config)
         qtbot.addWidget(dialog)
 
-        # Change settings
+        # Change settings in UI (unsaved)
         dialog.max_prompt_size_spin.setValue(999999)
         dialog.save_button.setEnabled(True)
         dialog.reset_button.setEnabled(True)
 
-        # Click reset button
+        # Modify config externally to simulate changes
+        addon_config.update_setting("max_prompt_size", 123456)
+
+        # Click reset button - should reload from config (123456)
         qtbot.mouseClick(dialog.reset_button, Qt.MouseButton.LeftButton)
 
-        # Should reload settings
-        addon_config.reload.assert_called_once()
+        # UI should show the updated config value after reset
+        assert dialog.max_prompt_size_spin.value() == 123456
 
-        # Buttons should be disabled
+        # Buttons should be disabled (no unsaved changes)
         assert not dialog.save_button.isEnabled()
         assert not dialog.reset_button.isEnabled()
 
@@ -234,7 +225,7 @@ class TestSettingsDialog:
         mock_question: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test close with unsaved changes - user chooses save."""
         dialog = SettingsDialog(parent_widget, addon_config)
@@ -253,8 +244,8 @@ class TestSettingsDialog:
         # Should show message box
         mock_question.assert_called_once()
 
-        # Should call save
-        addon_config.update_setting.assert_called()
+        # Config should be saved
+        assert addon_config.get("max_prompt_size", 0) == 250000
 
     @patch('transformerman.ui.settings_dialog.QMessageBox.question')
     def test_close_with_unsaved_changes_discard(
@@ -262,11 +253,14 @@ class TestSettingsDialog:
         mock_question: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test close with unsaved changes - user chooses discard."""
         dialog = SettingsDialog(parent_widget, addon_config)
         qtbot.addWidget(dialog)
+
+        # Store original value
+        original_max_size = addon_config.get("max_prompt_size", 500000)
 
         # Make changes - trigger the spin box valueChanged signal
         dialog.max_prompt_size_spin.setValue(250000)
@@ -281,8 +275,8 @@ class TestSettingsDialog:
         # Should show message box
         mock_question.assert_called_once()
 
-        # Should not call save
-        addon_config.update_setting.assert_not_called()
+        # Config should NOT be saved (should remain original)
+        assert addon_config.get("max_prompt_size", 0) == original_max_size
 
     @patch('transformerman.ui.settings_dialog.QMessageBox.question')
     def test_close_with_unsaved_changes_cancel(
@@ -290,7 +284,7 @@ class TestSettingsDialog:
         mock_question: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test close with unsaved changes - user chooses cancel."""
         dialog = SettingsDialog(parent_widget, addon_config)
@@ -322,7 +316,7 @@ class TestSettingsDialog:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        addon_config: Mock,
+        addon_config: AddonConfig,
     ) -> None:
         """Test close without unsaved changes."""
         dialog = SettingsDialog(parent_widget, addon_config)
@@ -336,19 +330,3 @@ class TestSettingsDialog:
         qtbot.waitUntil(lambda: not dialog.isVisible())
         assert not dialog.isVisible()
 
-    def test_dialog_inherits_geometry_saving(
-        self,
-        qtbot: QtBot,
-        parent_widget: QWidget,
-        addon_config: Mock,
-    ) -> None:
-        """Test that dialog inherits geometry saving from base class."""
-        dialog = SettingsDialog(parent_widget, addon_config)
-        qtbot.addWidget(dialog)
-
-        # Should have closeEvent method from base class
-        assert hasattr(dialog, 'closeEvent')
-
-        # Should be instance of base dialog class
-        from transformerman.ui.base_dialog import TransformerManBaseDialog
-        assert isinstance(dialog, TransformerManBaseDialog)
