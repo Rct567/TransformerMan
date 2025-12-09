@@ -6,13 +6,14 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, TypedDict, Any
 
 from aqt import mw
-from aqt.operations import QueryOp, CollectionOp
-from aqt.utils import showInfo
+from aqt.operations import CollectionOp, QueryOp
 from aqt.qt import QProgressDialog, QWidget, Qt
+from aqt.utils import showInfo
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -61,7 +62,7 @@ def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[C
 
 
 class NoteTransformer:
-    """Transforms notes in batches."""
+    """Transforms notes in batches (UI-agnostic)."""
 
     def __init__(  # noqa: PLR0913
         self,
@@ -262,103 +263,270 @@ class NoteTransformer:
         return results, all_field_updates
 
 
-
-def transform_notes_with_progress(  # noqa: PLR0913
-    parent: QWidget,
-    col: Collection,
-    selected_notes: SelectedNotes,
-    note_ids: Sequence[NoteId],
-    lm_client: LMClient,
-    prompt_builder: PromptBuilder,
-    selected_fields: Sequence[str],
-    note_type_name: str,
-    batch_size: int,
-    addon_config: AddonConfig,
-    user_files_dir: Path,
-    on_success: Callable[[TransformResults, dict[NoteId, dict[str, str]]], None],
-) -> None:
+class TransformNotesWithProgress:
     """
-    Transform notes in batches with progress tracking.
+    Manages note transformation with progress tracking and caching.
 
-    Makes API calls to get field updates and returns them.
-    The UI decides whether to show preview or apply updates.
+    This class provides a stateful interface for transforming notes, including:
 
-    Args:
-        parent: Parent widget for dialogs.
-        col: Anki collection.
-        selected_notes: SelectedNotes instance.
-        note_ids: List of note IDs to transform.
-        lm_client: LM client instance.
-        prompt_builder: Prompt builder instance.
-        selected_fields: Sequence of field names to fill.
-        note_type_name: Name of the note type.
-        batch_size: Number of notes per batch.
-        addon_config: Addon configuration instance.
-        user_files_dir: Directory for user files.
-        on_success: Callback for transformation success.
-            Called with (results, field_updates) when transformation completes successfully.
+    - Progress tracking during transformation
+    - Caching of transformation results
+    - API call estimation
+    - Field update application
     """
-    # Create NoteTransformer (UI-agnostic)
-    transformer = NoteTransformer(
-        col=col,
-        selected_notes=selected_notes,
-        note_ids=note_ids,
-        lm_client=lm_client,
-        prompt_builder=prompt_builder,
-        selected_fields=selected_fields,
-        note_type_name=note_type_name,
-        batch_size=batch_size,
-        addon_config=addon_config,
-        user_files_dir=user_files_dir,
-    )
 
-    # Create progress dialog
-    progress = QProgressDialog(
-        f"Processing batch 0 of {transformer.num_batches}...",
-        "Cancel",
-        0,
-        transformer.num_batches,
-        parent,
-    )
-    progress.setWindowModality(Qt.WindowModality.WindowModal)
-    progress.setMinimumDuration(0)  # Show immediately
-    progress.show()
+    def __init__(
+        self,
+        parent: QWidget,
+        col: Collection,
+        selected_notes: SelectedNotes,
+        lm_client: LMClient,
+        addon_config: AddonConfig,
+        user_files_dir: Path,
+    ) -> None:
+        """
+        Initialize the transformer.
 
-    def process_batches(col: Collection) -> tuple[TransformResults, dict[NoteId, dict[str, str]]]:
-        """Background operation that processes each batch."""
-        # Create callbacks for progress and cancellation
-        def progress_callback(current: int, total: int) -> None:
-            def update_ui() -> None:
-                progress.setLabelText(f"Processing batch {current + 1} of {total}...")
-                progress.setValue(current)
-            mw.taskman.run_on_main(update_ui)
+        Args:
+            parent: Parent widget for dialogs.
+            col: Anki collection.
+            selected_notes: SelectedNotes instance.
+            lm_client: LM client instance.
+            addon_config: Addon configuration instance.
+            user_files_dir: Directory for user files.
+        """
+        self.parent = parent
+        self.col = col
+        self.selected_notes = selected_notes
+        self.lm_client = lm_client
+        self.addon_config = addon_config
+        self.user_files_dir = user_files_dir
+        self.logger = logging.getLogger(__name__)
 
-        def should_cancel() -> bool:
-            return progress.wasCanceled()
+        # Cache for transformation results
+        # Key: (note_type, tuple of selected fields, tuple of note_ids)
+        # Value: (results, field_updates)
+        self._cache: dict[
+            tuple[str, tuple[str, ...], tuple[NoteId, ...]],
+            tuple[TransformResults, dict[NoteId, dict[str, str]]],
+        ] = {}
 
-        # Run transformation with callbacks (always returns field updates)
-        return transformer.get_field_updates(
-            progress_callback=progress_callback,
-            should_cancel=should_cancel,
+    def get_batch_size(self) -> int:
+        """Get the batch size from addon configuration with validation."""
+        batch_size = self.addon_config.get("batch_size", 10)
+
+        if not isinstance(batch_size, int) or batch_size <= 0:
+            batch_size = 10
+
+        return batch_size
+
+    def _get_cache_key(
+        self,
+        note_type_name: str,
+        selected_fields: Sequence[str],
+        note_ids: Sequence[NoteId],
+    ) -> tuple[str, tuple[str, ...], tuple[NoteId, ...]]:
+        """
+        Generate a cache key for the given transformation parameters.
+
+        Args:
+            note_type_name: Name of the note type.
+            selected_fields: Sequence of field names to fill.
+            note_ids: List of note IDs to transform.
+
+        Returns:
+            Cache key tuple.
+        """
+        return (note_type_name, tuple(selected_fields), tuple(note_ids))
+
+    def _is_cached(
+        self,
+        note_type_name: str,
+        selected_fields: Sequence[str],
+        note_ids: Sequence[NoteId],
+    ) -> bool:
+        """
+        Check if transformation results are cached.
+
+        Args:
+            note_type_name: Name of the note type.
+            selected_fields: Sequence of field names to fill.
+            note_ids: List of note IDs to transform.
+
+        Returns:
+            True if results are cached, False otherwise.
+        """
+        cache_key = self._get_cache_key(note_type_name, selected_fields, note_ids)
+        return cache_key in self._cache
+
+    def get_num_api_calls_needed(
+        self,
+        note_type_name: str,
+        selected_fields: Sequence[str],
+        note_ids: Sequence[NoteId],
+    ) -> int:
+        """
+        Calculate the number of API calls needed for the given parameters.
+        If results are already cached, returns 0. Otherwise, calculates based on
+        the number of notes with empty fields and batch size.
+
+        Args:
+            note_type_name: Name of the note type.
+            selected_fields: Sequence of field names to fill.
+            note_ids: List of note IDs to transform.
+
+        Returns:
+            Number of API calls needed.
+        """
+        # If cached, no API calls needed
+        if self._is_cached(note_type_name, selected_fields, note_ids):
+            return 0
+
+        if not selected_fields:
+            return 0
+
+        # Filter by note type first - filter_by_note_type returns a list of NoteIds
+        filtered_note_ids_by_type = self.selected_notes.filter_by_note_type(note_type_name)
+
+        # Intersect with provided note_ids
+        filtered_note_ids = [nid for nid in note_ids if nid in filtered_note_ids_by_type]
+
+        if not filtered_note_ids:
+            return 0
+
+        # Get notes with empty fields
+        notes_with_empty_fields = self.selected_notes.get_selected_notes(filtered_note_ids).filter_by_empty_field(selected_fields)
+        empty_count = len(notes_with_empty_fields.note_ids)
+
+        if empty_count == 0:
+            return 0
+
+        batch_size = self.get_batch_size()
+        return math.ceil(empty_count / batch_size)
+
+    def transform(
+        self,
+        note_ids: Sequence[NoteId],
+        prompt_builder: PromptBuilder,
+        selected_fields: Sequence[str],
+        note_type_name: str,
+        on_success: Callable[[TransformResults, dict[NoteId, dict[str, str]]], None],
+    ) -> None:
+        """
+        Transform notes in batches with progress tracking.
+
+        Makes API calls to get field updates and returns them via the on_success callback.
+        Results are cached for future calls with the same parameters.
+
+        Args:
+            note_ids: List of note IDs to transform.
+            prompt_builder: Prompt builder instance.
+            selected_fields: Sequence of field names to fill.
+            note_type_name: Name of the note type.
+            on_success: Callback for transformation success.
+                Called with (results, field_updates) when transformation completes successfully.
+        """
+        # Check cache first
+        cache_key = self._get_cache_key(note_type_name, selected_fields, note_ids)
+        if cache_key in self._cache:
+            results, field_updates = self._cache[cache_key]
+            on_success(results, field_updates)
+            return
+
+        batch_size = self.get_batch_size()
+
+        # Create NoteTransformer (UI-agnostic)
+        transformer = NoteTransformer(
+            col=self.col,
+            selected_notes=self.selected_notes,
+            note_ids=note_ids,
+            lm_client=self.lm_client,
+            prompt_builder=prompt_builder,
+            selected_fields=selected_fields,
+            note_type_name=note_type_name,
+            batch_size=batch_size,
+            addon_config=self.addon_config,
+            user_files_dir=self.user_files_dir,
         )
 
-    def on_success_callback(result_tuple: tuple[TransformResults, dict[NoteId, dict[str, str]]]) -> None:
-        """Called when transformation succeeds."""
-        progress.close()
-        results, field_updates = result_tuple
-        on_success(results, field_updates)
+        # Create progress dialog
+        progress = QProgressDialog(
+            f"Processing batch 0 of {transformer.num_batches}...",
+            "Cancel",
+            0,
+            transformer.num_batches,
+            self.parent,
+        )
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)  # Show immediately
+        progress.show()
 
-    def on_failure(exc: Exception) -> None:
-        """Called when operation fails."""
-        progress.close()
-        showInfo(f"Error during transformation: {exc!s}", parent=parent)
+        def process_batches(col: Collection) -> tuple[TransformResults, dict[NoteId, dict[str, str]]]:
+            """Background operation that processes each batch."""
+            # Create callbacks for progress and cancellation
+            def progress_callback(current: int, total: int) -> None:
+                def update_ui() -> None:
+                    progress.setLabelText(f"Processing batch {current + 1} of {total}...")
+                    progress.setValue(current)
+                mw.taskman.run_on_main(update_ui)
 
-    # Run the operation in the background
-    QueryOp(
-        parent=parent,
-        op=lambda col: process_batches(col),
-        success=on_success_callback,
-    ).failure(on_failure).run_in_background()
+            def should_cancel() -> bool:
+                return progress.wasCanceled()
+
+            # Run transformation with callbacks (always returns field updates)
+            return transformer.get_field_updates(
+                progress_callback=progress_callback,
+                should_cancel=should_cancel,
+            )
+
+        def on_success_callback(result_tuple: tuple[TransformResults, dict[NoteId, dict[str, str]]]) -> None:
+            """Called when transformation succeeds."""
+            progress.close()
+            results, field_updates = result_tuple
+            # Cache the results
+            self._cache[cache_key] = (results, field_updates)
+            on_success(results, field_updates)
+
+        def on_failure(exc: Exception) -> None:
+            """Called when operation fails."""
+            progress.close()
+            showInfo(f"Error during transformation: {exc!s}", parent=self.parent)
+
+        # Run the operation in the background
+        QueryOp(
+            parent=self.parent,
+            op=process_batches,
+            success=on_success_callback,
+        ).failure(on_failure).run_in_background()
+
+    def apply_field_updates(
+        self,
+        field_updates: dict[NoteId, dict[str, str]],
+        on_success: Callable[[dict[str, int]], None] | None = None,
+        on_failure: Callable[[Exception], None] | None = None,
+    ) -> None:
+        """
+        Apply stored field updates to the Anki collection.
+
+        Args:
+            field_updates: Dictionary mapping note_id -> dict of field_name -> new_value.
+            on_success: Callback called with results dict when operation succeeds.
+            on_failure: Callback called with exception when operation fails.
+        """
+        apply_field_updates_with_operation(
+            parent=self.parent,
+            col=self.col,
+            field_updates=field_updates,
+            logger=self.logger,
+            on_success=on_success,
+            on_failure=on_failure,
+        )
+
+    def clear_cache(self) -> None:
+        """Clear all cached transformation results."""
+        self._cache.clear()
+
+
 
 
 def apply_field_updates_with_operation(

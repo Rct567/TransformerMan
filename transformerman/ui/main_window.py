@@ -1,11 +1,11 @@
 """
 TransformerMan by Rick Zuidhoek. Licensed under the GNU GPL-3.0.
+
 See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 """
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 from aqt.qt import (
@@ -25,7 +25,7 @@ from aqt.utils import showInfo, showWarning, askUserDialog
 from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 
-from ..lib.transform_operations import transform_notes_with_progress, apply_field_updates_with_operation, TransformResults
+from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.prompt_builder import PromptBuilder
 from ..lib.selected_notes import SelectedNotes
 
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from ..lib.lm_clients import LMClient
     from ..lib.addon_config import AddonConfig
     from anki.notes import NoteId
-    from collections.abc import Sequence
+    from ..lib.transform_operations import TransformResults
 
 
 class TransformerManMainWindow(TransformerManBaseDialog):
@@ -75,6 +75,16 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.user_files_dir = user_files_dir
 
         self.selected_notes = SelectedNotes(col, note_ids)
+
+        # Initialize transformer
+        self.transformer = TransformNotesWithProgress(
+            parent=self,
+            col=col,
+            selected_notes=self.selected_notes,
+            lm_client=lm_client,
+            addon_config=addon_config,
+            user_files_dir=user_files_dir,
+        )
 
         # State
         self.note_type_counts: dict[str, int] = {}
@@ -157,27 +167,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
-    def _get_batch_size(self) -> int:
-        """Get the batch size from addon configuration with validation."""
-        batch_size = self.addon_config.get("batch_size", 10)
-        if not isinstance(batch_size, int) or batch_size <= 0:
-            batch_size = 10
-        return batch_size
-
-    def _get_api_calls_needed(self, selected_fields: Sequence[str]) -> int:
-        """Calculate the number of API calls needed for the given selected fields. """
-        if not selected_fields:
-            return 0
-
-        notes_with_empty_fields = self.selected_notes.filter_by_empty_field(selected_fields)
-        empty_count = len(notes_with_empty_fields.note_ids)
-
-        if empty_count == 0:
-            return 0
-
-        batch_size = self._get_batch_size()
-        return math.ceil(empty_count / batch_size)
-
     def _get_selected_fields(self) -> list[str]:
         """
         Get the currently selected field names.
@@ -210,8 +199,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         else:
             num_notes_empty_field = 0  # No fields selected
 
-        # Calculate API calls needed using helper method
-        api_calls_needed = self._get_api_calls_needed(selected_fields)
+        # Calculate API calls needed using transformer method
+        api_calls_needed = self.transformer.get_num_api_calls_needed(
+            self.current_note_type, selected_fields, filtered_note_ids
+        )
         api_text = "API call" if api_calls_needed == 1 else "API calls"
 
         # Format with proper pluralization
@@ -318,14 +309,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         """Update the preview table with data from selected notes."""
         # Get selected fields
         selected_fields = self._get_selected_fields()
-
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
-
         # Update the preview table
         self.preview_table.set_note_fields_update(filtered_note_ids, selected_fields)
-
-
 
     def _on_preview_clicked(self) -> None:
         """Handle preview button click."""
@@ -354,16 +341,16 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             showInfo("No notes to transform.", parent=self)
             return
 
-        # Calculate API calls needed using helper method
-        api_calls_needed = self._get_api_calls_needed(selected_fields)
-
-        # Get batch size for transformation (needed regardless of warning)
-        batch_size = self._get_batch_size()
+        # Calculate API calls needed using transformer method
+        api_calls_needed = self.transformer.get_num_api_calls_needed(
+            self.current_note_type, selected_fields, filtered_note_ids
+        )
 
         # Show warning if API calls > 10
         if api_calls_needed > 10:
             # Need to get empty count for warning message
             num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(selected_fields))
+            batch_size = self.transformer.get_batch_size()
 
             warning_message = (
                 f"This preview will require {api_calls_needed} API calls.\n\n"
@@ -380,8 +367,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         def on_preview_success(results: TransformResults, field_updates: dict[NoteId, dict[str, str]]) -> None:
             """Handle successful preview."""
-            # Check for error in results
 
+            # Check for error in results
             if results['error']:
                 # Show error with warning
                 showWarning(f"Error during preview:\n\n{results['error']}\n\nNo notes would be updated.", parent=self)
@@ -413,18 +400,11 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             showInfo(result_info_text, parent=self)
 
-        transform_notes_with_progress(
-            parent=self,
-            col=self.col,
-            selected_notes=self.selected_notes,
+        self.transformer.transform(
             note_ids=filtered_note_ids,
-            lm_client=self.lm_client,
             prompt_builder=prompt_builder,
             selected_fields=selected_fields,
             note_type_name=self.current_note_type,
-            batch_size=batch_size,
-            addon_config=self.addon_config,
-            user_files_dir=self.user_files_dir,
             on_success=on_preview_success,
         )
 
@@ -458,11 +438,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             self.logger.error(f"Error applying field updates: {exception!r}")
             showInfo(f"Error applying changes: {exception!s}", parent=self)
 
-        apply_field_updates_with_operation(
-            parent=self,
-            col=self.col,
+        self.transformer.apply_field_updates(
             field_updates=self.preview_results,
-            logger=self.logger,
             on_success=on_success,
             on_failure=on_failure,
         )

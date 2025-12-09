@@ -349,12 +349,12 @@ class TestTransformerManMainWindow:
         assert not window.apply_button.isEnabled()
 
     @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.transform_notes_with_progress')
+    @patch('transformerman.ui.main_window.TransformNotesWithProgress')
     @patch('transformerman.ui.main_window.showInfo')
     def test_preview_button_click_triggers_transformation(  # noqa: PLR0913
         self,
         mock_show_info: Mock,
-        mock_transform: Mock,
+        mock_transformer_class: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: MockCollection,
@@ -379,6 +379,11 @@ class TestTransformerManMainWindow:
             col.add_note(note, deck_id)
             note_ids.append(note.id)
 
+        # Setup the mock transformer to return appropriate values
+        mock_transformer_instance = Mock()
+        mock_transformer_instance.get_num_api_calls_needed.return_value = 1
+        mock_transformer_class.return_value = mock_transformer_instance
+
         window = TransformerManMainWindow(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
@@ -399,16 +404,16 @@ class TestTransformerManMainWindow:
         # Click preview button
         qtbot.mouseClick(window.preview_button, Qt.MouseButton.LeftButton)
 
-        # Should call transform_notes_with_progress
-        mock_transform.assert_called_once()
+        # Should call transformer.transform() method
+        mock_transformer_instance.transform.assert_called_once()
 
-        # Check key arguments
-        call_args = mock_transform.call_args
-        assert call_args[1]['parent'] is window
-        assert call_args[1]['col'] is col
-        assert call_args[1]['lm_client'] is dummy_lm_client
-        assert call_args[1]['addon_config'] is addon_config
-        assert call_args[1]['user_files_dir'] == user_files_dir
+        # Check key arguments to transformer.transform()
+        call_args = mock_transformer_instance.transform.call_args
+        assert 'note_ids' in call_args[1]
+        assert 'prompt_builder' in call_args[1]
+        assert 'selected_fields' in call_args[1]
+        assert 'note_type_name' in call_args[1]
+        assert 'on_success' in call_args[1]
 
         # showInfo should not be called (we have notes with empty fields)
         mock_show_info.assert_not_called()
