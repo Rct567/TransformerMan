@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class SelectedNotes:
     """Manages selected notes for transformation."""
 
-    note_ids: Sequence[NoteId]
+    _note_ids: Sequence[NoteId]
     _note_cache: dict[NoteId, Note]
 
     def __init__(self, col: Collection, note_ids: Sequence[NoteId], note_cache: dict[NoteId, Note] | None = None) -> None:
@@ -32,7 +32,7 @@ class SelectedNotes:
             note_ids: Sequence of selected note IDs.
         """
         self.col = col
-        self.note_ids = note_ids
+        self._note_ids = note_ids
         self._note_cache = note_cache if note_cache else {}
         self.logger = logging.getLogger(__name__)
 
@@ -54,6 +54,11 @@ class SelectedNotes:
         return note
 
 
+    def get_ids(self) -> Sequence[NoteId]:
+        """Return the note IDs in the selection."""
+        return self._note_ids
+
+
     def filter_by_note_type(self, note_type_name: str) -> Sequence[NoteId]:
         """
         Filter notes by note type name.
@@ -66,7 +71,7 @@ class SelectedNotes:
         """
         filtered_note_ids: list[NoteId] = []
 
-        for nid in self.note_ids:
+        for nid in self._note_ids:
             note = self.get_note(nid)
             notetype = self.col.models.get(note.mid)
             if notetype and notetype['name'] == note_type_name:
@@ -83,7 +88,7 @@ class SelectedNotes:
         """
         counts: dict[str, int] = {}
 
-        for nid in self.note_ids:
+        for nid in self._note_ids:
             note = self.get_note(nid)
             notetype = self.col.models.get(note.mid)
             if notetype:
@@ -105,7 +110,7 @@ class SelectedNotes:
         """
         batches: list[SelectedNotes] = []
 
-        for batch_note_ids in batched(self.note_ids, batch_size):
+        for batch_note_ids in batched(self._note_ids, batch_size):
             batches.append(self.get_selected_notes(batch_note_ids))
 
         return batches
@@ -131,12 +136,12 @@ class SelectedNotes:
         Returns:
             List of SelectedNotes instances, each representing a batch.
         """
-        if not self.note_ids:
+        if not self._note_ids:
             return []
 
         # Filter to only notes with empty fields (these are the ones that will be in the prompt)
         notes_with_empty_fields = self.filter_by_empty_field(selected_fields)
-        if not notes_with_empty_fields.note_ids:
+        if not notes_with_empty_fields:
             return []
 
         # Get note objects
@@ -215,7 +220,7 @@ class SelectedNotes:
             List of Note objects.
         """
         if note_ids is None:
-            note_ids = self.note_ids
+            note_ids = self._note_ids
 
         notes: list[Note] = []
 
@@ -278,7 +283,7 @@ class SelectedNotes:
         Returns:
             True if at least one note has empty fields in selected_fields, False otherwise.
         """
-        for nid in self.note_ids:
+        for nid in self._note_ids:
             note = self.get_note(nid)
             if SelectedNotes.has_empty_field(note, selected_fields):
                 return True
@@ -295,7 +300,7 @@ class SelectedNotes:
             New SelectedNotes instance with filtered note IDs.
         """
         filtered_note_ids: list[NoteId] = []
-        for nid in self.note_ids:
+        for nid in self._note_ids:
             note = self.get_note(nid)
             if SelectedNotes.has_empty_field(note, selected_fields):
                 filtered_note_ids.append(nid)
@@ -307,4 +312,4 @@ class SelectedNotes:
 
     def __len__(self) -> int:
         """Return the number of notes in the selection."""
-        return len(self.note_ids)
+        return len(self._note_ids)

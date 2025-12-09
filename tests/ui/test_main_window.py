@@ -67,7 +67,7 @@ class TestTransformerManMainWindow:
         assert window.minimumHeight() >= 400
 
         # Verify SelectedNotes was created and has correct note count
-        assert window.selected_notes.note_ids == note_ids
+        assert window.selected_notes.get_ids() == note_ids
         assert len(window.selected_notes) == 3
         assert window.selected_notes.get_note_type_counts() == {"Basic": 3}
 

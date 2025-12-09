@@ -72,9 +72,8 @@ class PromptBuilder:
             )
 
         # Get target notes and filter to only include those with empty fields
-        target_note_objects = target_notes.get_notes(target_notes.note_ids)
         notes_with_empty_fields = [
-            note for note in target_note_objects
+            note for note in target_notes.get_notes()
             if SelectedNotes.has_empty_field(note, selected_fields)
         ]
 
@@ -117,7 +116,7 @@ class PromptBuilder:
             List of example notes.
         """
         # Get target note IDs
-        target_note_ids = set(target_notes.note_ids)
+        target_note_ids = set(target_notes.get_ids())
 
         # Find the note type
         notetype = None

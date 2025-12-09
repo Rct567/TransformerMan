@@ -111,7 +111,7 @@ class NoteTransformer:
         # Filter to only notes with empty fields
         notes_to_transform = notes_to_transform.filter_by_empty_field(self.selected_fields)
         # Update note_ids to filtered IDs
-        self.note_ids = notes_to_transform.note_ids
+        self.note_ids = notes_to_transform.get_ids()
 
         # Create batches based on prompt size
         self.batches = notes_to_transform.batched_by_prompt_size(
@@ -171,10 +171,9 @@ class NoteTransformer:
             field_updates = response.get_notes_from_xml()
 
             # Collect field updates (preview mode)
-            for nid in batch_selected_notes.note_ids:
+            for note in batch_selected_notes.get_notes():
                 try:
-                    note = self.col.get_note(nid)
-                    updates = field_updates.get(nid, {})
+                    updates = field_updates.get(note.id, {})
 
                     batch_field_updates: dict[str, str] = {}
 
@@ -185,17 +184,17 @@ class NoteTransformer:
 
                     if batch_field_updates:
                         # Store field updates for preview
-                        field_updates_dict[nid] = batch_field_updates
+                        field_updates_dict[note.id] = batch_field_updates
                         num_notes_updated += 1
 
                 except Exception as e:
-                    self.logger.error(f"Error processing note {nid} in preview: {e!r}")
+                    self.logger.error(f"Error processing note {note.id} in preview: {e!r}")
                     num_notes_failed += 1
                     continue
 
         except Exception as e:
             self.logger.error(f"Error processing batch in preview: {e!r}")
-            num_notes_failed += len(batch_selected_notes.note_ids)
+            num_notes_failed += len(batch_selected_notes)
 
         return num_notes_updated, num_notes_failed, field_updates_dict, error
 
@@ -393,7 +392,7 @@ class TransformNotesWithProgress:
         # Get notes with empty fields
         notes_with_empty_fields = self.selected_notes.get_selected_notes(filtered_note_ids).filter_by_empty_field(selected_fields)
 
-        if not notes_with_empty_fields.note_ids:
+        if not notes_with_empty_fields:
             return 0
 
         # Create a prompt builder to calculate actual batch sizes
