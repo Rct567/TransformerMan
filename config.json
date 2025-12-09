@@ -1,7 +1,7 @@
 {
     "api_key": "",
     "model": "",
-    "batch_size": 20,
+    "max_prompt_size": 500000,
     "log_lm_requests": false,
     "log_lm_responses": false,
     "show_tm_in_browser_top_menu": false

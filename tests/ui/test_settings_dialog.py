@@ -61,10 +61,10 @@ class TestSettingsDialog:
         assert isinstance(dialog.api_key_input, QLineEdit)
         assert dialog.api_key_input.echoMode() == QLineEdit.EchoMode.Password
 
-        assert hasattr(dialog, 'batch_size_spin')
-        assert isinstance(dialog.batch_size_spin, QSpinBox)
-        assert dialog.batch_size_spin.minimum() == 1
-        assert dialog.batch_size_spin.maximum() == 100
+        assert hasattr(dialog, 'max_prompt_size_spin')
+        assert isinstance(dialog.max_prompt_size_spin, QSpinBox)
+        assert dialog.max_prompt_size_spin.minimum() == 10000
+        assert dialog.max_prompt_size_spin.maximum() == 1000000
 
         assert hasattr(dialog, 'save_button')
         assert isinstance(dialog.save_button, QPushButton)
@@ -86,7 +86,7 @@ class TestSettingsDialog:
             config_dict = {
                 "lm_client": "dummy",
                 "model": "mock_content_generator",
-                "batch_size": 10,
+                "max_prompt_size": 500000,
             }
             return config_dict.get(key, default)
         addon_config.get.side_effect = get_side_effect
@@ -100,7 +100,7 @@ class TestSettingsDialog:
         assert dialog.client_combo.currentText() == "dummy"
         assert dialog.model_combo.currentText() == "mock_content_generator"
         assert dialog.api_key_input.text() == "test-api-key"
-        assert dialog.batch_size_spin.value() == 10
+        assert dialog.max_prompt_size_spin.value() == 500000
 
     @patch('transformerman.ui.settings_dialog.LM_CLIENTS', {'dummy': Mock(), 'openai': Mock()})
     @patch('transformerman.ui.settings_dialog.get_lm_client_class')
@@ -153,8 +153,8 @@ class TestSettingsDialog:
         assert not dialog.reset_button.isEnabled()
 
         # Change a setting - trigger the spin box valueChanged signal
-        dialog.batch_size_spin.setValue(20)
-        dialog.batch_size_spin.valueChanged.emit(20)
+        dialog.max_prompt_size_spin.setValue(600000)
+        dialog.max_prompt_size_spin.valueChanged.emit(600000)
 
         # Buttons should be enabled
         assert dialog.save_button.isEnabled()
@@ -184,8 +184,8 @@ class TestSettingsDialog:
         dialog.model_combo.setCurrentText("gpt-4")
         dialog.api_key_input.setText("new-api-key")
         dialog.api_key_input.textChanged.emit("new-api-key")
-        dialog.batch_size_spin.setValue(15)
-        dialog.batch_size_spin.valueChanged.emit(15)
+        dialog.max_prompt_size_spin.setValue(550000)
+        dialog.max_prompt_size_spin.valueChanged.emit(550000)
 
         # The save button should be enabled after changes
         assert dialog.save_button.isEnabled()
@@ -197,7 +197,7 @@ class TestSettingsDialog:
         addon_config.set_api_key.assert_called_with("openai", "new-api-key")
         addon_config.update_setting.assert_any_call("lm_client", "openai")
         addon_config.update_setting.assert_any_call("model", "gpt-4")
-        addon_config.update_setting.assert_any_call("batch_size", 15)
+        addon_config.update_setting.assert_any_call("max_prompt_size", 550000)
 
         # Save button should be disabled after saving
         assert not dialog.save_button.isEnabled()
@@ -214,7 +214,7 @@ class TestSettingsDialog:
         qtbot.addWidget(dialog)
 
         # Change settings
-        dialog.batch_size_spin.setValue(99)
+        dialog.max_prompt_size_spin.setValue(999999)
         dialog.save_button.setEnabled(True)
         dialog.reset_button.setEnabled(True)
 
@@ -241,8 +241,8 @@ class TestSettingsDialog:
         qtbot.addWidget(dialog)
 
         # Make changes - trigger the spin box valueChanged signal
-        dialog.batch_size_spin.setValue(25)
-        dialog.batch_size_spin.valueChanged.emit(25)
+        dialog.max_prompt_size_spin.setValue(250000)
+        dialog.max_prompt_size_spin.valueChanged.emit(250000)
 
         # Mock QMessageBox to return Save
         mock_question.return_value = QMessageBox.StandardButton.Save
@@ -269,8 +269,8 @@ class TestSettingsDialog:
         qtbot.addWidget(dialog)
 
         # Make changes - trigger the spin box valueChanged signal
-        dialog.batch_size_spin.setValue(25)
-        dialog.batch_size_spin.valueChanged.emit(25)
+        dialog.max_prompt_size_spin.setValue(250000)
+        dialog.max_prompt_size_spin.valueChanged.emit(250000)
 
         # Mock QMessageBox to return Discard
         mock_question.return_value = QMessageBox.StandardButton.Discard
@@ -297,8 +297,8 @@ class TestSettingsDialog:
         qtbot.addWidget(dialog)
 
         # Make changes - trigger the spin box valueChanged signal
-        dialog.batch_size_spin.setValue(25)
-        dialog.batch_size_spin.valueChanged.emit(25)
+        dialog.max_prompt_size_spin.setValue(250000)
+        dialog.max_prompt_size_spin.valueChanged.emit(250000)
 
         # Mock QMessageBox to return Cancel
         mock_question.return_value = QMessageBox.StandardButton.Cancel

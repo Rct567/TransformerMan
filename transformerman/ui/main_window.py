@@ -383,12 +383,12 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         if api_calls_needed > 10:
             # Need to get empty count for warning message
             num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(selected_fields))
-            batch_size = self.transformer.get_batch_size()
+            max_prompt_size = self.addon_config.get_max_prompt_size()
 
             warning_message = (
                 f"This preview will require {api_calls_needed} API calls.\n\n"
                 f"Notes with empty fields: {num_notes_empty_field}\n"
-                f"Batch size: {batch_size}\n\n"
+                f"Max prompt size: {max_prompt_size:,} characters\n\n"
                 "Do you want to continue?"
             )
 

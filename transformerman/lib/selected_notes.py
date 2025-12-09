@@ -5,6 +5,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from .utilities import batched
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import Note, NoteId
+    from .prompt_builder import PromptBuilder
 
 
 class SelectedNotes:
@@ -31,6 +33,7 @@ class SelectedNotes:
         self.col = col
         self.note_ids = note_ids
         self._note_cache: dict[NoteId, Note] = {}
+        self.logger = logging.getLogger(__name__)
 
     def get_note(self, nid: NoteId) -> Note:
         """
@@ -105,6 +108,100 @@ class SelectedNotes:
             batches.append(self.get_selected_notes(batch_note_ids))
 
         return batches
+
+    def batched_by_prompt_size(
+        self,
+        prompt_builder: PromptBuilder,
+        selected_fields: Sequence[str],
+        note_type_name: str,
+        max_chars: int,
+    ) -> list[SelectedNotes]:
+        """
+        Split notes into batches where each batch's prompt size <= max_chars.
+
+        Uses a simple greedy algorithm that builds prompts to check sizes.
+
+        Args:
+            prompt_builder: PromptBuilder instance for building prompts.
+            selected_fields: Sequence of field names to fill.
+            note_type_name: Name of the note type.
+            max_chars: Maximum prompt size in characters.
+
+        Returns:
+            List of SelectedNotes instances, each representing a batch.
+        """
+        if not self.note_ids:
+            return []
+
+        # Filter to only notes with empty fields (these are the ones that will be in the prompt)
+        notes_with_empty_fields = self.filter_by_empty_field(selected_fields)
+        if not notes_with_empty_fields.note_ids:
+            return []
+
+        # Get note objects
+        notes = notes_with_empty_fields.get_notes()
+
+        batches: list[SelectedNotes] = []
+        current_batch_note_ids: list[NoteId] = []
+
+        for note in notes:
+            # Try adding this note to the current batch
+            test_batch_note_ids = current_batch_note_ids + [note.id]
+            test_selected_notes = self.get_selected_notes(test_batch_note_ids)
+
+            try:
+                # Build the actual prompt to check its size
+                test_prompt = prompt_builder.build_prompt(
+                    col=self.col,
+                    target_notes=test_selected_notes,
+                    selected_fields=selected_fields,
+                    note_type_name=note_type_name,
+                )
+                test_size = len(test_prompt)
+
+                if test_size <= max_chars:
+                    # Note fits in current batch
+                    current_batch_note_ids = test_batch_note_ids
+                else:
+                    # Note doesn't fit - finalize current batch if it has notes
+                    if current_batch_note_ids:
+                        batches.append(self.get_selected_notes(current_batch_note_ids))
+
+                    # Start new batch with just this note
+                    # Check if note fits alone
+                    single_note_selected_notes = self.get_selected_notes([note.id])
+                    single_prompt = prompt_builder.build_prompt(
+                        col=self.col,
+                        target_notes=single_note_selected_notes,
+                        selected_fields=selected_fields,
+                        note_type_name=note_type_name,
+                    )
+                    single_size = len(single_prompt)
+
+                    if single_size <= max_chars:
+                        current_batch_note_ids = [note.id]
+                    else:
+                        # Note is too large even on its own - skip with warning
+                        self.logger.warning(
+                            f"Note {note.id} exceeds maximum prompt size ({single_size} > {max_chars}). Skipping."
+                        )
+                        current_batch_note_ids = []
+
+            except Exception as e:
+                # If building fails, fall back to single-note batches
+                self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
+                # Finalize current batch if it has notes
+                if current_batch_note_ids:
+                    batches.append(self.get_selected_notes(current_batch_note_ids))
+                # Start new batch with just this note
+                current_batch_note_ids = [note.id]
+
+        # Don't forget last batch
+        if current_batch_note_ids:
+            batches.append(self.get_selected_notes(current_batch_note_ids))
+
+        return batches
+
 
     def get_notes(self, note_ids: Sequence[NoteId] | None = None) -> Sequence[Note]:
         """

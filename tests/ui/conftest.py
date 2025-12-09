@@ -74,7 +74,7 @@ def addon_config() -> Mock:
 
     Returns a Mock that behaves like AddonConfig for UI testing.
     """
-    config = Mock(spec_set=["get", "get_api_key", "set_api_key", "update_setting", "reload"])
+    config = Mock(spec_set=["get", "get_api_key", "set_api_key", "update_setting", "reload", "get_max_prompt_size"])
 
     # Default configuration values
     def get_side_effect(key: str, default: Any = None) -> Any:
@@ -84,6 +84,7 @@ def addon_config() -> Mock:
             "batch_size": 10,
             "log_lm_requests": False,
             "log_lm_responses": False,
+            "max_prompt_size": 500000,
         }
         return config_dict.get(key, default)
     config.get.side_effect = get_side_effect
@@ -92,6 +93,7 @@ def addon_config() -> Mock:
     config.set_api_key.return_value = None
     config.update_setting.return_value = None
     config.reload.return_value = None
+    config.get_max_prompt_size.return_value = 500000
 
     return config
 

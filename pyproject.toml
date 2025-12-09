@@ -161,4 +161,5 @@ directory = "htmlcov"
 
 [tool.vulture]
 paths = ["__init__.py", "transformerman"]
+ignore_decorators = ["@override"]
 

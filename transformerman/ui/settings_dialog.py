@@ -12,7 +12,6 @@ from aqt.qt import (
     QHBoxLayout,
     QLineEdit,
     QComboBox,
-    QSpinBox,
     QPushButton,
     QWidget,
     QGroupBox,
@@ -31,6 +30,7 @@ from ..lib.lm_clients import LM_CLIENTS, get_lm_client_class
 from ..lib.utilities import override
 
 from .base_dialog import TransformerManBaseDialog
+from .custom_widgets import FormattedSpinBox
 
 
 class SettingsDialog(TransformerManBaseDialog):
@@ -93,13 +93,15 @@ class SettingsDialog(TransformerManBaseDialog):
         self.api_key_input.textChanged.connect(self._on_setting_changed)
         form_layout.addRow("API Key:", self.api_key_input)
 
-        # Batch Size
-        self.batch_size_spin = QSpinBox()
-        self.batch_size_spin.setMinimum(1)
-        self.batch_size_spin.setMaximum(100)
-        self.batch_size_spin.setValue(10)
-        self.batch_size_spin.valueChanged.connect(self._on_setting_changed)
-        form_layout.addRow("Batch Size:", self.batch_size_spin)
+        # Max Prompt Size
+        self.max_prompt_size_spin = FormattedSpinBox()
+        self.max_prompt_size_spin.setMinimum(10_000)  # 10k characters minimum
+        self.max_prompt_size_spin.setMaximum(1_000_000)  # 1M characters maximum
+        self.max_prompt_size_spin.setValue(500_000)  # Default 500k characters
+        self.max_prompt_size_spin.setSuffix(" characters")
+        self.max_prompt_size_spin.setSingleStep(10_000)  # Step by 10k
+        self.max_prompt_size_spin.valueChanged.connect(self._on_setting_changed)
+        form_layout.addRow("Max Prompt Size:", self.max_prompt_size_spin)
 
         # Add the form layout to the group layout
         group_layout.addLayout(form_layout)
@@ -162,10 +164,8 @@ class SettingsDialog(TransformerManBaseDialog):
             self.client_combo.setCurrentIndex(idx_client)
         self._populate_models_for_client(current_client)
 
-        # Load batch size
-        batch_size = self.addon_config.get("batch_size", 10)
-        if isinstance(batch_size, int):
-            self.batch_size_spin.setValue(batch_size)
+        # Load max prompt size
+        self.max_prompt_size_spin.setValue(self.addon_config.get_max_prompt_size())
 
         self._is_loading_settings = False
 
@@ -185,11 +185,11 @@ class SettingsDialog(TransformerManBaseDialog):
         model = self.model_combo.currentText()
         self.addon_config.update_setting("model", model)
 
-        # Save batch size
-        batch_size = self.batch_size_spin.value()
-        if batch_size < 1:
-            batch_size = 1
-        self.addon_config.update_setting("batch_size", batch_size)
+        # Save max prompt size
+        max_prompt_size = self.max_prompt_size_spin.value()
+        if max_prompt_size < 10_000:
+            max_prompt_size = 10_000
+        self.addon_config.update_setting("max_prompt_size", max_prompt_size)
 
         # Disable save and reset buttons after saving
         self.save_button.setEnabled(False)

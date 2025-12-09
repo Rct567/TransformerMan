@@ -6,7 +6,6 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
-import math
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, TypedDict, Any
 
@@ -73,7 +72,7 @@ class NoteTransformer:
         prompt_builder: PromptBuilder,
         selected_fields: Sequence[str],
         note_type_name: str,
-        batch_size: int,
+        max_prompt_size: int,
         addon_config: AddonConfig,
         user_files_dir: Path,
     ) -> None:
@@ -88,7 +87,7 @@ class NoteTransformer:
             prompt_builder: Prompt builder instance.
             selected_fields: Sequence of field names to fill.
             note_type_name: Name of the note type.
-            batch_size: Number of notes per batch.
+            max_prompt_size: Maximum prompt size in characters per batch.
             addon_config: Addon configuration instance.
             user_files_dir: Directory for user files.
         """
@@ -99,7 +98,7 @@ class NoteTransformer:
         self.prompt_builder = prompt_builder
         self.selected_fields = selected_fields
         self.note_type_name = note_type_name
-        self.batch_size = batch_size
+        self.max_prompt_size = max_prompt_size
         self.addon_config = addon_config
         self.user_files_dir = user_files_dir
         self.logger = logging.getLogger(__name__)
@@ -114,8 +113,13 @@ class NoteTransformer:
         # Update note_ids to filtered IDs
         self.note_ids = notes_to_transform.note_ids
 
-        # Create batches
-        self.batches = notes_to_transform.batched(self.batch_size)
+        # Create batches based on prompt size
+        self.batches = notes_to_transform.batched_by_prompt_size(
+            prompt_builder=self.prompt_builder,
+            selected_fields=self.selected_fields,
+            note_type_name=self.note_type_name,
+            max_chars=self.max_prompt_size,
+        )
         self.num_batches = len(self.batches)
 
     def _get_field_updates_for_batch(
@@ -311,14 +315,6 @@ class TransformNotesWithProgress:
             tuple[TransformResults, dict[NoteId, dict[str, str]]],
         ] = {}
 
-    def get_batch_size(self) -> int:
-        """Get the batch size from addon configuration with validation."""
-        batch_size = self.addon_config.get("batch_size", 10)
-
-        if not isinstance(batch_size, int) or batch_size <= 0:
-            batch_size = 10
-
-        return batch_size
 
     def _get_cache_key(
         self,
@@ -368,7 +364,7 @@ class TransformNotesWithProgress:
         """
         Calculate the number of API calls needed for the given parameters.
         If results are already cached, returns 0. Otherwise, calculates based on
-        the number of notes with empty fields and batch size.
+        actual prompt batching.
 
         Args:
             note_type_name: Name of the note type.
@@ -396,13 +392,24 @@ class TransformNotesWithProgress:
 
         # Get notes with empty fields
         notes_with_empty_fields = self.selected_notes.get_selected_notes(filtered_note_ids).filter_by_empty_field(selected_fields)
-        empty_count = len(notes_with_empty_fields.note_ids)
 
-        if empty_count == 0:
+        if not notes_with_empty_fields.note_ids:
             return 0
 
-        batch_size = self.get_batch_size()
-        return math.ceil(empty_count / batch_size)
+        # Create a prompt builder to calculate actual batch sizes
+        from .prompt_builder import PromptBuilder
+        prompt_builder = PromptBuilder()
+        max_prompt_size = self.addon_config.get_max_prompt_size()
+
+        # Calculate actual batches
+        batches = notes_with_empty_fields.batched_by_prompt_size(
+            prompt_builder=prompt_builder,
+            selected_fields=selected_fields,
+            note_type_name=note_type_name,
+            max_chars=max_prompt_size,
+        )
+
+        return len(batches)
 
     def transform(
         self,
@@ -433,7 +440,7 @@ class TransformNotesWithProgress:
             on_success(results, field_updates)
             return
 
-        batch_size = self.get_batch_size()
+        max_prompt_size = self.addon_config.get_max_prompt_size()
 
         # Create NoteTransformer (UI-agnostic)
         transformer = NoteTransformer(
@@ -444,7 +451,7 @@ class TransformNotesWithProgress:
             prompt_builder=prompt_builder,
             selected_fields=selected_fields,
             note_type_name=note_type_name,
-            batch_size=batch_size,
+            max_prompt_size=max_prompt_size,
             addon_config=self.addon_config,
             user_files_dir=self.user_files_dir,
         )

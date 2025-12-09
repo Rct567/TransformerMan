@@ -99,6 +99,22 @@ class AddonConfig:
         client_key = f"{client_id}_api_key"
         self.update_setting(client_key, api_key)
 
+    def get_max_prompt_size(self) -> int:
+        """
+        Get the maximum prompt size from configuration with validation.
+
+        Returns:
+            Maximum prompt size in characters (default: 500_000).
+        """
+        assert self.__config is not None
+
+        max_prompt_size = self.get("max_prompt_size", 500_000)
+
+        if not isinstance(max_prompt_size, int) or max_prompt_size <= 0:
+            max_prompt_size = 500_000
+
+        return max_prompt_size
+
     def get_client(self) -> tuple[Optional[LMClient], Optional[str]]:
         """Return the configured LM client, or None if the client is unknown."""
         if self.__config is None:

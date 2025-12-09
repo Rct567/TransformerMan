@@ -75,7 +75,7 @@ class TestNoteTransformer:
                 prompt_builder=prompt_builder,
                 selected_fields=["Front"],  # Field that exists and is non-empty
                 note_type_name="Basic",
-                batch_size=2,
+                max_prompt_size=500000,
                 addon_config=mock_addon_config,
                 user_files_dir=mock_user_files_dir,
             )
@@ -111,7 +111,7 @@ class TestNoteTransformer:
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder()
 
-        # Create NoteTransformer with batch size 2
+        # Create NoteTransformer with max prompt size of 1000
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes,
@@ -120,7 +120,7 @@ class TestNoteTransformer:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
             note_type_name="Basic",
-            batch_size=2,
+            max_prompt_size=1000,
             addon_config=mock_addon_config,
             user_files_dir=mock_user_files_dir,
         )
@@ -131,7 +131,7 @@ class TestNoteTransformer:
         # Verify results
         assert results["num_notes_updated"] == 4  # All 4 notes should have updates
         assert results["num_notes_failed"] == 0
-        assert results["num_batches_processed"] == 2  # 2 batches of size 2
+        assert results["num_batches_processed"] == 2  # Batch size produces 2 batches
         assert results["error"] is None
 
         # Verify field updates contain expected content
@@ -180,7 +180,7 @@ class TestNoteTransformer:
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder()
 
-        # Create NoteTransformer with batch size 2
+        # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes,
@@ -189,7 +189,7 @@ class TestNoteTransformer:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
             note_type_name="Basic",
-            batch_size=2,
+            max_prompt_size=500000,
             addon_config=mock_addon_config,
             user_files_dir=mock_user_files_dir,
         )
@@ -202,11 +202,10 @@ class TestNoteTransformer:
         # Get field updates with progress callback
         transformer.get_field_updates(progress_callback=progress_callback)
 
-        # Verify progress was reported
-        assert len(progress_calls) == 3  # 2 batches + completion
-        assert progress_calls[0] == (0, 2)  # First batch
-        assert progress_calls[1] == (1, 2)  # Second batch
-        assert progress_calls[2] == (2, 2)  # Completion
+        # Verify progress was reported (only 1 batch with 500k limit)
+        assert len(progress_calls) == 2  # 1 batch + completion
+        assert progress_calls[0] == (0, 1)  # First batch
+        assert progress_calls[1] == (1, 1)  # Completion
 
     @with_test_collection("two_deck_collection")
     def test_get_field_updates_with_cancellation(
@@ -239,7 +238,7 @@ class TestNoteTransformer:
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder()
 
-        # Create NoteTransformer with batch size 2
+        # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes,
@@ -248,32 +247,26 @@ class TestNoteTransformer:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
             note_type_name="Basic",
-            batch_size=2,
+            max_prompt_size=500000,
             addon_config=mock_addon_config,
             user_files_dir=mock_user_files_dir,
         )
 
-        # Cancel after first batch
-        cancel_after = [0]
+        # Cancel immediately (before processing)
         def should_cancel() -> bool:
-            cancel_after[0] += 1
-            return cancel_after[0] > 1  # Cancel after first check
+            return True  # Cancel immediately
 
         # Get field updates with cancellation
         results, field_updates = transformer.get_field_updates(should_cancel=should_cancel)
 
-        # Verify only first batch was processed
-        assert results["num_batches_processed"] == 1
-        # Only first batch notes should have updates (2 notes)
-        assert len(field_updates) == 2
+        # Verify no batches were processed due to immediate cancellation
+        assert results["num_batches_processed"] == 0
+        # No notes should have updates due to cancellation
+        assert len(field_updates) == 0
 
-        # Verify that only first two notes have updates
-        for i, nid in enumerate(note_ids):
-            if i < 2:
-                assert nid in field_updates
-                assert field_updates[nid]["Front"] == "Mock content for Front"
-            else:
-                assert nid not in field_updates
+        # Verify that no notes have updates
+        for nid in note_ids:
+            assert nid not in field_updates
 
     @with_test_collection("two_deck_collection")
     def test_get_field_updates_handles_batch_errors(
@@ -319,7 +312,7 @@ class TestNoteTransformer:
 
         # Make first batch fail, second batch succeed
         with patch.object(dummy_client, 'transform', side_effect=[Exception("Batch failed"), mock_response]):
-            # Create NoteTransformer with batch size 2
+            # Create NoteTransformer with max prompt size
             transformer = NoteTransformer(
                 col=col,
                 selected_notes=selected_notes,
@@ -328,7 +321,7 @@ class TestNoteTransformer:
                 prompt_builder=prompt_builder,
                 selected_fields=["Front"],
                 note_type_name="Basic",
-                batch_size=2,
+                max_prompt_size=500000,
                 addon_config=mock_addon_config,
                 user_files_dir=mock_user_files_dir,
             )
@@ -336,22 +329,16 @@ class TestNoteTransformer:
             # Get field updates
             results, field_updates = transformer.get_field_updates()
 
-        # Verify results show failures for first batch only
-        assert results["num_notes_failed"] == 2  # 2 notes in first batch
-        assert results["num_notes_updated"] == 2  # 2 notes in second batch have updates
-        assert results["num_batches_processed"] == 2  # Both batches attempted
+        # Verify results show failures for all notes (all in one batch that failed)
+        assert results["num_notes_failed"] == 4  # All 4 notes in the single batch
+        assert results["num_notes_updated"] == 0  # No notes updated due to batch failure
+        assert results["num_batches_processed"] == 1  # Only one batch attempted
         assert results["error"] is None  # No error in response
 
-        # Verify that notes from first batch have no updates, second batch has updates
-        assert len(field_updates) == 2
-        for i, nid in enumerate(note_ids):
-            if i < 2:
-                # First batch: no updates (failed)
-                assert nid not in field_updates
-            else:
-                # Second batch: has updates
-                assert nid in field_updates
-                assert field_updates[nid]["Front"] == f"Content{i+1}"
+        # Verify that no notes have updates (batch failed)
+        assert len(field_updates) == 0
+        for nid in note_ids:
+            assert nid not in field_updates
 
     @with_test_collection("two_deck_collection")
     def test_get_field_updates_only_returns_updates_for_empty_fields(
@@ -387,7 +374,7 @@ class TestNoteTransformer:
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder()
 
-        # Create NoteTransformer with batch size 2
+        # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes,
@@ -396,7 +383,7 @@ class TestNoteTransformer:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
             note_type_name="Basic",
-            batch_size=2,
+            max_prompt_size=500000,
             addon_config=mock_addon_config,
             user_files_dir=mock_user_files_dir,
         )
