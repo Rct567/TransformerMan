@@ -49,7 +49,7 @@
 - Keep methods focused (single responsibility)
 - Extract complex logic into private helper methods
 - Class constants should be defined right after class declaration
-- Import statements should be located at the top of the file
+- Import statements should ALWAYS be located at the top of the file
 
 ## Testing Requirements
 

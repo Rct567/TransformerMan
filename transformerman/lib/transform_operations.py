@@ -14,6 +14,8 @@ from aqt.operations import CollectionOp, QueryOp
 from aqt.qt import QProgressDialog, QWidget, Qt
 from aqt.utils import showInfo
 
+from .prompt_builder import PromptBuilder
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
@@ -21,7 +23,6 @@ if TYPE_CHECKING:
     from anki.notes import NoteId
     from .addon_config import AddonConfig
     from .lm_clients import LMClient, LmResponse
-    from .prompt_builder import PromptBuilder
     from .selected_notes import SelectedNotes
 
 
@@ -396,7 +397,6 @@ class TransformNotesWithProgress:
             return 0
 
         # Create a prompt builder to calculate actual batch sizes
-        from .prompt_builder import PromptBuilder
         prompt_builder = PromptBuilder()
         max_prompt_size = self.addon_config.get_max_prompt_size()
 

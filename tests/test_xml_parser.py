@@ -4,6 +4,8 @@ Tests for XML parser.
 
 from __future__ import annotations
 
+from anki.notes import NoteId
+
 from transformerman.lib.xml_parser import notes_from_xml, escape_xml_content, unescape_xml_content
 
 
@@ -18,8 +20,6 @@ class TestXmlParser:
     <field name="Back">World</field>
   </note>
 </notes>'''
-
-        from anki.notes import NoteId
 
         result = notes_from_xml(xml)
 
@@ -39,8 +39,6 @@ class TestXmlParser:
     <field name="Back">A2</field>
   </note>
 </notes>'''
-
-        from anki.notes import NoteId
 
         result = notes_from_xml(xml)
 
@@ -65,7 +63,6 @@ class TestXmlParser:
   </note>
 </notes>'''
 
-        from anki.notes import NoteId
         result = notes_from_xml(xml)
 
         assert 123 in result

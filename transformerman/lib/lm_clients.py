@@ -12,6 +12,7 @@ import json
 import re
 import urllib.error
 import urllib.request
+import requests
 
 from .utilities import override
 from .xml_parser import notes_from_xml
@@ -164,8 +165,6 @@ class OpenAILMClient(LMClient):
         """Transform notes using OpenAI API."""
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for OpenAILMClient")
-
-        import requests
 
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
