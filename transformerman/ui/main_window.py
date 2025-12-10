@@ -26,7 +26,6 @@ from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 
 from ..lib.transform_operations import TransformNotesWithProgress
-from ..lib.prompt_builder import PromptBuilder
 from ..lib.selected_notes import SelectedNotes
 
 import logging
@@ -183,6 +182,15 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             if checkbox.isChecked()
         ]
 
+    def _get_current_field_instructions(self) -> dict[str, str]:
+        """Get current field instructions for the selected fields. """
+        selected_fields = self._get_selected_fields()
+        return {
+            field_name: instruction_input.text().strip()
+            for field_name, instruction_input in self.field_instructions.items()
+            if instruction_input.text().strip() and field_name in selected_fields
+        }
+
     def _update_notes_count_label(self) -> None:
         """Update the notes count label with bold text and empty field count."""
         if not self.current_note_type:
@@ -201,6 +209,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(selected_fields))
         else:
             num_notes_empty_field = 0  # No fields selected
+
 
         # Calculate API calls needed using transformer method
         api_calls_needed = self.transformer.get_num_api_calls_needed(
@@ -280,6 +289,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             instruction_input = QLineEdit()
             instruction_input.setPlaceholderText("Optional instructions for this field...")
             instruction_input.setEnabled(row < 2)  # Enable for checked fields
+            instruction_input.textChanged.connect(self._on_instruction_changed)
             self.field_instructions[field_name] = instruction_input
             self.fields_layout.addWidget(instruction_input, row, 1)
 
@@ -288,6 +298,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Clear preview results since they're no longer valid for the new note type
         self.preview_results.clear()
+
+        # Update the transformer with current field instructions (will be empty for new note type)
+        field_instructions = self._get_current_field_instructions()
+        self.transformer.update_field_instructions(field_instructions)
 
         # Update notes count label with new counts
         self._update_notes_count_label()
@@ -304,12 +318,32 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             instruction_input = self.field_instructions[field_name]
             instruction_input.setEnabled(checkbox.isChecked())
 
+        # Update the transformer with current field instructions
+        # (field selection affects which instructions are included)
+        field_instructions = self._get_current_field_instructions()
+        self.transformer.update_field_instructions(field_instructions)
+
         # Clear preview results since they're no longer valid with new field selection
         self.preview_results.clear()
 
         # Update notes count label since empty field count may have changed
         self._update_notes_count_label()
         self._update_preview_table()
+
+        # Update button states
+        self.update_buttons_state()
+
+    def _on_instruction_changed(self) -> None:
+        """Handle instruction input text changes."""
+        # Update the transformer with current field instructions
+        field_instructions = self._get_current_field_instructions()
+        self.transformer.update_field_instructions(field_instructions)
+
+        # Clear preview results since they're no longer valid with new instructions
+        self.preview_results.clear()
+
+        # Update notes count label to reflect new API call count with updated instructions
+        self._update_notes_count_label()
 
         # Update button states
         self.update_buttons_state()
@@ -360,19 +394,17 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             showInfo("No notes with empty fields found.", parent=self)
             return
 
-        # Get field instructions
-        field_instructions = {
-            field_name: instruction_input.text().strip()
-            for field_name, instruction_input in self.field_instructions.items()
-            if instruction_input.text().strip() and field_name in selected_fields
-        }
-
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
 
         if not filtered_note_ids:
             showInfo("No notes to transform.", parent=self)
             return
+
+        # Update the transformer's field instructions BEFORE calculating API calls
+        # This ensures accurate prompt size calculations for the warning message
+        field_instructions = self._get_current_field_instructions()
+        self.transformer.update_field_instructions(field_instructions)
 
         # Calculate API calls needed using transformer method
         api_calls_needed = self.transformer.get_num_api_calls_needed(
@@ -394,9 +426,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             if askUserDialog(warning_message, buttons=["Continue", "Cancel"], parent=self).run() != "Continue":
                 return
-
-        # Create prompt builder
-        prompt_builder = PromptBuilder(field_instructions)
 
         def on_preview_success(results: TransformResults, field_updates: dict[NoteId, dict[str, str]]) -> None:
             """Handle successful preview."""
@@ -435,7 +464,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         self.transformer.transform(
             note_ids=filtered_note_ids,
-            prompt_builder=prompt_builder,
             selected_fields=selected_fields,
             note_type_name=self.current_note_type,
             on_success=on_preview_success,

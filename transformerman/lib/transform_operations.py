@@ -40,6 +40,7 @@ class CacheKey(NamedTuple):
     selected_fields: tuple[str, ...]
     note_ids: tuple[NoteId, ...]
     max_prompt_size: int
+    field_instructions_hash: int
 
 
 def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[Callable[[str], None], Callable[[LmResponse], None]]:
@@ -314,7 +315,7 @@ class TransformNotesWithProgress:
         self.addon_config = addon_config
         self.user_files_dir = user_files_dir
         self.logger = logging.getLogger(__name__)
-        self.prompt_builder = PromptBuilder()
+        self._prompt_builder = PromptBuilder()
         self.max_prompt_size = self.addon_config.get_max_prompt_size()
 
         # Cache for transformation results
@@ -334,11 +335,17 @@ class TransformNotesWithProgress:
         max_prompt_size: int,
     ) -> CacheKey:
         """Generate a cache key for the given transformation parameters."""
+        # Create a hash of field_instructions for cache key
+        # Sort items to ensure consistent hash for same instructions
+        field_instructions_items = sorted(self._prompt_builder.field_instructions.items())
+        field_instructions_hash = hash(tuple(field_instructions_items))
+
         return CacheKey(
             note_type_name=note_type_name,
             selected_fields=tuple(selected_fields),
             note_ids=tuple(note_ids),
             max_prompt_size=max_prompt_size,
+            field_instructions_hash=field_instructions_hash,
         )
 
     def _is_cached(
@@ -403,10 +410,9 @@ class TransformNotesWithProgress:
         if not notes_with_empty_fields:
             return 0
 
-
         # Calculate actual batches
         batches = notes_with_empty_fields.batched_by_prompt_size(
-            prompt_builder=self.prompt_builder,
+            prompt_builder=self._prompt_builder,
             selected_fields=selected_fields,
             note_type_name=note_type_name,
             max_chars=self.max_prompt_size,
@@ -417,7 +423,6 @@ class TransformNotesWithProgress:
     def transform(
         self,
         note_ids: Sequence[NoteId],
-        prompt_builder: PromptBuilder,
         selected_fields: Sequence[str],
         note_type_name: str,
         on_success: Callable[[TransformResults, dict[NoteId, dict[str, str]]], None],
@@ -430,7 +435,6 @@ class TransformNotesWithProgress:
 
         Args:
             note_ids: List of note IDs to transform.
-            prompt_builder: Prompt builder instance.
             selected_fields: Sequence of field names to fill.
             note_type_name: Name of the note type.
             on_success: Callback for transformation success.
@@ -443,14 +447,13 @@ class TransformNotesWithProgress:
             on_success(results, field_updates)
             return
 
-
         # Create NoteTransformer (UI-agnostic)
         transformer = NoteTransformer(
             col=self.col,
             selected_notes=self.selected_notes,
             note_ids=note_ids,
             lm_client=self.lm_client,
-            prompt_builder=prompt_builder,
+            prompt_builder=self._prompt_builder,
             selected_fields=selected_fields,
             note_type_name=note_type_name,
             max_prompt_size=self.max_prompt_size,
@@ -531,10 +534,13 @@ class TransformNotesWithProgress:
             on_failure=on_failure,
         )
 
+    def update_field_instructions(self, field_instructions: dict[str, str]) -> None:
+        """Update the field instructions for the transformer."""
+        self._prompt_builder.update_field_instructions(field_instructions)
+
     def clear_cache(self) -> None:
         """Clear all cached transformation results."""
         self._cache.clear()
-
 
 
 

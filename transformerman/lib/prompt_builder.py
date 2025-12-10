@@ -19,8 +19,19 @@ if TYPE_CHECKING:
 class PromptBuilder:
     """Builds prompts for the language model to fill empty fields."""
 
-    def __init__(self, field_instructions: dict[str, str] | None = None) -> None:
-        self.field_instructions = field_instructions or {}
+    field_instructions: dict[str, str]
+
+    def __init__(self) -> None:
+        self.field_instructions = {}
+
+    def update_field_instructions(self, field_instructions: dict[str, str]) -> None:
+        """
+        Update the field instructions for this prompt builder.
+
+        Args:
+            field_instructions: New field instructions dict, or None to clear.
+        """
+        self.field_instructions = field_instructions
 
     def build_prompt(
         self,

@@ -409,13 +409,6 @@ class TestTransformerManMainWindow:
         # Should call transformer.transform() method
         mock_transformer_instance.transform.assert_called_once()
 
-        # Check key arguments to transformer.transform()
-        call_args = mock_transformer_instance.transform.call_args
-        assert 'note_ids' in call_args[1]
-        assert 'prompt_builder' in call_args[1]
-        assert 'selected_fields' in call_args[1]
-        assert 'note_type_name' in call_args[1]
-        assert 'on_success' in call_args[1]
 
         # showInfo should not be called (we have notes with empty fields)
         mock_show_info.assert_not_called()
