@@ -105,7 +105,7 @@ class NoteTransformer:
         self.logger = logging.getLogger(__name__)
 
         # Validate that we have notes with empty fields
-        notes_to_transform = self.selected_notes.get_selected_notes(self.note_ids)
+        notes_to_transform = self.selected_notes.new_selected_notes(self.note_ids)
         if not notes_to_transform.has_note_with_empty_field(self.selected_fields):
             raise ValueError("No notes with empty fields found")
 
@@ -391,7 +391,7 @@ class TransformNotesWithProgress:
             return 0
 
         # Get notes with empty fields
-        notes_with_empty_fields = self.selected_notes.get_selected_notes(filtered_note_ids).filter_by_empty_field(selected_fields)
+        notes_with_empty_fields = self.selected_notes.new_selected_notes(filtered_note_ids).filter_by_empty_field(selected_fields)
 
         if not notes_with_empty_fields:
             return 0

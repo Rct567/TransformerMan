@@ -111,7 +111,7 @@ class SelectedNotes:
         batches: list[SelectedNotes] = []
 
         for batch_note_ids in batched(self._note_ids, batch_size):
-            batches.append(self.get_selected_notes(batch_note_ids))
+            batches.append(self.new_selected_notes(batch_note_ids))
 
         return batches
 
@@ -153,7 +153,7 @@ class SelectedNotes:
         for note in notes:
             # Try adding this note to the current batch
             test_batch_note_ids = current_batch_note_ids + [note.id]
-            test_selected_notes = self.get_selected_notes(test_batch_note_ids)
+            test_selected_notes = self.new_selected_notes(test_batch_note_ids)
 
             try:
                 # Build the actual prompt to check its size
@@ -171,11 +171,11 @@ class SelectedNotes:
                 else:
                     # Note doesn't fit - finalize current batch if it has notes
                     if current_batch_note_ids:
-                        batches.append(self.get_selected_notes(current_batch_note_ids))
+                        batches.append(self.new_selected_notes(current_batch_note_ids))
 
                     # Start new batch with just this note
                     # Check if note fits alone
-                    single_note_selected_notes = self.get_selected_notes([note.id])
+                    single_note_selected_notes = self.new_selected_notes([note.id])
                     single_prompt = prompt_builder.build_prompt(
                         col=self.col,
                         target_notes=single_note_selected_notes,
@@ -198,13 +198,13 @@ class SelectedNotes:
                 self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
                 # Finalize current batch if it has notes
                 if current_batch_note_ids:
-                    batches.append(self.get_selected_notes(current_batch_note_ids))
+                    batches.append(self.new_selected_notes(current_batch_note_ids))
                 # Start new batch with just this note
                 current_batch_note_ids = [note.id]
 
         # Don't forget last batch
         if current_batch_note_ids:
-            batches.append(self.get_selected_notes(current_batch_note_ids))
+            batches.append(self.new_selected_notes(current_batch_note_ids))
 
         return batches
 
@@ -230,7 +230,7 @@ class SelectedNotes:
 
         return notes
 
-    def get_selected_notes(self, note_ids: Sequence[NoteId]) -> SelectedNotes:
+    def new_selected_notes(self, note_ids: Sequence[NoteId]) -> SelectedNotes:
         """
         Get a new SelectedNotes instance containing only the specified note IDs.
 
@@ -304,7 +304,7 @@ class SelectedNotes:
             note = self.get_note(nid)
             if SelectedNotes.has_empty_field(note, selected_fields):
                 filtered_note_ids.append(nid)
-        return self.get_selected_notes(filtered_note_ids)
+        return self.new_selected_notes(filtered_note_ids)
 
     def clear_cache(self) -> None:
         """Clear the note cache."""
