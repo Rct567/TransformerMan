@@ -191,6 +191,32 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             if instruction_input.text().strip() and field_name in selected_fields
         }
 
+    def _update_state(
+        self,
+        *,
+        clear_preview_results: bool = False,
+        update_preview_table: bool = True,
+    ) -> None:
+        """
+        Update the UI state based on current selections.
+
+        Args:
+            clear_preview_results: Whether to clear existing preview results.
+            update_preview_table: Whether to update the preview table display.
+        """
+        if clear_preview_results:
+            self.preview_results.clear()
+
+        field_instructions = self._get_current_field_instructions()
+        self.transformer.update_field_instructions(field_instructions)
+
+        self._update_notes_count_label()
+
+        if update_preview_table:
+            self._update_preview_table()
+
+        self.update_buttons_state()
+
     def _update_notes_count_label(self) -> None:
         """Update the notes count label with bold text and empty field count."""
         if not self.current_note_type:
@@ -296,20 +322,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Set column stretch so that instruction column expands
         self.fields_layout.setColumnStretch(1, 1)
 
-        # Clear preview results since they're no longer valid for the new note type
-        self.preview_results.clear()
-
-        # Update the transformer with current field instructions (will be empty for new note type)
-        field_instructions = self._get_current_field_instructions()
-        self.transformer.update_field_instructions(field_instructions)
-
-        # Update notes count label with new counts
-        self._update_notes_count_label()
-
-        self._update_preview_table()
-
-        # Update button states
-        self.update_buttons_state()
+        # Update state (clears preview results, updates transformer, notes count, preview table, and buttons)
+        self._update_state(clear_preview_results=True)
 
     def _on_field_selection_changed(self) -> None:
         """Handle field checkbox state changes."""
@@ -318,35 +332,13 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             instruction_input = self.field_instructions[field_name]
             instruction_input.setEnabled(checkbox.isChecked())
 
-        # Update the transformer with current field instructions
-        # (field selection affects which instructions are included)
-        field_instructions = self._get_current_field_instructions()
-        self.transformer.update_field_instructions(field_instructions)
-
-        # Clear preview results since they're no longer valid with new field selection
-        self.preview_results.clear()
-
-        # Update notes count label since empty field count may have changed
-        self._update_notes_count_label()
-        self._update_preview_table()
-
-        # Update button states
-        self.update_buttons_state()
+        # Update state (clears preview results, updates transformer, notes count, preview table, and buttons)
+        self._update_state(clear_preview_results=True)
 
     def _on_instruction_changed(self) -> None:
         """Handle instruction input text changes."""
-        # Update the transformer with current field instructions
-        field_instructions = self._get_current_field_instructions()
-        self.transformer.update_field_instructions(field_instructions)
-
-        # Clear preview results since they're no longer valid with new instructions
-        self.preview_results.clear()
-
-        # Update notes count label to reflect new API call count with updated instructions
-        self._update_notes_count_label()
-
-        # Update button states
-        self.update_buttons_state()
+        # Update state (clears preview results, updates transformer, notes count, preview table, and buttons)
+        self._update_state(clear_preview_results=True)
 
     def _update_preview_table(self) -> None:
         """Update the preview table with data from selected notes."""
@@ -401,12 +393,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             showInfo("No notes to transform.", parent=self)
             return
 
-        # Update the transformer's field instructions BEFORE calculating API calls
-        # This ensures accurate prompt size calculations for the warning message
-        field_instructions = self._get_current_field_instructions()
-        self.transformer.update_field_instructions(field_instructions)
-
         # Calculate API calls needed using transformer method
+        # Note: transformer should already have latest field instructions from _update_state calls
         api_calls_needed = self.transformer.get_num_api_calls_needed(
             self.current_note_type, selected_fields, filtered_note_ids
         )
@@ -483,15 +471,12 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             if updated > 0:
                 showInfo(f"Successfully applied changes to {updated} notes.", parent=self)
-                # Clear preview results
-                self.preview_results.clear()
-                # Refresh preview table to show updated values
+                # Clear preview results and refresh UI state
                 self.selected_notes.clear_cache()
-                self._update_preview_table()
-                # Update notes count label since empty field count has changed
-                self._update_notes_count_label()
-                # Update button states
-                self.update_buttons_state()
+                self._update_state(
+                    clear_preview_results=True,
+                    update_preview_table=True,
+                )
             else:
                 showInfo(f"No notes were updated. {failed} notes failed.", parent=self)
 
