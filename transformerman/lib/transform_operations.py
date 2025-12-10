@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, TypedDict, Any
+from typing import TYPE_CHECKING, Callable, TypedDict, Any, NamedTuple
 
 from aqt import mw
 from aqt.operations import CollectionOp, QueryOp
@@ -32,6 +32,14 @@ class TransformResults(TypedDict):
     num_notes_failed: int
     num_batches_processed: int
     error: str | None
+
+
+class CacheKey(NamedTuple):
+    """Cache key for transformation results."""
+    note_type_name: str
+    selected_fields: tuple[str, ...]
+    note_ids: tuple[NoteId, ...]
+    max_prompt_size: int
 
 
 def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[Callable[[str], None], Callable[[LmResponse], None]]:
@@ -306,12 +314,14 @@ class TransformNotesWithProgress:
         self.addon_config = addon_config
         self.user_files_dir = user_files_dir
         self.logger = logging.getLogger(__name__)
+        self.prompt_builder = PromptBuilder()
+        self.max_prompt_size = self.addon_config.get_max_prompt_size()
 
         # Cache for transformation results
-        # Key: (note_type, tuple of selected fields, tuple of note_ids)
+        # Key: CacheKey (note_type, selected fields, note_ids, max_prompt_size)
         # Value: (results, field_updates)
         self._cache: dict[
-            tuple[str, tuple[str, ...], tuple[NoteId, ...]],
+            CacheKey,
             tuple[TransformResults, dict[NoteId, dict[str, str]]],
         ] = {}
 
@@ -321,19 +331,15 @@ class TransformNotesWithProgress:
         note_type_name: str,
         selected_fields: Sequence[str],
         note_ids: Sequence[NoteId],
-    ) -> tuple[str, tuple[str, ...], tuple[NoteId, ...]]:
-        """
-        Generate a cache key for the given transformation parameters.
-
-        Args:
-            note_type_name: Name of the note type.
-            selected_fields: Sequence of field names to fill.
-            note_ids: List of note IDs to transform.
-
-        Returns:
-            Cache key tuple.
-        """
-        return (note_type_name, tuple(selected_fields), tuple(note_ids))
+        max_prompt_size: int,
+    ) -> CacheKey:
+        """Generate a cache key for the given transformation parameters."""
+        return CacheKey(
+            note_type_name=note_type_name,
+            selected_fields=tuple(selected_fields),
+            note_ids=tuple(note_ids),
+            max_prompt_size=max_prompt_size,
+        )
 
     def _is_cached(
         self,
@@ -352,8 +358,9 @@ class TransformNotesWithProgress:
         Returns:
             True if results are cached, False otherwise.
         """
-        cache_key = self._get_cache_key(note_type_name, selected_fields, note_ids)
+        cache_key = self._get_cache_key(note_type_name, selected_fields, note_ids, self.max_prompt_size)
         return cache_key in self._cache
+
 
     def get_num_api_calls_needed(
         self,
@@ -396,16 +403,13 @@ class TransformNotesWithProgress:
         if not notes_with_empty_fields:
             return 0
 
-        # Create a prompt builder to calculate actual batch sizes
-        prompt_builder = PromptBuilder()
-        max_prompt_size = self.addon_config.get_max_prompt_size()
 
         # Calculate actual batches
         batches = notes_with_empty_fields.batched_by_prompt_size(
-            prompt_builder=prompt_builder,
+            prompt_builder=self.prompt_builder,
             selected_fields=selected_fields,
             note_type_name=note_type_name,
-            max_chars=max_prompt_size,
+            max_chars=self.max_prompt_size,
         )
 
         return len(batches)
@@ -433,13 +437,12 @@ class TransformNotesWithProgress:
                 Called with (results, field_updates) when transformation completes successfully.
         """
         # Check cache first
-        cache_key = self._get_cache_key(note_type_name, selected_fields, note_ids)
+        cache_key = self._get_cache_key(note_type_name, selected_fields, note_ids, self.max_prompt_size)
         if cache_key in self._cache:
             results, field_updates = self._cache[cache_key]
             on_success(results, field_updates)
             return
 
-        max_prompt_size = self.addon_config.get_max_prompt_size()
 
         # Create NoteTransformer (UI-agnostic)
         transformer = NoteTransformer(
@@ -450,7 +453,7 @@ class TransformNotesWithProgress:
             prompt_builder=prompt_builder,
             selected_fields=selected_fields,
             note_type_name=note_type_name,
-            max_prompt_size=max_prompt_size,
+            max_prompt_size=self.max_prompt_size,
             addon_config=self.addon_config,
             user_files_dir=self.user_files_dir,
         )
