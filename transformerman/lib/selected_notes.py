@@ -269,6 +269,21 @@ class SelectedNotes:
                         self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
                         high = mid - 1
 
+                # If we still haven't found a fitting size, test the smallest size (1)
+                # This handles the case where binary search didn't test mid=1 due to iteration limit
+                if best_size == 0 and start_size > 1:
+                    # Test a single note
+                    test_batch_note_ids = [note.id for note in notes[i:i+1]]
+                    test_selected_notes = self.new_selected_notes(test_batch_note_ids)
+                    try:
+                        test_prompt = build_prompt(test_selected_notes)
+                        test_size = len(test_prompt)
+                        if test_size <= max_chars:
+                            best_size = 1
+                    except Exception as e:
+                        # If building fails, treat as too large
+                        self.logger.warning(f"Failed to build prompt for single note test: {e}")
+
             if best_size == 0:
                 # Even a single note doesn't fit
                 # Check if single note fits alone (for accurate warning)
@@ -276,9 +291,15 @@ class SelectedNotes:
                 try:
                     single_prompt = build_prompt(single_note_selected_notes)
                     single_size = len(single_prompt)
-                    self.logger.warning(
-                        f"Note {notes[i].id} exceeds maximum prompt size ({single_size} > {max_chars}). Skipping."
-                    )
+                    if single_size > max_chars:
+                        self.logger.warning(
+                            f"Note {notes[i].id} exceeds maximum prompt size ({single_size} > {max_chars}). Skipping."
+                        )
+                    else:
+                        # This shouldn't happen if our algorithm is correct, but log for debugging
+                        self.logger.warning(
+                            f"Note {notes[i].id} unexpectedly skipped despite fitting ({single_size} <= {max_chars})."
+                        )
                 except Exception as e:
                     self.logger.warning(f"Failed to build prompt for note {notes[i].id}: {e}")
 
