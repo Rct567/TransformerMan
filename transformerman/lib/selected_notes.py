@@ -6,7 +6,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -15,11 +15,17 @@ if TYPE_CHECKING:
     from .prompt_builder import PromptBuilder
 
 
+class BatchingStats(NamedTuple):
+    num_prompts_tried: int
+    avg_batch_size: int | None
+    num_batches: int
+
 class SelectedNotes:
     """Manages selected notes for transformation."""
 
     _note_ids: Sequence[NoteId]
     _note_cache: dict[NoteId, Note]
+    batching_stats: BatchingStats | None
 
     # Constants for batch sizing algorithm
     DEFAULT_START_SIZE: int = 250
@@ -38,6 +44,7 @@ class SelectedNotes:
         self._note_ids = note_ids
         self._note_cache = note_cache if note_cache else {}
         self.logger = logging.getLogger(__name__)
+        self.batching_stats = None
 
     def get_note(self, nid: NoteId) -> Note:
         """
@@ -138,6 +145,16 @@ class SelectedNotes:
         batches: list[SelectedNotes] = []
         i = 0  # Current position in notes list
         last_batch_size = self.DEFAULT_START_SIZE  # Start with default, then use previous batch size
+        num_prompts_tried = 0
+
+        def build_prompt(test_selected_notes: SelectedNotes) -> str:
+            nonlocal num_prompts_tried
+            num_prompts_tried += 1
+            return prompt_builder.build_prompt(
+                target_notes=test_selected_notes,
+                selected_fields=selected_fields,
+                note_type_name=note_type_name,
+            )
 
         while i < len(notes):
             remaining = len(notes) - i
@@ -151,11 +168,7 @@ class SelectedNotes:
             test_selected_notes = self.new_selected_notes(test_batch_note_ids)
 
             try:
-                test_prompt = prompt_builder.build_prompt(
-                    target_notes=test_selected_notes,
-                    selected_fields=selected_fields,
-                    note_type_name=note_type_name,
-                )
+                test_prompt = build_prompt(test_selected_notes)
                 test_size = len(test_prompt)
                 start_fits = test_size <= max_chars
             except Exception as e:
@@ -179,11 +192,7 @@ class SelectedNotes:
                     test_selected_notes = self.new_selected_notes(test_batch_note_ids)
 
                     try:
-                        test_prompt = prompt_builder.build_prompt(
-                            target_notes=test_selected_notes,
-                            selected_fields=selected_fields,
-                            note_type_name=note_type_name,
-                        )
+                        test_prompt = build_prompt(test_selected_notes)
                         test_size = len(test_prompt)
 
                         if test_size <= max_chars:
@@ -217,11 +226,7 @@ class SelectedNotes:
                         test_selected_notes = self.new_selected_notes(test_batch_note_ids)
 
                         try:
-                            test_prompt = prompt_builder.build_prompt(
-                                target_notes=test_selected_notes,
-                                selected_fields=selected_fields,
-                                note_type_name=note_type_name,
-                            )
+                            test_prompt = build_prompt(test_selected_notes)
                             test_size = len(test_prompt)
 
                             if test_size <= max_chars:
@@ -249,11 +254,7 @@ class SelectedNotes:
                     test_selected_notes = self.new_selected_notes(test_batch_note_ids)
 
                     try:
-                        test_prompt = prompt_builder.build_prompt(
-                            target_notes=test_selected_notes,
-                            selected_fields=selected_fields,
-                            note_type_name=note_type_name,
-                        )
+                        test_prompt = build_prompt(test_selected_notes)
                         test_size = len(test_prompt)
 
                         if test_size <= max_chars:
@@ -273,11 +274,7 @@ class SelectedNotes:
                 # Check if single note fits alone (for accurate warning)
                 single_note_selected_notes = self.new_selected_notes([notes[i].id])
                 try:
-                    single_prompt = prompt_builder.build_prompt(
-                        target_notes=single_note_selected_notes,
-                        selected_fields=selected_fields,
-                        note_type_name=note_type_name,
-                    )
+                    single_prompt = build_prompt(single_note_selected_notes)
                     single_size = len(single_prompt)
                     self.logger.warning(
                         f"Note {notes[i].id} exceeds maximum prompt size ({single_size} > {max_chars}). Skipping."
@@ -297,8 +294,13 @@ class SelectedNotes:
 
         # Calculate and log average batch size
         if batches:
-            avg_batch_size = sum(len(batch) for batch in batches) / len(batches)
-            self.logger.info(f"Average batch size: {avg_batch_size}")
+            num_batches = len(batches)
+            avg_batch_size = sum(len(batch) for batch in batches) // num_batches
+            self.batching_stats = BatchingStats(num_prompts_tried=num_prompts_tried, avg_batch_size=avg_batch_size, num_batches=num_batches)
+            self.logger.info(self.batching_stats)
+        else:
+            self.batching_stats = BatchingStats(num_prompts_tried=num_prompts_tried, avg_batch_size=None, num_batches=0)
+            self.logger.info("No batches created")
 
         return batches
 
