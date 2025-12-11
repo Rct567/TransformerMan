@@ -14,23 +14,72 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import Note, NoteId
+    from anki.cards import Card, CardId
+    from anki.decks import DeckId
 
 
 class PromptBuilder:
     """Builds prompts for the language model to fill empty fields."""
 
     field_instructions: dict[str, str]
+    deck_cache: dict[int, str]
+    note_cache: dict[NoteId, Note]
+    card_cache: dict[CardId, Card]
+    find_notes_cache: dict[str, Sequence[NoteId]]
 
     def __init__(self) -> None:
         self.field_instructions = {}
+        self.deck_cache = {}
+        self.note_cache = {}
+        self.card_cache = {}
+        self.find_notes_cache = {}
+
+    def clear_cache(self) -> None:
+        """Clear the internal caches."""
+        self.deck_cache.clear()
+        self.note_cache.clear()
+        self.card_cache.clear()
+        self.find_notes_cache.clear()
+
+    def _get_note(self, col: Collection, note_id: NoteId) -> Note:
+        """Get a note from cache or collection."""
+        if note_id in self.note_cache:
+            return self.note_cache[note_id]
+
+        note = col.get_note(note_id)
+        self.note_cache[note_id] = note
+        return note
+
+    def _get_deck_name(self, col: Collection, deck_id: DeckId) -> str:
+        """Get deck name from cache or collection."""
+        if deck_id in self.deck_cache:
+            return self.deck_cache[deck_id]
+
+        deck = col.decks.get(deck_id)
+        name = deck["name"] if deck else ""
+        self.deck_cache[deck_id] = name
+        return name
+
+    def _get_card(self, col: Collection, card_id: CardId) -> Card:
+        """Get a card from cache or collection."""
+        if card_id in self.card_cache:
+            return self.card_cache[card_id]
+
+        card = col.get_card(card_id)
+        self.card_cache[card_id] = card
+        return card
+
+    def _find_notes(self, col: Collection, query: str) -> Sequence[NoteId]:
+        """Find note IDs using cache or collection."""
+        if query in self.find_notes_cache:
+            return self.find_notes_cache[query]
+
+        note_ids = col.find_notes(query)
+        self.find_notes_cache[query] = note_ids
+        return note_ids
 
     def update_field_instructions(self, field_instructions: dict[str, str]) -> None:
-        """
-        Update the field instructions for this prompt builder.
-
-        Args:
-            field_instructions: New field instructions dict, or None to clear.
-        """
+        """Update the field instructions for this prompt builder."""
         self.field_instructions = field_instructions
 
     def build_prompt(
@@ -130,17 +179,12 @@ class PromptBuilder:
         target_note_ids = set(target_notes.get_ids())
 
         # Find the note type
-        notetype = None
-        for nt in col.models.all():
-            if nt['name'] == note_type_name:
-                notetype = nt
-                break
-
+        notetype = col.models.by_name(note_type_name)
         if not notetype:
             return []
 
         def find_candidate_notes(query: str) -> list[NoteId]:
-            note_ids = col.find_notes(query)
+            note_ids = self._find_notes(col, query)
             # Filter out target notes
             return [nid for nid in note_ids if nid not in target_note_ids]
 
@@ -153,8 +197,12 @@ class PromptBuilder:
 
         # If refined query doesn't produce enough candidate notes, fall back to original query
         if len(candidate_note_ids) < max_examples:
+            existing_ids = set(candidate_note_ids)
             # Get all note IDs of this type
-            candidate_note_ids += [note_id for note_id in find_candidate_notes(f'"note:{note_type_name}"') if note_id not in candidate_note_ids]
+            all_type_notes = find_candidate_notes(f'"note:{note_type_name}"')
+            for note_id in all_type_notes:
+                if note_id not in existing_ids:
+                    candidate_note_ids.append(note_id)
 
         if not candidate_note_ids:
             return []
@@ -164,13 +212,17 @@ class PromptBuilder:
 
         for nid in candidate_note_ids[:300]:  # Limit to first 300 for performance
             try:
-                note = col.get_note(nid)
+                note = self._get_note(col, nid)
 
-                # Count non-empty selected fields
-                non_empty_count = sum(1 for field in selected_fields if note[field].strip())
+                # Count non-empty selected fields and words
+                non_empty_count = 0
+                word_count = 0
 
-                # Count total words in selected fields
-                word_count = sum(len(note[field].split()) for field in selected_fields if note[field].strip())
+                for field in selected_fields:
+                    val = note[field]
+                    if val and val.strip():
+                        non_empty_count += 1
+                        word_count += len(val.split())
 
                 if non_empty_count > 0:  # Only consider notes with at least one filled field
                     scored_candidates.append((non_empty_count, word_count, note))
@@ -210,10 +262,8 @@ class PromptBuilder:
             deck_name = ""
             if card_ids:
                 try:
-                    card = note.col.get_card(card_ids[0])
-                    deck = note.col.decks.get(card.did)
-                    if deck:
-                        deck_name = deck['name']
+                    card = self._get_card(note.col, card_ids[0])
+                    deck_name = self._get_deck_name(note.col, card.did)
                 except Exception:
                     pass
 
