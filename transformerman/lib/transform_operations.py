@@ -159,7 +159,7 @@ class NoteTransformer:
         try:
             # Build prompt
             prompt = self.prompt_builder.build_prompt(
-                self.col, batch_selected_notes, self.selected_fields, self.note_type_name
+                batch_selected_notes, self.selected_fields, self.note_type_name
             )
 
             # Log request
@@ -315,7 +315,7 @@ class TransformNotesWithProgress:
         self.addon_config = addon_config
         self.user_files_dir = user_files_dir
         self.logger = logging.getLogger(__name__)
-        self._prompt_builder = PromptBuilder()
+        self._prompt_builder = PromptBuilder(col)
         self.max_prompt_size = self.addon_config.get_max_prompt_size()
 
         # Cache for transformation results

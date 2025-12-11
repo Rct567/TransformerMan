@@ -56,7 +56,7 @@ class TestNoteTransformer:
         dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
         # Create a real PromptBuilder
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         # The collection's notes have no empty fields in "Front" or "Back"
         # So validation should raise ValueError
@@ -103,7 +103,7 @@ class TestNoteTransformer:
         dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
         # Create a real PromptBuilder
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         # Create NoteTransformer with max prompt size of 1000
         transformer = NoteTransformer(
@@ -172,7 +172,7 @@ class TestNoteTransformer:
         dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
         # Create a real PromptBuilder
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
@@ -230,7 +230,7 @@ class TestNoteTransformer:
         dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
         # Create a real PromptBuilder
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
@@ -288,7 +288,7 @@ class TestNoteTransformer:
         selected_notes = SelectedNotes(col, note_ids)
 
         # Create a real PromptBuilder
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         # Create a real DummyLMClient
         dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
@@ -366,7 +366,7 @@ class TestNoteTransformer:
         dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
         # Create a real PromptBuilder
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(

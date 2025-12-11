@@ -238,7 +238,7 @@ class TestSelectedNotes:
     ) -> None:
         """Test batched_by_prompt_size with empty note IDs."""
         selected_notes = SelectedNotes(col, [])
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         batches = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
@@ -270,7 +270,7 @@ class TestSelectedNotes:
             note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, note_ids)
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         batches = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
@@ -302,7 +302,7 @@ class TestSelectedNotes:
             note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, note_ids)
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         # Use large max_chars to ensure single batch
         batches = selected_notes.batched_by_prompt_size(
@@ -340,7 +340,7 @@ class TestSelectedNotes:
             note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, note_ids)
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         # Use small max_chars to force multiple batches
         # Need to find a value that allows some notes but not all
@@ -389,7 +389,7 @@ class TestSelectedNotes:
         col.add_note(note, deck_id)
 
         selected_notes = SelectedNotes(col, [note.id])
-        prompt_builder = PromptBuilder()
+        prompt_builder = PromptBuilder(col)
 
         # Use tiny max_chars so even single note exceeds limit
         batches = selected_notes.batched_by_prompt_size(

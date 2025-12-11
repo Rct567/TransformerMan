@@ -27,7 +27,8 @@ class PromptBuilder:
     card_cache: dict[CardId, Card]
     find_notes_cache: dict[str, Sequence[NoteId]]
 
-    def __init__(self) -> None:
+    def __init__(self, col: Collection) -> None:
+        self.col = col
         self.field_instructions = {}
         self.deck_cache = {}
         self.note_cache = {}
@@ -41,40 +42,40 @@ class PromptBuilder:
         self.card_cache.clear()
         self.find_notes_cache.clear()
 
-    def _get_note(self, col: Collection, note_id: NoteId) -> Note:
+    def _get_note(self, note_id: NoteId) -> Note:
         """Get a note from cache or collection."""
         if note_id in self.note_cache:
             return self.note_cache[note_id]
 
-        note = col.get_note(note_id)
+        note = self.col.get_note(note_id)
         self.note_cache[note_id] = note
         return note
 
-    def _get_deck_name(self, col: Collection, deck_id: DeckId) -> str:
+    def _get_deck_name(self, deck_id: DeckId) -> str:
         """Get deck name from cache or collection."""
         if deck_id in self.deck_cache:
             return self.deck_cache[deck_id]
 
-        deck = col.decks.get(deck_id)
+        deck = self.col.decks.get(deck_id)
         name = deck["name"] if deck else ""
         self.deck_cache[deck_id] = name
         return name
 
-    def _get_card(self, col: Collection, card_id: CardId) -> Card:
+    def _get_card(self, card_id: CardId) -> Card:
         """Get a card from cache or collection."""
         if card_id in self.card_cache:
             return self.card_cache[card_id]
 
-        card = col.get_card(card_id)
+        card = self.col.get_card(card_id)
         self.card_cache[card_id] = card
         return card
 
-    def _find_notes(self, col: Collection, query: str) -> Sequence[NoteId]:
+    def _find_notes(self, query: str) -> Sequence[NoteId]:
         """Find note IDs using cache or collection."""
         if query in self.find_notes_cache:
             return self.find_notes_cache[query]
 
-        note_ids = col.find_notes(query)
+        note_ids = self.col.find_notes(query)
         self.find_notes_cache[query] = note_ids
         return note_ids
 
@@ -84,7 +85,6 @@ class PromptBuilder:
 
     def build_prompt(
         self,
-        col: Collection,
         target_notes: SelectedNotes,
         selected_fields: Sequence[str],
         note_type_name: str,
@@ -98,7 +98,7 @@ class PromptBuilder:
         assert target_notes.has_note_with_empty_field(selected_fields)
 
         # Get example notes
-        example_notes = self._select_example_notes(col, target_notes, selected_fields, note_type_name)
+        example_notes = self._select_example_notes(target_notes, selected_fields, note_type_name)
 
         # Build prompt parts
         prompt_parts = [
@@ -151,7 +151,6 @@ class PromptBuilder:
 
     def _select_example_notes(
         self,
-        col: Collection,
         target_notes: SelectedNotes,
         selected_fields: Sequence[str],
         note_type_name: str,
@@ -166,7 +165,6 @@ class PromptBuilder:
         3. Preference for notes from the same deck as target notes
 
         Args:
-            col: Anki collection.
             target_notes: SelectedNotes instance (to avoid selecting them as examples).
             selected_fields: Sequence of field names to consider.
             note_type_name: Name of the note type.
@@ -179,12 +177,12 @@ class PromptBuilder:
         target_note_ids = set(target_notes.get_ids())
 
         # Find the note type
-        notetype = col.models.by_name(note_type_name)
+        notetype = self.col.models.by_name(note_type_name)
         if not notetype:
             return []
 
         def find_candidate_notes(query: str) -> list[NoteId]:
-            note_ids = self._find_notes(col, query)
+            note_ids = self._find_notes(query)
             # Filter out target notes
             return [nid for nid in note_ids if nid not in target_note_ids]
 
@@ -212,7 +210,7 @@ class PromptBuilder:
 
         for nid in candidate_note_ids[:300]:  # Limit to first 300 for performance
             try:
-                note = self._get_note(col, nid)
+                note = self._get_note(nid)
 
                 # Count non-empty selected fields and words
                 non_empty_count = 0
@@ -262,8 +260,8 @@ class PromptBuilder:
             deck_name = ""
             if card_ids:
                 try:
-                    card = self._get_card(note.col, card_ids[0])
-                    deck_name = self._get_deck_name(note.col, card.did)
+                    card = self._get_card(card_ids[0])
+                    deck_name = self._get_deck_name(card.did)
                 except Exception:
                     pass
 

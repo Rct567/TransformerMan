@@ -152,7 +152,6 @@ class SelectedNotes:
 
             try:
                 test_prompt = prompt_builder.build_prompt(
-                    col=self.col,
                     target_notes=test_selected_notes,
                     selected_fields=selected_fields,
                     note_type_name=note_type_name,
@@ -181,7 +180,6 @@ class SelectedNotes:
 
                     try:
                         test_prompt = prompt_builder.build_prompt(
-                            col=self.col,
                             target_notes=test_selected_notes,
                             selected_fields=selected_fields,
                             note_type_name=note_type_name,
@@ -220,7 +218,6 @@ class SelectedNotes:
 
                         try:
                             test_prompt = prompt_builder.build_prompt(
-                                col=self.col,
                                 target_notes=test_selected_notes,
                                 selected_fields=selected_fields,
                                 note_type_name=note_type_name,
@@ -253,7 +250,6 @@ class SelectedNotes:
 
                     try:
                         test_prompt = prompt_builder.build_prompt(
-                            col=self.col,
                             target_notes=test_selected_notes,
                             selected_fields=selected_fields,
                             note_type_name=note_type_name,
@@ -278,7 +274,6 @@ class SelectedNotes:
                 single_note_selected_notes = self.new_selected_notes([notes[i].id])
                 try:
                     single_prompt = prompt_builder.build_prompt(
-                        col=self.col,
                         target_notes=single_note_selected_notes,
                         selected_fields=selected_fields,
                         note_type_name=note_type_name,

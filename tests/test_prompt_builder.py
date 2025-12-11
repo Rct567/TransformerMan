@@ -44,11 +44,10 @@ class TestPromptBuilder:
             test_note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, test_note_ids)
-        builder = PromptBuilder()
+        builder = PromptBuilder(col)
 
         # Build prompt
         prompt = builder.build_prompt(
-            col=col,
             target_notes=selected_notes,
             selected_fields=["Front"],
             note_type_name="Basic",
@@ -89,7 +88,7 @@ class TestPromptBuilder:
         col.add_note(note, deck_id)
 
         selected_notes = SelectedNotes(col, [note.id])
-        builder = PromptBuilder()
+        builder = PromptBuilder(col)
 
         # Set field instructions
         instructions = {"Front": "Provide a concise question", "Back": "Provide detailed answer"}
@@ -97,7 +96,6 @@ class TestPromptBuilder:
 
         # Build prompt
         prompt = builder.build_prompt(
-            col=col,
             target_notes=selected_notes,
             selected_fields=["Front", "Back"],
             note_type_name="Basic",
@@ -129,12 +127,11 @@ class TestPromptBuilder:
         col.add_note(note, deck_id)
 
         selected_notes = SelectedNotes(col, [note.id])
-        builder = PromptBuilder()
+        builder = PromptBuilder(col)
 
         # Don't set any field instructions
         # Build prompt
         prompt = builder.build_prompt(
-            col=col,
             target_notes=selected_notes,
             selected_fields=["Front"],
             note_type_name="Basic",
@@ -168,11 +165,10 @@ class TestPromptBuilder:
         col.add_note(note, deck_id)
 
         selected_notes = SelectedNotes(col, [note.id])
-        builder = PromptBuilder()
+        builder = PromptBuilder(col)
 
         # Build prompt
         prompt = builder.build_prompt(
-            col=col,
             target_notes=selected_notes,
             selected_fields=["Front"],
             note_type_name="Basic",
@@ -216,11 +212,10 @@ class TestPromptBuilder:
         col.add_note(target_note, deck_id)
 
         selected_notes = SelectedNotes(col, [target_note.id])
-        builder = PromptBuilder()
+        builder = PromptBuilder(col)
 
         # Build prompt
         prompt = builder.build_prompt(
-            col=col,
             target_notes=selected_notes,
             selected_fields=["Front"],
             note_type_name="Basic",
