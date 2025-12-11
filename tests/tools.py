@@ -156,7 +156,11 @@ class MockCollection(Collection):
     # helper function used to lock-in and assert result
     def lock_and_assert_result(self, lock_name: str,  result_data: Any):
         result_file_path = self.__get_lock_file_path(lock_name, 'locked_results')
-        result_data_str = pprint.pformat(result_data, width=10000)
+
+        if isinstance(result_data, str):
+            result_data_str = result_data
+        else:
+            result_data_str = pprint.pformat(result_data, width=10000)
 
         if result_file_path.exists():
             with result_file_path.open('r', encoding="utf-8") as file:

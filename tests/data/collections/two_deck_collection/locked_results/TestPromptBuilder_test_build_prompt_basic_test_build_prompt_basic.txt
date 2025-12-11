@@ -1,1 +1,29 @@
-'You are an Anki note assistant. Your task is to fill empty fields in notes based on context.\n\nInstructions:\n- Fill empty fields intelligently based on field names, deck context, and examples.\n\nHere are some example notes from the collection:\n\n<notes model="Basic">\n  <note nid="1701890435655" deck="decka">\n    <field name="Front">aaaa&amp;nbsp; hhh aaaa aaaa aa aa aaaa car</field>\n  </note>\n  <note nid="1701890446032" deck="decka">\n    <field name="Front">aaaa aaaa hh aaaa aa aa aaaa 4</field>\n  </note>\n  <note nid="1701890440810" deck="decka">\n    <field name="Front">aaaa aaaa aaaa aa aa aaaa car</field>\n  </note>\n</notes>\n\nPlease fill the empty fields in the following notes and return them in the same XML format:\n\n<notes model="Basic">\n  <note nid="1701890133045" deck="decka">\n    <field name="Front"></field>\n  </note>\n  <note nid="1701890142102" deck="decka">\n    <field name="Front"></field>\n  </note>\n</notes>'
+You are an Anki note assistant. Your task is to fill empty fields in notes based on context.
+
+Instructions:
+- Fill empty fields intelligently based on field names, deck context, and examples.
+
+Here are some example notes from the collection:
+
+<notes model="Basic">
+  <note nid="1701890435655" deck="decka">
+    <field name="Front">aaaa&amp;nbsp; hhh aaaa aaaa aa aa aaaa car</field>
+  </note>
+  <note nid="1701890446032" deck="decka">
+    <field name="Front">aaaa aaaa hh aaaa aa aa aaaa 4</field>
+  </note>
+  <note nid="1701890440810" deck="decka">
+    <field name="Front">aaaa aaaa aaaa aa aa aaaa car</field>
+  </note>
+</notes>
+
+Please fill the empty fields in the following notes and return them in the same XML format:
+
+<notes model="Basic">
+  <note nid="1701890133045" deck="decka">
+    <field name="Front"></field>
+  </note>
+  <note nid="1701890142102" deck="decka">
+    <field name="Front"></field>
+  </note>
+</notes>
