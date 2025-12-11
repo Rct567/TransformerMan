@@ -26,6 +26,7 @@ class PromptBuilder:
     note_cache: dict[NoteId, Note]
     card_cache: dict[CardId, Card]
     find_notes_cache: dict[str, Sequence[NoteId]]
+    note_xml_cache: dict[tuple[NoteId, tuple[str, ...]], str]
 
     def __init__(self, col: Collection) -> None:
         self.col = col
@@ -34,6 +35,7 @@ class PromptBuilder:
         self.note_cache = {}
         self.card_cache = {}
         self.find_notes_cache = {}
+        self.note_xml_cache = {}
 
     def clear_cache(self) -> None:
         """Clear the internal caches."""
@@ -41,6 +43,7 @@ class PromptBuilder:
         self.note_cache.clear()
         self.card_cache.clear()
         self.find_notes_cache.clear()
+        self.note_xml_cache.clear()
 
     def _get_note(self, note_id: NoteId) -> Note:
         """Get a note from cache or collection."""
@@ -60,6 +63,47 @@ class PromptBuilder:
         name = deck["name"] if deck else ""
         self.deck_cache[deck_id] = name
         return name
+
+    def _get_deck_name_for_note(self, note: Note) -> str:
+        """Get deck name for a note."""
+        card_ids = note.card_ids()
+        if not card_ids:
+            return ""
+
+        card = self._get_card(card_ids[0])
+        return self._get_deck_name(card.did)
+
+
+    def _format_note_as_xml(self, note: Note, fields_included: Sequence[str]) -> str:
+        """Format a single note as XML with caching."""
+        # Create cache key
+        cache_key = (note.id, tuple(fields_included))
+
+        # Check cache
+        if cache_key in self.note_xml_cache:
+            return self.note_xml_cache[cache_key]
+
+        # Get deck name
+        deck_name = self._get_deck_name_for_note(note)
+
+        # Build XML lines for this note
+        lines = [
+            f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">'
+        ]
+
+        # Add included fields
+        for field_name in fields_included:
+            if field_name in note:
+                field_value = note[field_name]
+                escaped_value = escape_xml_content(field_value)
+                lines.append(f'    <field name="{escape_xml_content(field_name)}">{escaped_value}</field>')
+
+        lines.append('  </note>')
+
+        # Join lines and cache
+        result = '\n'.join(lines)
+        self.note_xml_cache[cache_key] = result
+        return result
 
     def _get_card(self, card_id: CardId) -> Card:
         """Get a card from cache or collection."""
@@ -255,26 +299,7 @@ class PromptBuilder:
         lines = [f'<notes model="{escape_xml_content(note_type_name)}">']
 
         for note in notes:
-            # Get deck name
-            card_ids = note.card_ids()
-            deck_name = ""
-            if card_ids:
-                try:
-                    card = self._get_card(card_ids[0])
-                    deck_name = self._get_deck_name(card.did)
-                except Exception:
-                    pass
-
-            lines.append(f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">')
-
-            # Add included fields
-            for field_name in fields_included:
-                if field_name in note:
-                    field_value = note[field_name]
-                    escaped_value = escape_xml_content(field_value)
-                    lines.append(f'    <field name="{escape_xml_content(field_name)}">{escaped_value}</field>')
-
-            lines.append('  </note>')
+            lines.append(self._format_note_as_xml(note, fields_included))
 
         lines.append('</notes>')
 
