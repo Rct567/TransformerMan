@@ -19,6 +19,8 @@ class BatchingStats(NamedTuple):
     num_prompts_tried: int
     avg_batch_size: int | None
     num_batches: int
+    num_notes_selected: int # noqa: vulture
+    max_prompt_size: int
 
 class SelectedNotes:
     """Manages selected notes for transformation."""
@@ -28,9 +30,22 @@ class SelectedNotes:
     batching_stats: BatchingStats | None
 
     # Constants for batch sizing algorithm
-    DEFAULT_START_SIZE: int = 250
     EXPONENTIAL_MULTIPLIER: int = 2
     MAX_BINARY_SEARCH_ITERATIONS: int = 3  # Limit binary search to prevent too many prompt builds
+
+    # Constants for dynamic start size calculation
+    # Formula incorporates both max_chars and total notes:
+    # start_size = (max_chars - FIXED_OVERHEAD_ESTIMATE) * BASE_COEFFICIENT * scale_factor
+    # where scale_factor = min(MAX_SCALE, max(MIN_SCALE, (total_notes / REFERENCE_NOTES) ** SCALE_EXPONENT))
+    # Adjusted based on empirical data showing batches up to ~1800 for 500k max_chars
+
+    # Estimated fixed overhead in characters for prompt template, instructions, etc.
+    # This is subtracted from max_chars to get available space for note content
+    FIXED_OVERHEAD_ESTIMATE: int = 2000
+
+    # Maximum allowed starting batch size to prevent excessive memory usage
+    # Increased from 1000 to 2000 based on empirical data showing batches up to ~1800
+    MAX_START_SIZE: int = 2000
 
     def __init__(self, col: Collection, note_ids: Sequence[NoteId], note_cache: dict[NoteId, Note] | None = None) -> None:
         """
@@ -109,6 +124,65 @@ class SelectedNotes:
         return dict(sorted(counts.items(), key=lambda x: x[1], reverse=True))
 
 
+    @classmethod
+    def _compute_start_size(cls, max_chars: int, total_notes: int | None = None) -> int:
+        """
+        Compute a reasonable starting batch size based on max_chars and total notes.
+
+        Uses a linear model with coefficient that scales with total notes:
+        start_size = (max_chars - fixed_overhead) * base_coefficient * scale_factor
+
+        where scale_factor = min(MAX_SCALE, (total_notes / REFERENCE_NOTES) ** SCALE_EXPONENT)
+        This accounts for the observation that with more notes, average batch size tends to be larger.
+
+        Args:
+            max_chars: Maximum prompt size in characters.
+            total_notes: Total number of notes available (optional). If None, uses default scaling.
+
+        Returns:
+            Suggested starting batch size.
+        """
+        if max_chars <= cls.FIXED_OVERHEAD_ESTIMATE:
+            return 1
+
+        # Base coefficient for notes per character at reference note count (1000 notes)
+        # Represents how many notes fit per character of available space after overhead
+        # Adjusted upward from 0.0025 to 0.0032 based on empirical data showing larger batches
+        BASE_COEFFICIENT: float = 0.0032
+
+        # Reference note count for scaling. With this many notes, scale_factor = 1.0
+        # Chosen as a typical moderate note count for common usage scenarios
+        REFERENCE_NOTES: int = 1000
+
+        # Exponent for scaling function. Lower values (0.3 vs 0.4) make scaling less aggressive
+        # This controls how quickly the coefficient increases with more notes
+        SCALE_EXPONENT: float = 0.3
+
+        # Minimum scale factor to avoid underprediction when very few notes are selected
+        # Prevents the coefficient from becoming too small for small note counts
+        MIN_SCALE: float = 0.9
+
+        # Maximum scale factor to prevent overprediction when many notes are selected
+        # Limits how much the coefficient can increase with large note counts
+        MAX_SCALE: float = 1.5
+
+        if total_notes is None or total_notes <= 0:
+            # Default to moderate scaling
+            scale_factor = 1.1
+        else:
+            # Scale coefficient based on total notes
+            # With more notes, we can use a larger coefficient (batch sizes tend to be larger)
+            scale_factor = (total_notes / REFERENCE_NOTES) ** SCALE_EXPONENT
+            scale_factor = max(min(scale_factor, MAX_SCALE), MIN_SCALE)
+
+        effective_coefficient = BASE_COEFFICIENT * scale_factor
+
+        # Linear estimate based on available space after fixed overhead
+        estimate = int((max_chars - cls.FIXED_OVERHEAD_ESTIMATE) * effective_coefficient)
+
+        # Apply bounds
+        return max(1, min(estimate, cls.MAX_START_SIZE))
+
     def batched_by_prompt_size(
         self,
         prompt_builder: PromptBuilder,
@@ -119,8 +193,8 @@ class SelectedNotes:
         """
         Split notes into batches where each batch's prompt size <= max_chars.
 
-        Uses exponential search starting from DEFAULT_START_SIZE notes: increases when it fits,
-        decreases via binary search when it doesn't fit.
+        Uses exponential search starting from a dynamically computed start size
+        based on max_chars: increases when it fits, decreases via binary search when it doesn't fit.
 
         Args:
             prompt_builder: PromptBuilder instance for building prompts.
@@ -144,7 +218,9 @@ class SelectedNotes:
 
         batches: list[SelectedNotes] = []
         i = 0  # Current position in notes list
-        last_batch_size = self.DEFAULT_START_SIZE  # Start with default, then use previous batch size
+        # Use dynamically computed start size for first batch, then previous batch size
+        # Pass total notes to adjust coefficient based on available notes
+        last_batch_size = self._compute_start_size(max_chars, len(notes))
         num_prompts_tried = 0
 
         def build_prompt(test_selected_notes: SelectedNotes) -> str:
@@ -159,9 +235,9 @@ class SelectedNotes:
         while i < len(notes):
             remaining = len(notes) - i
 
-            # Use the size of the last batch as starting point (but at least DEFAULT_START_SIZE)
+            # Use the size of the last batch as starting point
             # This is efficient because batch sizes tend to be similar
-            start_size = min(max(self.DEFAULT_START_SIZE, last_batch_size), remaining)
+            start_size = min(last_batch_size, remaining)
 
             # First check if start_size fits
             test_batch_note_ids = [note.id for note in notes[i:i+start_size]]
@@ -314,14 +390,22 @@ class SelectedNotes:
             i += best_size
 
         # Calculate and log average batch size
+        num_batches = len(batches)
         if batches:
-            num_batches = len(batches)
             avg_batch_size = sum(len(batch) for batch in batches) // num_batches
-            self.batching_stats = BatchingStats(num_prompts_tried=num_prompts_tried, avg_batch_size=avg_batch_size, num_batches=num_batches)
-            self.logger.info(self.batching_stats)
         else:
-            self.batching_stats = BatchingStats(num_prompts_tried=num_prompts_tried, avg_batch_size=None, num_batches=0)
+            avg_batch_size = None
             self.logger.info("No batches created")
+
+        self.batching_stats = BatchingStats(
+            num_prompts_tried=num_prompts_tried,
+            avg_batch_size=avg_batch_size,
+            num_batches=num_batches,
+            num_notes_selected=len(notes),
+            max_prompt_size=max_chars
+        )
+
+        self.logger.info(self.batching_stats)
 
         return batches
 
