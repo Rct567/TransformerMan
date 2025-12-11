@@ -23,6 +23,11 @@ class SelectedNotes:
     _note_ids: Sequence[NoteId]
     _note_cache: dict[NoteId, Note]
 
+    # Constants for batch sizing algorithm
+    DEFAULT_START_SIZE: int = 250
+    EXPONENTIAL_MULTIPLIER: int = 2
+    MAX_BINARY_SEARCH_ITERATIONS: int = 3  # Limit binary search to prevent too many prompt builds
+
     def __init__(self, col: Collection, note_ids: Sequence[NoteId], note_cache: dict[NoteId, Note] | None = None) -> None:
         """
         Initialize with collection and selected note IDs.
@@ -125,7 +130,8 @@ class SelectedNotes:
         """
         Split notes into batches where each batch's prompt size <= max_chars.
 
-        Uses a simple greedy algorithm that builds prompts to check sizes.
+        Uses exponential search starting from DEFAULT_START_SIZE notes: increases when it fits,
+        decreases via binary search when it doesn't fit.
 
         Args:
             prompt_builder: PromptBuilder instance for building prompts.
@@ -148,15 +154,21 @@ class SelectedNotes:
         notes = notes_with_empty_fields.get_notes()
 
         batches: list[SelectedNotes] = []
-        current_batch_note_ids: list[NoteId] = []
+        i = 0  # Current position in notes list
+        last_batch_size = self.DEFAULT_START_SIZE  # Start with default, then use previous batch size
 
-        for note in notes:
-            # Try adding this note to the current batch
-            test_batch_note_ids = current_batch_note_ids + [note.id]
+        while i < len(notes):
+            remaining = len(notes) - i
+
+            # Use the size of the last batch as starting point (but at least DEFAULT_START_SIZE)
+            # This is efficient because batch sizes tend to be similar
+            start_size = min(max(self.DEFAULT_START_SIZE, last_batch_size), remaining)
+
+            # First check if start_size fits
+            test_batch_note_ids = [note.id for note in notes[i:i+start_size]]
             test_selected_notes = self.new_selected_notes(test_batch_note_ids)
 
             try:
-                # Build the actual prompt to check its size
                 test_prompt = prompt_builder.build_prompt(
                     col=self.col,
                     target_notes=test_selected_notes,
@@ -164,18 +176,125 @@ class SelectedNotes:
                     note_type_name=note_type_name,
                 )
                 test_size = len(test_prompt)
+                start_fits = test_size <= max_chars
+            except Exception as e:
+                # If building fails, treat as too large
+                self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
+                start_fits = False
 
-                if test_size <= max_chars:
-                    # Note fits in current batch
-                    current_batch_note_ids = test_batch_note_ids
+            if start_fits:
+                # start_size fits, try to find larger size that fits
+                # Exponential search with doubling
+                low = start_size
+                high = start_size
+
+                # Find upper bound (first size that doesn't fit)
+                while high < remaining:
+                    next_size = min(high * self.EXPONENTIAL_MULTIPLIER, remaining)
+                    if next_size <= high:  # Prevent infinite loop
+                        break
+
+                    test_batch_note_ids = [note.id for note in notes[i:i+next_size]]
+                    test_selected_notes = self.new_selected_notes(test_batch_note_ids)
+
+                    try:
+                        test_prompt = prompt_builder.build_prompt(
+                            col=self.col,
+                            target_notes=test_selected_notes,
+                            selected_fields=selected_fields,
+                            note_type_name=note_type_name,
+                        )
+                        test_size = len(test_prompt)
+
+                        if test_size <= max_chars:
+                            # Still fits, continue exponential search
+                            low = next_size  # Update lower bound (last known fitting size)
+                            high = next_size
+                        else:
+                            # Doesn't fit, found upper bound
+                            high = next_size
+                            break
+                    except Exception as e:
+                        # If building fails, treat as too large
+                        self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
+                        high = next_size
+                        break
+
+                # Now binary search between low and high to find max fitting size
+                # low is last known fitting size, high is first known non-fitting size
+                best_size = low
+
+                # If we reached end of notes without finding non-fitting size, use remaining
+                if high == low and high < remaining:
+                    best_size = remaining
                 else:
-                    # Note doesn't fit - finalize current batch if it has notes
-                    if current_batch_note_ids:
-                        batches.append(self.new_selected_notes(current_batch_note_ids))
+                    # Binary search between low and high with iteration limit
+                    iteration = 0
+                    while low + 1 < high and iteration < self.MAX_BINARY_SEARCH_ITERATIONS:
+                        iteration += 1
+                        mid = (low + high) // 2
+                        test_batch_note_ids = [note.id for note in notes[i:i+mid]]
+                        test_selected_notes = self.new_selected_notes(test_batch_note_ids)
 
-                    # Start new batch with just this note
-                    # Check if note fits alone
-                    single_note_selected_notes = self.new_selected_notes([note.id])
+                        try:
+                            test_prompt = prompt_builder.build_prompt(
+                                col=self.col,
+                                target_notes=test_selected_notes,
+                                selected_fields=selected_fields,
+                                note_type_name=note_type_name,
+                            )
+                            test_size = len(test_prompt)
+
+                            if test_size <= max_chars:
+                                # Fits, try larger
+                                best_size = mid
+                                low = mid
+                            else:
+                                # Too large, try smaller
+                                high = mid
+                        except Exception as e:
+                            # If building fails, treat as too large
+                            self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
+                            high = mid
+            else:
+                # start_size doesn't fit, binary search between 1 and start_size-1
+                low = 1
+                high = start_size - 1
+                best_size = 0
+                iteration = 0
+
+                while low <= high and iteration < self.MAX_BINARY_SEARCH_ITERATIONS:
+                    iteration += 1
+                    mid = (low + high) // 2
+                    test_batch_note_ids = [note.id for note in notes[i:i+mid]]
+                    test_selected_notes = self.new_selected_notes(test_batch_note_ids)
+
+                    try:
+                        test_prompt = prompt_builder.build_prompt(
+                            col=self.col,
+                            target_notes=test_selected_notes,
+                            selected_fields=selected_fields,
+                            note_type_name=note_type_name,
+                        )
+                        test_size = len(test_prompt)
+
+                        if test_size <= max_chars:
+                            # Fits, try larger
+                            best_size = mid
+                            low = mid + 1
+                        else:
+                            # Too large, try smaller
+                            high = mid - 1
+                    except Exception as e:
+                        # If building fails, treat as too large
+                        self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
+                        high = mid - 1
+
+            if best_size == 0:
+                # Even a single note doesn't fit
+                # Check if single note fits alone (for accurate warning)
+                single_note_selected_notes = self.new_selected_notes([notes[i].id])
+                try:
                     single_prompt = prompt_builder.build_prompt(
                         col=self.col,
                         target_notes=single_note_selected_notes,
@@ -183,28 +302,26 @@ class SelectedNotes:
                         note_type_name=note_type_name,
                     )
                     single_size = len(single_prompt)
+                    self.logger.warning(
+                        f"Note {notes[i].id} exceeds maximum prompt size ({single_size} > {max_chars}). Skipping."
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Failed to build prompt for note {notes[i].id}: {e}")
 
-                    if single_size <= max_chars:
-                        current_batch_note_ids = [note.id]
-                    else:
-                        # Note is too large even on its own - skip with warning
-                        self.logger.warning(
-                            f"Note {note.id} exceeds maximum prompt size ({single_size} > {max_chars}). Skipping."
-                        )
-                        current_batch_note_ids = []
+                i += 1
+                continue
 
-            except Exception as e:
-                # If building fails, fall back to single-note batches
-                self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
-                # Finalize current batch if it has notes
-                if current_batch_note_ids:
-                    batches.append(self.new_selected_notes(current_batch_note_ids))
-                # Start new batch with just this note
-                current_batch_note_ids = [note.id]
+            # Create batch with best_size notes
+            batch_note_ids = [note.id for note in notes[i:i+best_size]]
 
-        # Don't forget last batch
-        if current_batch_note_ids:
-            batches.append(self.new_selected_notes(current_batch_note_ids))
+            batches.append(self.new_selected_notes(batch_note_ids))
+            last_batch_size = best_size  # Remember for next batch
+            i += best_size
+
+        # Calculate and log average batch size
+        if batches:
+            avg_batch_size = sum(len(batch) for batch in batches) / len(batches)
+            self.logger.info(f"Average batch size: {avg_batch_size}")
 
         return batches
 
