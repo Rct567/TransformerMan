@@ -57,7 +57,7 @@ class TestPromptBuilder:
         assert "You are an Anki note assistant" in prompt
         assert "Please fill the empty fields" in prompt
         # Examples should be present from test collection, so exactly 2 <notes> tags
-        assert prompt.count("<notes model=\"Basic\">") == 2
+        assert prompt.count('<notes model="Basic">') == 2
 
         # Check that our created notes appear in the prompt
         for note_id in test_note_ids:
@@ -65,7 +65,8 @@ class TestPromptBuilder:
 
         # Check that empty Front fields are present for our notes
         # (There might be more fields from examples, so we don't count exact number)
-        assert "<field name=\"Front\"></field>" in prompt
+        assert prompt.count('<field name="Front"></field>') == 2
+        assert prompt.count('<field ') == 5
 
         # There should be exactly 2 </notes> tags (examples + target)
         assert prompt.count("</notes>") == 2
@@ -105,9 +106,10 @@ class TestPromptBuilder:
         assert prompt.count("For field 'Front': Provide a concise question") == 1
         assert prompt.count("For field 'Back': Provide detailed answer") == 1
         # Examples should be present from test collection, so exactly 2 <notes> tags
-        assert prompt.count("<notes model=\"Basic\">") == 2
-        assert "<field name=\"Front\">" in prompt
-        assert "<field name=\"Back\">Back content</field>" in prompt
+        assert prompt.count('<notes model="Basic">') == 2
+        assert prompt.count('<field name="Front">') == 4
+        assert prompt.count('<field name="Back">') == 4
+        assert '<field name="Back">Back content</field>' in prompt
 
     @with_test_collection("two_deck_collection")
     def test_build_prompt_without_field_instructions(
@@ -141,8 +143,10 @@ class TestPromptBuilder:
         assert prompt.count("Fill empty fields intelligently") == 1
         assert "For field 'Front':" not in prompt  # No field-specific instructions
         # Examples should be present from test collection, so exactly 2 <notes> tags
-        assert prompt.count("<notes model=\"Basic\">") == 2
-        assert "<field name=\"Front\">" in prompt
+        assert prompt.count('<notes model="Basic">') == 2
+        assert prompt.count('<field name="Front">') == 4
+        assert prompt.count('<field name="Front"></field>') == 1
+        assert prompt.count('<field name="Back">') == 0
 
     @with_test_collection("two_deck_collection")
     def test_build_prompt_includes_deck_name(
@@ -176,9 +180,9 @@ class TestPromptBuilder:
 
         # Strategic assertions
         assert prompt.count(f'deck="{deck_name}"') == 1  # Our note should have the deck name exactly once
-        # Examples should be present from test collection, so exactly 2 <notes> tags
-        assert prompt.count("<notes model=\"Basic\">") == 2
-        assert "<field name=\"Front\">" in prompt
+        assert prompt.count('<notes model="Basic">') == 2
+        assert prompt.count('<field name="Front">') == 4
+        assert prompt.count('<field name="Front"></field>') == 1
 
     @with_test_collection("two_deck_collection")
     def test_build_prompt_with_examples_section(
