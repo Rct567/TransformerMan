@@ -8,8 +8,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from .utilities import batched
-
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
@@ -103,22 +101,6 @@ class SelectedNotes:
         # Sort by count descending
         return dict(sorted(counts.items(), key=lambda x: x[1], reverse=True))
 
-    def batched(self, batch_size: int) -> list[SelectedNotes]:
-        """
-        Split the current SelectedNotes instance into batches.
-
-        Args:
-            batch_size: Maximum size of each batch.
-
-        Returns:
-            List of SelectedNotes instances, each representing a batch.
-        """
-        batches: list[SelectedNotes] = []
-
-        for batch_note_ids in batched(self._note_ids, batch_size):
-            batches.append(self.new_selected_notes(batch_note_ids))
-
-        return batches
 
     def batched_by_prompt_size(
         self,
