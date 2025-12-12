@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.prompt_builder import PromptBuilder
-from tests.tools import test_collection as test_collection_fixture, with_test_collection, MockCollection
+from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
 col = test_collection_fixture
 
@@ -17,7 +17,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_basic_initialization_and_properties(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test __init__, get_ids, get_note caching, and __len__."""
         # Get some real note IDs from the collection
@@ -45,7 +45,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_filter_by_note_type(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test filter_by_note_type returns only notes of specified type."""
         # Get all note IDs
@@ -70,7 +70,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_get_note_type_counts(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test get_note_type_counts returns correct counts sorted descending."""
         # Create notes of different types
@@ -122,7 +122,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_has_empty_field_static(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test static method has_empty_field with various field states."""
         model = col.models.by_name("Basic")
@@ -157,7 +157,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_has_note_with_empty_field(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test has_note_with_empty_field returns True/False appropriately."""
         model = col.models.by_name("Basic")
@@ -194,7 +194,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_filter_by_empty_field(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test filter_by_empty_field returns only notes with empty fields."""
         model = col.models.by_name("Basic")
@@ -234,7 +234,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_batched_by_prompt_size_empty_selection(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test batched_by_prompt_size with empty note IDs."""
         selected_notes = SelectedNotes(col, [])
@@ -252,7 +252,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_batched_by_prompt_size_no_empty_fields(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test batched_by_prompt_size when no notes have empty fields."""
         model = col.models.by_name("Basic")
@@ -284,7 +284,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_batched_by_prompt_size_single_batch(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test batched_by_prompt_size when all notes fit in one batch."""
         model = col.models.by_name("Basic")
@@ -321,7 +321,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_batched_by_prompt_size_multiple_batches(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test batched_by_prompt_size when notes require multiple batches."""
         model = col.models.by_name("Basic")
@@ -373,7 +373,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_batched_by_prompt_size_single_note_exceeds_limit(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test batched_by_prompt_size when single note exceeds max size."""
         model = col.models.by_name("Basic")
@@ -420,7 +420,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_get_notes(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test get_notes returns correct Note objects."""
         # Get some real note IDs
@@ -443,7 +443,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_new_selected_notes(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test new_selected_notes creates new instance with shared cache."""
         # Get some note IDs
@@ -475,7 +475,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_get_field_names(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test get_field_names returns correct field names for note type."""
         selected_notes = SelectedNotes(col, [])
@@ -492,7 +492,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_clear_cache(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test clear_cache actually clears the note cache."""
         # Get some note IDs
@@ -517,7 +517,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_note_cache_sharing(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test that cache is shared between parent and child SelectedNotes instances."""
         # Get some note IDs
@@ -543,7 +543,7 @@ class TestSelectedNotes:
     @with_test_collection("two_deck_collection")
     def test_empty_field_detection_with_multiple_fields(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test empty field detection with multiple selected fields."""
         model = col.models.by_name("Basic")

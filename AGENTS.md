@@ -67,7 +67,7 @@
 
 ### Test Collections
 
-- **MockCollection is a real Anki collection**: The `MockCollection` class in `tests/tools.py` inherits from `anki.collection.Collection` and provides real (temporary) collection instances for testing.
+- **TestCollection is a real Anki collection**: The `TestCollection` class in `tests/tools.py` inherits from `anki.collection.Collection` and provides real (temporary) collection instances for testing.
 - **Available collections**: See `tests/data/collections/README.md` for details on available test collections (e.g., `empty_collection`, `two_deck_collection`).
 
 ## Root Directory Structure

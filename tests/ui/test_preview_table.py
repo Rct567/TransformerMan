@@ -24,7 +24,7 @@ from transformerman.ui.preview_table import (
     LIGHT_MODE_HIGHLIGHT_COLOR,
 )
 from transformerman.lib.selected_notes import SelectedNotes
-from tests.tools import with_test_collection, MockCollection, test_collection as test_collection_fixture
+from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
 
 col = test_collection_fixture
 
@@ -65,7 +65,7 @@ class TestPreviewTable:
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test that table handles empty note IDs or fields."""
         table = PreviewTable(parent_widget, is_dark_mode)
@@ -93,7 +93,7 @@ class TestPreviewTable:
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        col: MockCollection,
+        col: TestCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
     ) -> None:
@@ -135,7 +135,7 @@ class TestPreviewTable:
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        col: MockCollection,
+        col: TestCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
         test_field_updates: dict[NoteId, dict[str, str]],
@@ -281,7 +281,7 @@ class TestPreviewTable:
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        col: MockCollection,
+        col: TestCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
     ) -> None:
@@ -323,7 +323,7 @@ class TestPreviewTable:
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
-        col: MockCollection,
+        col: TestCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
         test_field_updates: dict[NoteId, dict[str, str]],

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from transformerman.lib.prompt_builder import PromptBuilder
 from transformerman.lib.selected_notes import SelectedNotes
-from tests.tools import test_collection as test_collection_fixture, with_test_collection, MockCollection
+from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
 col = test_collection_fixture
 
@@ -17,7 +17,7 @@ class TestPromptBuilder:
     @with_test_collection("two_deck_collection")
     def test_build_prompt_basic(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test build_prompt creates basic prompt with notes containing empty fields."""
         # Get two existing note IDs (deterministic order)
@@ -63,7 +63,7 @@ class TestPromptBuilder:
     @with_test_collection("two_deck_collection")
     def test_build_prompt_with_field_instructions(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test build_prompt includes field-specific instructions when provided."""
         # Use an existing note and modify it to have empty Front field
@@ -105,7 +105,7 @@ class TestPromptBuilder:
     @with_test_collection("two_deck_collection")
     def test_build_prompt_includes_deck_name(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test build_prompt includes deck name in XML output."""
         # Create a note in a specific deck
@@ -141,7 +141,7 @@ class TestPromptBuilder:
     @with_test_collection("two_deck_collection")
     def test_build_prompt_with_examples_section(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test build_prompt includes examples section when example notes are available."""
         model = col.models.by_name("Basic")

@@ -16,7 +16,7 @@ from transformerman.lib.transform_operations import (
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.prompt_builder import PromptBuilder
-from tests.tools import test_collection as test_collection_fixture, with_test_collection, MockCollection
+from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
 col = test_collection_fixture
 
@@ -42,7 +42,7 @@ class TestNoteTransformer:
     @with_test_collection("two_deck_collection")
     def test_init_validates_notes_with_empty_fields(
         self,
-        col: MockCollection,
+        col: TestCollection,
         addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
@@ -77,7 +77,7 @@ class TestNoteTransformer:
     @with_test_collection("two_deck_collection")
     def test_get_field_updates_returns_correct_updates(
         self,
-        col: MockCollection,
+        col: TestCollection,
         addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
@@ -146,7 +146,7 @@ class TestNoteTransformer:
     @with_test_collection("two_deck_collection")
     def test_get_field_updates_with_progress_callback(
         self,
-        col: MockCollection,
+        col: TestCollection,
         addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
@@ -204,7 +204,7 @@ class TestNoteTransformer:
     @with_test_collection("two_deck_collection")
     def test_get_field_updates_with_cancellation(
         self,
-        col: MockCollection,
+        col: TestCollection,
         addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
@@ -265,7 +265,7 @@ class TestNoteTransformer:
     @with_test_collection("two_deck_collection")
     def test_get_field_updates_handles_batch_errors(
         self,
-        col: MockCollection,
+        col: TestCollection,
         addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
@@ -337,7 +337,7 @@ class TestNoteTransformer:
     @with_test_collection("two_deck_collection")
     def test_get_field_updates_only_returns_updates_for_empty_fields(
         self,
-        col: MockCollection,
+        col: TestCollection,
         addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
@@ -409,7 +409,7 @@ class TestApplyFieldUpdatesWithOperation:
     @with_test_collection("two_deck_collection")
     def test_apply_field_updates_with_operation_applies_updates(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test that apply_field_updates_with_operation applies field updates."""
         # Create 4 new notes with empty fields
@@ -501,7 +501,7 @@ class TestApplyFieldUpdatesWithOperation:
     @with_test_collection("two_deck_collection")
     def test_apply_field_updates_with_operation_handles_nonexistent_fields(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test that apply_field_updates_with_operation handles nonexistent fields."""
         # Create a new note
@@ -583,7 +583,7 @@ class TestApplyFieldUpdatesWithOperation:
     @with_test_collection("two_deck_collection")
     def test_apply_field_updates_with_operation_handles_note_not_found(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test that apply_field_updates_with_operation handles note not found."""
         # Create field updates for a non-existent note ID
@@ -622,7 +622,7 @@ class TestApplyFieldUpdatesWithOperation:
     @with_test_collection("two_deck_collection")
     def test_apply_field_updates_with_operation_no_updates(
         self,
-        col: MockCollection,
+        col: TestCollection,
     ) -> None:
         """Test that apply_field_updates_with_operation handles empty field updates."""
         # Create field updates with no notes

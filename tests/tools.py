@@ -43,7 +43,7 @@ def with_test_collection(name: str) -> Callable[[T], T]:
 
 
 @pytest.fixture
-def test_collection(request: pytest.FixtureRequest) -> Generator[MockCollection, None, None]:
+def test_collection(request: pytest.FixtureRequest) -> Generator[TestCollection, None, None]:
     """
     Fixture that yields the collection named by @with_test_collection(...).
     Raises a RuntimeError if the decorator was not applied.
@@ -60,7 +60,7 @@ def test_collection(request: pytest.FixtureRequest) -> Generator[MockCollection,
         test_function_name=request.function.__name__
     )
 
-    col = MockCollections.get_new_test_collection(name, caller_context)
+    col = TestCollections.get_new_test_collection(name, caller_context)
 
     try:
         yield col
@@ -74,7 +74,10 @@ class CallerContext(NamedTuple):
     test_function_name: Optional[str] = None
 
 
-class MockCollection(Collection):
+class TestCollection(Collection):
+
+    __test__ = False
+
     collection_name: str
     collection_dir: Path
 
@@ -116,7 +119,7 @@ class MockCollection(Collection):
 
         # Failed to find test caller
         raise RuntimeError(
-            "Could not find test method frame. MockCollection must be called from within a test method " +
+            "Could not find test method frame. TestCollection must be called from within a test method " +
             "(function starting with 'test_' in a class starting with 'Test'), or test_instance and " +
             "test_function_name must be provided."
         )
@@ -222,9 +225,11 @@ class MockCollection(Collection):
 
 
 
-class MockCollections:
+class TestCollections:
 
-    last_initiated_test_collection: Optional[MockCollection] = None
+    __test__ = False
+
+    last_initiated_test_collection: Optional[TestCollection] = None
 
     @staticmethod
     def run_cleanup_routine():
@@ -258,18 +263,18 @@ class MockCollections:
                     pass # Not empty or cannot remove → ignore
 
     @staticmethod
-    def get_new_test_collection(test_collection_name: str, caller_context: CallerContext) -> MockCollection:
+    def get_new_test_collection(test_collection_name: str, caller_context: CallerContext) -> TestCollection:
 
-        if MockCollections.last_initiated_test_collection:
-            MockCollections.last_initiated_test_collection.remove()
+        if TestCollections.last_initiated_test_collection:
+            TestCollections.last_initiated_test_collection.remove()
         else: # set up cleanup routine on exit only once
-            atexit.register(MockCollections.run_cleanup_routine)
+            atexit.register(TestCollections.run_cleanup_routine)
 
         collection_dir = TEST_COLLECTIONS_DIR / test_collection_name
 
-        col = MockCollection(test_collection_name, collection_dir, caller_context)
+        col = TestCollection(test_collection_name, collection_dir, caller_context)
 
-        MockCollections.last_initiated_test_collection = col
+        TestCollections.last_initiated_test_collection = col
         atexit.register(col.remove)
 
         return col

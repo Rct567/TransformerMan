@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 from aqt.qt import QWidget, QCheckBox, QLineEdit, QComboBox, QPushButton, Qt
 
 from transformerman.ui.main_window import TransformerManMainWindow
-from tests.tools import with_test_collection, MockCollection, test_collection as test_collection_fixture
+from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
 
 col = test_collection_fixture
 
@@ -31,7 +31,7 @@ class TestTransformerManMainWindow:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        col: MockCollection,
+        col: TestCollection,
         dummy_lm_client: Mock,
         addon_config: AddonConfig,
         user_files_dir: Path,
@@ -76,7 +76,7 @@ class TestTransformerManMainWindow:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        col: MockCollection,
+        col: TestCollection,
         dummy_lm_client: Mock,
         addon_config: AddonConfig,
         user_files_dir: Path,
@@ -126,7 +126,7 @@ class TestTransformerManMainWindow:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        col: MockCollection,
+        col: TestCollection,
         dummy_lm_client: Mock,
         addon_config: AddonConfig,
         user_files_dir: Path,
@@ -185,7 +185,7 @@ class TestTransformerManMainWindow:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        col: MockCollection,
+        col: TestCollection,
         dummy_lm_client: Mock,
         addon_config: AddonConfig,
         user_files_dir: Path,
@@ -241,7 +241,7 @@ class TestTransformerManMainWindow:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        col: MockCollection,
+        col: TestCollection,
         dummy_lm_client: Mock,
         addon_config: AddonConfig,
         user_files_dir: Path,
@@ -291,7 +291,7 @@ class TestTransformerManMainWindow:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        col: MockCollection,
+        col: TestCollection,
         dummy_lm_client: Mock,
         addon_config: AddonConfig,
         user_files_dir: Path,
@@ -327,7 +327,7 @@ class TestTransformerManMainWindow:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        col: MockCollection,
+        col: TestCollection,
         dummy_lm_client: Mock,
         addon_config: AddonConfig,
         user_files_dir: Path,
@@ -359,7 +359,7 @@ class TestTransformerManMainWindow:
         mock_transformer_class: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
-        col: MockCollection,
+        col: TestCollection,
         dummy_lm_client: Mock,
         addon_config: AddonConfig,
         user_files_dir: Path,
@@ -418,7 +418,7 @@ class TestTransformerManMainWindow:
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
-        col: MockCollection,
+        col: TestCollection,
         dummy_lm_client: Mock,
         addon_config: AddonConfig,
         user_files_dir: Path,
