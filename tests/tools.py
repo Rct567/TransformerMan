@@ -17,6 +17,7 @@ import pytest
 
 from anki.collection import Collection
 from anki.media import media_paths_from_col_path
+from unittest.mock import Mock, patch
 
 
 
@@ -297,3 +298,45 @@ def freeze_time_anki(target_time_str: str) -> Generator[None, None, None]:
         yield
     finally:
         time.time = original_time
+
+
+@contextmanager
+def mock_collection_op(col: Collection) -> Generator[Mock, None, None]:
+    """
+    Context manager that mocks CollectionOp to execute operations synchronously.
+
+    This is useful for testing functions that use CollectionOp to run background
+    operations. The mock executes the operation function immediately and calls
+    the success callback with the result.
+
+    Also mocks aqt.mw.taskman to avoid AssertionError in test environment.
+
+    Args:
+        col: The collection to pass to the operation function
+
+    Yields:
+        Mock: The mocked CollectionOp class
+    """
+
+    def mock_collection_op_call(parent: Mock, **kwargs: Any) -> Mock:
+        # Execute the operation function synchronously
+        op_func = kwargs.get('op')
+        if op_func is None:
+            raise ValueError("Missing 'op' argument")
+        changes = op_func(col)
+        # Create a mock operation
+        mock_op = Mock()
+        # When success is called, call the callback with changes
+        def success(callback: Callable[[Any], None]) -> Mock:
+            callback(changes)
+            return mock_op
+        mock_op.success = success
+        mock_op.failure = lambda callback: mock_op  # type: ignore
+        mock_op.run_in_background = Mock()
+        return mock_op
+
+    with patch('transformerman.lib.transform_operations.CollectionOp') as MockCollectionOp:
+        MockCollectionOp.side_effect = mock_collection_op_call
+        with patch('aqt.mw') as mock_mw:
+            mock_mw.taskman = Mock()
+            yield MockCollectionOp

@@ -4,7 +4,7 @@ Tests for transform operations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Any, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
@@ -16,7 +16,7 @@ from transformerman.lib.transform_operations import (
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.prompt_builder import PromptBuilder
-from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
+from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection, mock_collection_op
 
 col = test_collection_fixture
 
@@ -445,41 +445,16 @@ class TestApplyFieldUpdatesWithOperation:
         # Mock parent widget
         parent = Mock()
 
-        # Mock CollectionOp to update notes synchronously
-        with patch('transformerman.lib.transform_operations.CollectionOp') as MockCollectionOp:
-            # Configure mock to call success callback immediately
-            def mock_collection_op_call(parent: Mock, **kwargs: Any) -> Mock:
-                # Execute the operation function synchronously to update notes
-                # The op_func takes a collection and returns changes
-                op_func = kwargs.get('op')
-                if op_func is None:
-                    raise ValueError("Missing 'op' argument")
-                changes = op_func(col)
-                # Create a mock operation
-                mock_op = Mock()
-                # When success is called, call the callback with changes
-                def success(callback: Callable[[Any], None]) -> Mock:
-                    callback(changes)
-                    return mock_op
-                mock_op.success = success
-                mock_op.failure = lambda callback: mock_op # type: ignore
-                mock_op.run_in_background = Mock()
-                return mock_op
-            MockCollectionOp.side_effect = mock_collection_op_call
-
-            # Mock mw and taskman to avoid AssertionError
-            with patch('aqt.mw') as mock_mw:
-                mock_taskman = Mock()
-                mock_mw.taskman = mock_taskman
-
-                # Apply field updates
-                apply_field_updates_with_operation(
-                    parent=parent,
-                    col=col,
-                    field_updates=field_updates,
-                    logger=logger,
-                    on_success=on_success,
-                )
+        # Mock CollectionOp to update notes synchronously using the context manager
+        with mock_collection_op(col) as MockCollectionOp:
+            # Apply field updates
+            apply_field_updates_with_operation(
+                parent=parent,
+                col=col,
+                field_updates=field_updates,
+                logger=logger,
+                on_success=on_success,
+            )
 
             # Verify CollectionOp was called
             assert MockCollectionOp.called, "CollectionOp was not called"
@@ -534,41 +509,16 @@ class TestApplyFieldUpdatesWithOperation:
         # Mock parent widget
         parent = Mock()
 
-        # Mock CollectionOp to update notes synchronously
-        with patch('transformerman.lib.transform_operations.CollectionOp') as MockCollectionOp:
-            # Configure mock to call success callback immediately
-            def mock_collection_op_call(parent: Mock, **kwargs: Any) -> Mock:
-                # Execute the operation function synchronously to update notes
-                # The op_func takes a collection and returns changes
-                op_func = kwargs.get('op')
-                if op_func is None:
-                    raise ValueError("Missing 'op' argument")
-                changes = op_func(col)
-                # Create a mock operation
-                mock_op = Mock()
-                # When success is called, call the callback with changes
-                def success(callback: Callable[[Any], None]) -> Mock:
-                    callback(changes)
-                    return mock_op
-                mock_op.success = success
-                mock_op.failure = lambda callback: mock_op # type: ignore
-                mock_op.run_in_background = Mock()
-                return mock_op
-            MockCollectionOp.side_effect = mock_collection_op_call
-
-            # Mock mw and taskman to avoid AssertionError
-            with patch('aqt.mw') as mock_mw:
-                mock_taskman = Mock()
-                mock_mw.taskman = mock_taskman
-
-                # Apply field updates
-                apply_field_updates_with_operation(
-                    parent=parent,
-                    col=col,
-                    field_updates=field_updates,
-                    logger=logger,
-                    on_success=on_success,
-                )
+        # Mock CollectionOp to update notes synchronously using the context manager
+        with mock_collection_op(col) as _:
+            # Apply field updates
+            apply_field_updates_with_operation(
+                parent=parent,
+                col=col,
+                field_updates=field_updates,
+                logger=logger,
+                on_success=on_success,
+            )
 
         # Verify only valid field was updated
         updated_note = col.get_note(note.id)
