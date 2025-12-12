@@ -19,7 +19,7 @@ from .prompt_builder import PromptBuilder
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
-    from anki.collection import Collection
+    from anki.collection import Collection, OpChanges
     from anki.notes import NoteId
     from .addon_config import AddonConfig
     from .lm_clients import LMClient, LmResponse
@@ -589,7 +589,6 @@ def apply_field_updates_with_operation(
             on_success({"updated": 0, "failed": failed})
         return
 
-    # Run CollectionOp to update notes
     def on_op_success(_: Any) -> None:
         """Called when update notes operation succeeds."""
         if on_success:
@@ -601,5 +600,11 @@ def apply_field_updates_with_operation(
         if on_failure:
             on_failure(exception)
 
+    def transform_operation(col: Collection) -> OpChanges:
+        """Update notes and create undo entry."""
+        pos = col.add_custom_undo_entry("Transforming fields")
+        col.update_notes(notes_to_update)
+        return col.merge_undo_entries(pos)
+
     # Run the operation
-    CollectionOp(parent, lambda col: col.update_notes(notes_to_update)).success(on_op_success).failure(on_op_failure).run_in_background()
+    CollectionOp(parent, op=transform_operation).success(on_op_success).failure(on_op_failure).run_in_background()

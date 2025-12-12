@@ -448,9 +448,12 @@ class TestApplyFieldUpdatesWithOperation:
         # Mock CollectionOp to update notes synchronously
         with patch('transformerman.lib.transform_operations.CollectionOp') as MockCollectionOp:
             # Configure mock to call success callback immediately
-            def mock_collection_op_call(parent: Mock, op_func: Callable) -> Mock:
+            def mock_collection_op_call(parent: Mock, **kwargs: Any) -> Mock:
                 # Execute the operation function synchronously to update notes
                 # The op_func takes a collection and returns changes
+                op_func = kwargs.get('op')
+                if op_func is None:
+                    raise ValueError("Missing 'op' argument")
                 changes = op_func(col)
                 # Create a mock operation
                 mock_op = Mock()
@@ -534,9 +537,12 @@ class TestApplyFieldUpdatesWithOperation:
         # Mock CollectionOp to update notes synchronously
         with patch('transformerman.lib.transform_operations.CollectionOp') as MockCollectionOp:
             # Configure mock to call success callback immediately
-            def mock_collection_op_call(parent: Mock, op_func: Callable) -> Mock:
+            def mock_collection_op_call(parent: Mock, **kwargs: Any) -> Mock:
                 # Execute the operation function synchronously to update notes
                 # The op_func takes a collection and returns changes
+                op_func = kwargs.get('op')
+                if op_func is None:
+                    raise ValueError("Missing 'op' argument")
                 changes = op_func(col)
                 # Create a mock operation
                 mock_op = Mock()
