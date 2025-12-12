@@ -40,7 +40,7 @@
 ### Naming Conventions
 - Use descriptive variable names
 - Constants at class/module level: `UPPER_SNAKE_CASE`
-- Private methods/attributes: `__double_leading_underscore`
+- Private methods/attributes: `_leading_underscore`
 - Boolean variables: prefer `is_`, `has_`, `should_` prefixes
 - Use `is_too_large` not `is_large` for threshold checks
 
@@ -51,18 +51,24 @@
 - Class constants should be defined right after class declaration
 - Import statements should ALWAYS be located at the top of the file
 
-## Testing Requirements
+## Testing
 
-### Test Coverage
+### Test Coverage Requirements
 - Test files go in `tests/` directory
 - Test filename format: `test_<module_name>.py`
 - Test class format: `class Test<ModuleName>:`
 - Use descriptive test method names: `test_<what>_<scenario>`
-
-### Test Structure
 - One test file per module being tested
-- Use pytest fixtures, but try to use the real thing where possible (it often is)
-- Don't test implementation details, instead focus on behavior, usage/consumption and edge cases
+
+### Best practices
+- Use pytest fixtures, but try to use the real thing where possible (avoid mocking if possible).
+- Don't test implementation details, instead focus on behavior, usage/consumption and edge cases.
+- Don't test private methods/attributes, instead test public APIs.
+
+### Test Collections
+
+- **MockCollection is a real Anki collection**: The `MockCollection` class in `tests/tools.py` inherits from `anki.collection.Collection` and provides real (temporary) collection instances for testing.
+- **Available collections**: See `tests/data/collections/README.md` for details on available test collections (e.g., `empty_collection`, `two_deck_collection`).
 
 ## Root Directory Structure
 
@@ -128,7 +134,7 @@
 2. **Write or update tests** if appropriate
 3. **Run tests**: `pytest -vv --full-trace --showlocals --maxfail=3`
 4. **Fix issues** if tests fail and run tests again
-5. **Check code**: `ruff check && mypy && pyright`
+5. **Check code**: `ruff check && pyright` (and `pytest` if appropriate)
 6. **Verify** all checks pass before considering task complete
 
-Note: `ruff check`, `mypy`, `pyright` and `pytest` should **ALWAYS** be run before ending a task!
+Note: `ruff check`, `pyright` and `pytest` should **ALWAYS** be run before ending a task!
