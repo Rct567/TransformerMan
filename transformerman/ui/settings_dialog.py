@@ -132,10 +132,11 @@ class SettingsDialog(TransformerManBaseDialog):
         self.save_button.setFixedWidth(80)
         self.save_button.setDefault(True)  # Make Save the default button
 
-        self.reset_button = QPushButton("Reset")
-        self.reset_button.clicked.connect(self._on_reset_clicked)
+        self.reset_button = QPushButton("Restore")
+        self.reset_button.clicked.connect(self._on_restore_clicked)
         self.reset_button.setEnabled(False)
         self.reset_button.setFixedWidth(80)
+        self.reset_button.setToolTip("Discard unsaved changes and restore last saved configuration")
 
         button_layout.addWidget(self.reset_button)
         button_layout.addWidget(self.save_button)
@@ -240,13 +241,13 @@ class SettingsDialog(TransformerManBaseDialog):
             if index >= 0:
                 self.model_combo.setCurrentIndex(index)
 
-    def _on_reset_clicked(self) -> None:
-        """Handle reset button click."""
+    def _on_restore_clicked(self) -> None:
+        """Handle restore button click."""
         # Reload settings from config
         self.addon_config.reload()
         self._load_settings()
 
-        # Disable save and reset buttons
+        # Disable save and restore buttons
         self.save_button.setEnabled(False)
         self.reset_button.setEnabled(False)
 

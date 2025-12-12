@@ -73,7 +73,7 @@ class TestSettingsDialog:
 
         assert hasattr(dialog, 'reset_button')
         assert isinstance(dialog.reset_button, QPushButton)
-        assert dialog.reset_button.text() == "Reset"
+        assert dialog.reset_button.text() == "Restore"
 
     def test_settings_loaded_on_creation(
         self,
@@ -329,4 +329,3 @@ class TestSettingsDialog:
         dialog.close()
         qtbot.waitUntil(lambda: not dialog.isVisible())
         assert not dialog.isVisible()
-
