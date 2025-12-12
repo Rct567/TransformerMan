@@ -53,8 +53,10 @@ class LMClient(ABC):
     logger: logging.Logger
     _api_key: ApiKey
     _model: ModelName
+    _connect_timeout: int
+    _read_timeout: int
 
-    def __init__(self, api_key: ApiKey, model: ModelName) -> None:
+    def __init__(self, api_key: ApiKey, model: ModelName, timeout: int = 120, connect_timeout: int = 10) -> None:
 
         if model not in self.get_available_models():
             raise ValueError(f"Model {model} is not available for {self.id} LMClient")
@@ -62,9 +64,23 @@ class LMClient(ABC):
         if self.api_key_required() and not api_key:
             raise ValueError(f"API key is required for {self.id} LMClient")
 
+        if timeout <= 0:
+            raise ValueError(f"Timeout must be positive, got {timeout}")
+        if connect_timeout <= 0:
+            raise ValueError(f"Connect timeout must be positive, got {connect_timeout}")
+        if timeout <= connect_timeout:
+            raise ValueError(f"Total timeout ({timeout}) must be greater than connect timeout ({connect_timeout})")
+
         self._api_key = api_key
         self._model = model
+        self._connect_timeout = connect_timeout
+        self._read_timeout = timeout - connect_timeout
         self.logger = logging.getLogger(__name__)
+
+    @property
+    def _total_timeout(self) -> int:
+        """Total timeout (connect + read)."""
+        return self._connect_timeout + self._read_timeout
 
     @property
     @abstractmethod
@@ -180,7 +196,12 @@ class OpenAILMClient(LMClient):
         }
 
         try:
-            response = requests.post(url, headers=headers, json=data, timeout=30)
+            response = requests.post(
+                url,
+                headers=headers,
+                json=data,
+                timeout=(self._connect_timeout, self._read_timeout)
+            )
             response.raise_for_status()
             result = response.json()
 
@@ -269,7 +290,7 @@ class ClaudeLMClient(LMClient):
         try:
             json_data = json.dumps(data).encode("utf-8")
             req = urllib.request.Request(url, data=json_data, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=30) as response:
+            with urllib.request.urlopen(req, timeout=self._total_timeout) as response:
                 result = json.loads(response.read().decode("utf-8"))
 
             # Extract text from response
@@ -337,7 +358,7 @@ class GeminiLMClient(LMClient):
             req = urllib.request.Request(
                 url, data=json.dumps(data).encode("utf-8"), headers=headers
             )
-            with urllib.request.urlopen(req, timeout=30) as response:
+            with urllib.request.urlopen(req, timeout=self._total_timeout) as response:
                 result = json.loads(response.read().decode("utf-8"))
 
             # Extract text from response
@@ -415,7 +436,7 @@ class DeepSeekLMClient(LMClient):
         try:
             json_data = json.dumps(data).encode("utf-8")
             req = urllib.request.Request(url, data=json_data, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=30) as response:
+            with urllib.request.urlopen(req, timeout=self._total_timeout) as response:
                 result = json.loads(response.read().decode("utf-8"))
 
             # Extract text from response

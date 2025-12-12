@@ -4,5 +4,7 @@
     "max_prompt_size": 500000,
     "log_lm_requests": false,
     "log_lm_responses": false,
-    "show_tm_in_browser_top_menu": false
+    "show_tm_in_browser_top_menu": false,
+    "timeout": 120,
+    "connect_timeout": 10
 }

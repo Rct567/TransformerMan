@@ -115,6 +115,38 @@ class AddonConfig:
 
         return max_prompt_size
 
+    def get_timeout(self) -> int:
+        """
+        Get the total timeout from configuration with validation.
+
+        Returns:
+            Total timeout in seconds (default: 120).
+        """
+        assert self.__config is not None
+
+        timeout = self.get("timeout", 120)
+
+        if not isinstance(timeout, int) or timeout <= 0:
+            timeout = 120
+
+        return timeout
+
+    def get_connect_timeout(self) -> int:
+        """
+        Get the connect timeout from configuration with validation.
+
+        Returns:
+            Connect timeout in seconds (default: 10).
+        """
+        assert self.__config is not None
+
+        connect_timeout = self.get("connect_timeout", 10)
+
+        if not isinstance(connect_timeout, int) or connect_timeout <= 0:
+            connect_timeout = 10
+
+        return connect_timeout
+
     def get_client(self) -> tuple[Optional[LMClient], Optional[str]]:
         """Return the configured LM client, or None if the client is unknown."""
         if self.__config is None:
@@ -157,7 +189,7 @@ class AddonConfig:
 
         # Create client with proper types
         model = ModelName(model_str)
-        client = client_class(api_key, model)
+        client = client_class(api_key, model, self.get_timeout(), self.get_connect_timeout())
         return client, None
 
     @staticmethod

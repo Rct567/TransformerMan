@@ -103,6 +103,16 @@ class SettingsDialog(TransformerManBaseDialog):
         self.max_prompt_size_spin.valueChanged.connect(self._on_setting_changed)
         form_layout.addRow("Max Prompt Size:", self.max_prompt_size_spin)
 
+        # Timeout
+        self.timeout_spin = FormattedSpinBox()
+        self.timeout_spin.setMinimum(60)  # 1 second minimum
+        self.timeout_spin.setMaximum(600)  # 600 seconds (10 minutes) maximum
+        self.timeout_spin.setValue(120)  # Default 120 seconds
+        self.timeout_spin.setSuffix(" seconds")
+        self.timeout_spin.setSingleStep(10)  # Step by 10 seconds
+        self.timeout_spin.valueChanged.connect(self._on_setting_changed)
+        form_layout.addRow("Timeout:", self.timeout_spin)
+
         # Add the form layout to the group layout
         group_layout.addLayout(form_layout)
 
@@ -167,6 +177,9 @@ class SettingsDialog(TransformerManBaseDialog):
         # Load max prompt size
         self.max_prompt_size_spin.setValue(self.addon_config.get_max_prompt_size())
 
+        # Load timeout
+        self.timeout_spin.setValue(self.addon_config.get_timeout())
+
         self._is_loading_settings = False
 
     def _on_save_clicked(self) -> None:
@@ -190,6 +203,12 @@ class SettingsDialog(TransformerManBaseDialog):
         if max_prompt_size < 10_000:
             max_prompt_size = 10_000
         self.addon_config.update_setting("max_prompt_size", max_prompt_size)
+
+        # Save timeout
+        timeout = self.timeout_spin.value()
+        if timeout < 1:
+            timeout = 1
+        self.addon_config.update_setting("timeout", timeout)
 
         # Disable save and reset buttons after saving
         self.save_button.setEnabled(False)
