@@ -131,15 +131,20 @@ class PromptBuilder:
         self,
         target_notes: SelectedNotes,
         selected_fields: Sequence[str],
-        note_type_name: str,
+        writable_fields: Sequence[str] | None,
+        note_type_name: str = "",
     ) -> str:
         """
         Build a complete prompt for the LM including examples and target notes.
-
-        Precondition: `target_notes` must contain at least one note with an empty field
-        among `selected_fields`. This is enforced by an assertion.
+        Precondition: `target_notes` must contain at least one note with an empty field;
         """
-        assert target_notes.has_note_with_empty_field(selected_fields)
+
+        if writable_fields is None:
+            target_fields = selected_fields
+        else:
+            target_fields = writable_fields
+
+        assert target_notes.has_note_with_empty_field(target_fields)
 
         # Get example notes
         example_notes = self._select_example_notes(target_notes, selected_fields, note_type_name)
@@ -163,6 +168,13 @@ class PromptBuilder:
             else:
                 prompt_parts.append("- Fill empty fields intelligently based on field names and deck context.")
 
+            if writable_fields:
+                if len(writable_fields) == 1:
+                    prompt_parts.append(f"- Fill in only the following empty field: \"{writable_fields[0]}\".")
+                else:
+                    fields_str = ", ".join(f"'{f}'" for f in writable_fields)
+                    prompt_parts.append(f"- Fill in only the following empty fields: {fields_str}.")
+
         # Only include examples section if there are examples
         if example_notes:
             prompt_parts.extend(
@@ -176,20 +188,26 @@ class PromptBuilder:
             )
 
         # Get target notes and filter to only include those with empty fields
-        notes_with_empty_fields = [
-            note for note in target_notes.get_notes()
-            if SelectedNotes.has_empty_field(note, selected_fields)
-        ]
+        notes_with_empty_fields = [note for note in target_notes.get_notes() if SelectedNotes.has_empty_field(note, target_fields)]
 
         # Add target notes
         if not notes_with_empty_fields:
             raise ValueError("No notes with empty fields found")
 
-        prompt_parts.extend([
-            "Please fill the empty fields in the following notes and return them in the same XML format:",
-            "",
-            self._format_notes_as_xml(notes_with_empty_fields, note_type_name, selected_fields),
-        ])
+        if writable_fields:
+            if len(writable_fields) == 1:
+                prompt_parts.append("Please fill the specified empty field (\"{}\") in the following notes and return them in the same XML format:".format(writable_fields[0]))
+            else:
+                prompt_parts.append("Please fill the specified empty fields in the following notes and return them in the same XML format:")
+        else:
+            prompt_parts.append("Please fill the empty fields in the following notes and return them in the same XML format:")
+
+        prompt_parts.extend(
+            [
+                "",
+                self._format_notes_as_xml(notes_with_empty_fields, note_type_name, selected_fields),
+            ]
+        )
 
         return "\n".join(prompt_parts)
 
@@ -233,9 +251,9 @@ class PromptBuilder:
         # Try refined query first: filter out notes with empty selected fields
         refined_query_parts = [f'"note:{note_type_name}"']
         for field in selected_fields:
-            refined_query_parts.append(f'-{field}:')
+            refined_query_parts.append(f"-{field}:")
 
-        candidate_note_ids = find_candidate_notes(' '.join(refined_query_parts))
+        candidate_note_ids = find_candidate_notes(" ".join(refined_query_parts))
 
         # If refined query doesn't produce enough candidate notes, fall back to original query
         if len(candidate_note_ids) < max_examples:
@@ -301,6 +319,6 @@ class PromptBuilder:
         for note in notes:
             lines.append(self._format_note_as_xml(note, fields_included))
 
-        lines.append('</notes>')
+        lines.append("</notes>")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)

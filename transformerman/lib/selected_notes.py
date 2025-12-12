@@ -187,6 +187,7 @@ class SelectedNotes:
         self,
         prompt_builder: PromptBuilder,
         selected_fields: Sequence[str],
+        writable_fields: Sequence[str] | None,
         note_type_name: str,
         max_chars: int,
     ) -> list[SelectedNotes]:
@@ -208,8 +209,11 @@ class SelectedNotes:
         if not self._note_ids:
             return []
 
+        if writable_fields is None:
+            writable_fields = selected_fields
+
         # Filter to only notes with empty fields (these are the ones that will be in the prompt)
-        notes_with_empty_fields = self.filter_by_empty_field(selected_fields)
+        notes_with_empty_fields = self.filter_by_empty_field(writable_fields)
         if not notes_with_empty_fields:
             return []
 
@@ -229,6 +233,7 @@ class SelectedNotes:
             return prompt_builder.build_prompt(
                 target_notes=test_selected_notes,
                 selected_fields=selected_fields,
+                writable_fields=writable_fields,
                 note_type_name=note_type_name,
             )
 

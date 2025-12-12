@@ -60,7 +60,7 @@ class TestNoteTransformer:
 
         # The collection's notes have no empty fields in "Front" or "Back"
         # So validation should raise ValueError
-        with pytest.raises(ValueError, match="No notes with empty fields found"):
+        with pytest.raises(ValueError, match="No notes with empty writable fields found"):
             NoteTransformer(
                 col=col,
                 selected_notes=selected_notes,
@@ -68,6 +68,7 @@ class TestNoteTransformer:
                 lm_client=dummy_client,
                 prompt_builder=prompt_builder,
                 selected_fields=["Front"],  # Field that exists and is non-empty
+                writable_fields=["Front"],
                 note_type_name="Basic",
                 max_prompt_size=500000,
                 addon_config=addon_config,
@@ -113,6 +114,7 @@ class TestNoteTransformer:
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
+            writable_fields=["Front"],
             note_type_name="Basic",
             max_prompt_size=1000,
             addon_config=addon_config,
@@ -182,6 +184,7 @@ class TestNoteTransformer:
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
+            writable_fields=["Front"],
             note_type_name="Basic",
             max_prompt_size=500000,
             addon_config=addon_config,
@@ -240,6 +243,7 @@ class TestNoteTransformer:
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
+            writable_fields=["Front"],
             note_type_name="Basic",
             max_prompt_size=500000,
             addon_config=addon_config,
@@ -314,6 +318,7 @@ class TestNoteTransformer:
                 lm_client=dummy_client,
                 prompt_builder=prompt_builder,
                 selected_fields=["Front"],
+                writable_fields=["Front"],
                 note_type_name="Basic",
                 max_prompt_size=500000,
                 addon_config=addon_config,
@@ -376,6 +381,7 @@ class TestNoteTransformer:
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
+            writable_fields=["Front"],
             note_type_name="Basic",
             max_prompt_size=500000,
             addon_config=addon_config,

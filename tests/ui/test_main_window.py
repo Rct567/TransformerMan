@@ -23,6 +23,7 @@ from tests.tools import with_test_collection, TestCollection, test_collection as
 
 col = test_collection_fixture
 
+
 class TestTransformerManMainWindow:
     """Test class for TransformerManMainWindow."""
 
@@ -179,7 +180,6 @@ class TestTransformerManMainWindow:
         assert window.note_type_combo.currentText() == "Basic"
         assert window.current_note_type == "Basic"
 
-
     @with_test_collection("two_deck_collection")
     def test_field_checkboxes_created(
         self,
@@ -222,7 +222,6 @@ class TestTransformerManMainWindow:
         # Checkboxes should be QCheckBox instances
         front_checkbox = window.field_checkboxes["Front"]
         assert isinstance(front_checkbox, QCheckBox)
-        assert front_checkbox.text() == "Front"
 
         # First two fields should be checked by default
         assert front_checkbox.isChecked()
@@ -403,12 +402,21 @@ class TestTransformerManMainWindow:
         window.note_type_combo.currentTextChanged.emit("Basic")
         qtbot.waitUntil(lambda: len(window.field_checkboxes) > 0)
 
+        # Check the "Front" writable checkbox
+        if "Front" in window.writable_checkboxes:
+            window.writable_checkboxes["Front"].setChecked(True)
+            window.writable_checkboxes["Front"].toggled.emit(True)
+
         # Click preview button
         qtbot.mouseClick(window.preview_button, Qt.MouseButton.LeftButton)
 
         # Should call transformer.transform() method
+        # Should call transformer.transform() method
         mock_transformer_instance.transform.assert_called_once()
-
+        # Verify call args include writable_fields
+        call_kwargs = mock_transformer_instance.transform.call_args.kwargs
+        assert "writable_fields" in call_kwargs
+        assert "Front" in call_kwargs["writable_fields"]
 
         # showInfo should not be called (we have notes with empty fields)
         mock_show_info.assert_not_called()

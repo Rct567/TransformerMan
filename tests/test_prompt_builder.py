@@ -37,6 +37,7 @@ class TestPromptBuilder:
         prompt = builder.build_prompt(
             target_notes=selected_notes,
             selected_fields=["Front"],
+            writable_fields=None,
             note_type_name="Basic",
         )
 
@@ -85,6 +86,7 @@ class TestPromptBuilder:
         prompt = builder.build_prompt(
             target_notes=selected_notes,
             selected_fields=["Front", "Back"],
+            writable_fields=None,
             note_type_name="Basic",
         )
 
@@ -129,6 +131,7 @@ class TestPromptBuilder:
         prompt = builder.build_prompt(
             target_notes=selected_notes,
             selected_fields=["Front"],
+            writable_fields=["Front"],
             note_type_name="Basic",
         )
 
@@ -176,14 +179,15 @@ class TestPromptBuilder:
         prompt = builder.build_prompt(
             target_notes=selected_notes,
             selected_fields=["Front"],
+            writable_fields=["Front"],
             note_type_name="Basic",
         )
 
         # Strategic assertions
         assert prompt.count("Here are some example notes") == 1  # Examples section should be present exactly once
         # Since we created examples, there should be exactly 2 <notes> tags
-        assert prompt.count("<notes model=\"Basic\">") == 2
-        assert "<field name=\"Front\">" in prompt
+        assert prompt.count('<notes model="Basic">') == 2
+        assert '<field name="Front">' in prompt
         # The prompt should contain the target note
         assert f'<note nid="{target_note.id}"' in prompt
         # The prompt should contain example notes
