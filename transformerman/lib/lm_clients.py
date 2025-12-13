@@ -13,12 +13,12 @@ import requests
 
 from .utilities import override
 from .xml_parser import notes_from_xml
-from .http_utils import make_api_request_json, ProgressData
+from .http_utils import make_api_request_json, LmProgressData
 
 import logging
 
-ApiKey = NewType('ApiKey', str)
-ModelName = NewType('ModelName', str)
+ApiKey = NewType("ApiKey", str)
+ModelName = NewType("ModelName", str)
 
 if TYPE_CHECKING:
     from anki.notes import NoteId
@@ -28,12 +28,7 @@ if TYPE_CHECKING:
 class LmResponse:
     """Response from a language model containing the text response and parsed notes."""
 
-    def __init__(
-        self,
-        text_response: str,
-        error: str | None = None,
-        exception: Exception | None = None
-    ) -> None:
+    def __init__(self, text_response: str, error: str | None = None, exception: Exception | None = None) -> None:
         self.text_response = text_response
         self.error = error
         self.exception = exception
@@ -86,7 +81,7 @@ class LMClient(ABC):
         return True
 
     @abstractmethod
-    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
         pass
 
     @staticmethod
@@ -109,8 +104,7 @@ class DummyLMClient(LMClient):
         return False
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
-
+    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
         # Extract note IDs and field names from the prompt
         # This is a simple implementation that looks for empty fields
 
@@ -170,7 +164,7 @@ class OpenAILMClient(LMClient):
         return "openai"
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
         """Transform notes using OpenAI API."""
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for OpenAILMClient")
@@ -182,10 +176,9 @@ class OpenAILMClient(LMClient):
         }
         data = {
             "model": self._model,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
+            "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.7,
+            "stream": True,
         }
 
         try:
@@ -259,7 +252,7 @@ class ClaudeLMClient(LMClient):
         return "claude"
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
         """Transform notes using Claude API."""
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for ClaudeLMClient")
@@ -269,9 +262,8 @@ class ClaudeLMClient(LMClient):
         data = {
             "model": self._model,
             "max_tokens": 1024,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
         }
 
         headers = {
@@ -338,12 +330,12 @@ class GeminiLMClient(LMClient):
         return "gemini"
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
         """Transform notes using Gemini API."""
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for GeminiLMClient")
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:streamGenerateContent?alt=sse"
 
         data = {"contents": [{"parts": [{"text": prompt}]}]}
 
@@ -406,14 +398,13 @@ class GeminiLMClient(LMClient):
 
 
 class DeepSeekLMClient(LMClient):
-
     @property
     @override
     def id(self) -> str:
         return "deepseek"
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
         """Transform notes using DeepSeek API."""
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for DeepSeekLMClient")
@@ -421,11 +412,9 @@ class DeepSeekLMClient(LMClient):
         url = "https://api.deepseek.com/chat/completions"
 
         data = {
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
+            "messages": [{"role": "user", "content": prompt}],
             "model": self._model,
-            "stream": False,
+            "stream": True,
             "temperature": 1.0,
             "max_tokens": 1000,
         }

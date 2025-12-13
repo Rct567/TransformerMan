@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from .addon_config import AddonConfig
     from .lm_clients import LMClient, LmResponse
     from .selected_notes import SelectedNotes
+    from .http_utils import LmProgressData
 
 
 class TransformResults(TypedDict):
@@ -46,7 +47,7 @@ class CacheKey(NamedTuple):
 
 def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[Callable[[str], None], Callable[[LmResponse], None]]:
     """Create logging functions for LM requests and responses."""
-    logs_dir = user_files_dir / 'logs'
+    logs_dir = user_files_dir / "logs"
 
     log_requests_enabled = addon_config.is_enabled("log_lm_requests", False)
     log_responses_enabled = addon_config.is_enabled("log_lm_responses", False)
@@ -141,6 +142,7 @@ class NoteTransformer:
         batch_selected_notes: SelectedNotes,
         log_request: Callable[[str], None],
         log_response: Callable[[LmResponse], None],
+        progress_callback: Callable[[LmProgressData], None] | None = None,
     ) -> tuple[int, int, dict[NoteId, dict[str, str]], str | None]:
         """
         Get field updates for a single batch of notes (preview mode).
@@ -149,6 +151,7 @@ class NoteTransformer:
             batch_selected_notes: Batch of notes to process.
             log_request: Function to log LM requests.
             log_response: Function to log LM responses.
+            progress_callback: Optional callback for detailed progress.
 
         Returns:
             Tuple of (updated_count, failed_count, field_updates, error) for this batch.
@@ -162,15 +165,13 @@ class NoteTransformer:
 
         try:
             # Build prompt
-            prompt = self.prompt_builder.build_prompt(
-                batch_selected_notes, self.selected_fields, self.writable_fields, self.note_type_name
-            )
+            prompt = self.prompt_builder.build_prompt(batch_selected_notes, self.selected_fields, self.writable_fields, self.note_type_name)
 
             # Log request
             log_request(prompt)
 
             # Get LM response
-            response = self.lm_client.transform(prompt)
+            response = self.lm_client.transform(prompt, progress_callback=progress_callback)
 
             # Log response
             log_response(response)
@@ -214,7 +215,7 @@ class NoteTransformer:
 
     def get_field_updates(
         self,
-        progress_callback: Callable[[int, int], None] | None = None,
+        progress_callback: Callable[[int, int, LmProgressData | None], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
     ) -> tuple[TransformResults, dict[NoteId, dict[str, str]]]:
         """
@@ -224,7 +225,7 @@ class NoteTransformer:
 
         Args:
             progress_callback: Optional callback for progress reporting.
-                Called with (current_batch, total_batches).
+                Called with (current_batch, total_batches, detailed_progress).
             should_cancel: Optional callback to check if operation should be canceled.
                 Should return True if operation should be canceled.
 
@@ -248,10 +249,14 @@ class NoteTransformer:
 
             # Report progress
             if progress_callback:
-                progress_callback(batch_idx, self.num_batches)
+                progress_callback(batch_idx, self.num_batches, None)
+
+            def batch_progress_callback(data: LmProgressData, current_batch_idx: int = batch_idx) -> None:
+                if progress_callback:
+                    progress_callback(current_batch_idx, self.num_batches, data)
 
             # Get field updates for batch (preview mode)
-            num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(batch_selected_notes, log_request, log_response)
+            num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(batch_selected_notes, log_request, log_response, progress_callback=batch_progress_callback)
 
             # Check for error in batch
             if batch_error is not None:
@@ -265,7 +270,7 @@ class NoteTransformer:
 
         # Report completion
         if progress_callback:
-            progress_callback(self.num_batches, self.num_batches)
+            progress_callback(self.num_batches, self.num_batches, None)
 
         results: TransformResults = {
             "num_notes_updated": total_updated,
@@ -478,15 +483,36 @@ class TransformNotesWithProgress:
         )
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)  # Show immediately
+        progress.setMinimumWidth(300)
         progress.show()
 
         def process_batches(col: Collection) -> tuple[TransformResults, dict[NoteId, dict[str, str]]]:
             """Background operation that processes each batch."""
+
             # Create callbacks for progress and cancellation
-            def progress_callback(current: int, total: int) -> None:
+            def progress_callback(current: int, total: int, detailed: LmProgressData | None = None) -> None:
                 def update_ui() -> None:
-                    progress.setLabelText(f"Processing batch {current + 1} of {total}...")
+                    if detailed:
+                        # Format detailed progress
+                        if not detailed.text_chunk:  # Download phase
+                            size_kb = detailed.total_chars / 1024
+                            speed_kb_s = (detailed.total_chars / detailed.elapsed) / 1024 if detailed.elapsed > 0 else 0
+
+                            if detailed.content_length:
+                                total_kb = detailed.content_length / 1024
+                                msg = f"Receiving response... ({size_kb:.0f} KB / {total_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+                            else:
+                                msg = f"Receiving response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+
+                            progress.setLabelText(f"Processing batch {current + 1} of {total}...\n{msg}")
+                        else:
+                            # Parsing phase
+                            progress.setLabelText(f"Processing batch {current + 1} of {total}...\nProcessing response... ({detailed.total_chars} chars)")
+                    else:
+                        progress.setLabelText(f"Processing batch {current + 1} of {total}...")
+
                     progress.setValue(current)
+
                 mw.taskman.run_on_main(update_ui)
 
             def should_cancel() -> bool:

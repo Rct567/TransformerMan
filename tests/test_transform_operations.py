@@ -4,7 +4,7 @@ Tests for transform operations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Optional, cast
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from anki.notes import NoteId
     from pathlib import Path
     from transformerman.lib.addon_config import AddonConfig
+    from transformerman.lib.http_utils import LmProgressData
 
 
 
@@ -193,7 +194,8 @@ class TestNoteTransformer:
 
         # Track progress calls
         progress_calls = []
-        def progress_callback(current: int, total: int) -> None:
+
+        def progress_callback(current: int, total: int, _: Optional[LmProgressData] = None) -> None:
             progress_calls.append((current, total))
 
         # Get field updates with progress callback
