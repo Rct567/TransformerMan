@@ -97,7 +97,6 @@ class SettingsDialog(TransformerManBaseDialog):
         self.max_prompt_size_spin = FormattedSpinBox()
         self.max_prompt_size_spin.setMinimum(10_000)  # 10k characters minimum
         self.max_prompt_size_spin.setMaximum(1_000_000)  # 1M characters maximum
-        self.max_prompt_size_spin.setValue(500_000)  # Default 500k characters
         self.max_prompt_size_spin.setSuffix(" characters")
         self.max_prompt_size_spin.setSingleStep(10_000)  # Step by 10k
         self.max_prompt_size_spin.valueChanged.connect(self._on_setting_changed)
@@ -107,7 +106,6 @@ class SettingsDialog(TransformerManBaseDialog):
         self.timeout_spin = FormattedSpinBox()
         self.timeout_spin.setMinimum(60)  # 1 second minimum
         self.timeout_spin.setMaximum(600)  # 600 seconds (10 minutes) maximum
-        self.timeout_spin.setValue(120)  # Default 120 seconds
         self.timeout_spin.setSuffix(" seconds")
         self.timeout_spin.setSingleStep(10)  # Step by 10 seconds
         self.timeout_spin.valueChanged.connect(self._on_setting_changed)

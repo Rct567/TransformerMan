@@ -15,6 +15,11 @@ if TYPE_CHECKING:
 from .lm_clients import LM_CLIENTS, LMClient, get_lm_client_class, ApiKey, ModelName
 
 
+DEFAULT_MAX_PROMPT_SIZE = 100_000
+DEFAULT_TIMEOUT = 240
+DEFAULT_CONNECT_TIMEOUT = 10
+
+
 class AddonConfig:
 
     __config: Optional[dict[str, JSON_TYPE]]
@@ -100,50 +105,35 @@ class AddonConfig:
         self.update_setting(client_key, api_key)
 
     def get_max_prompt_size(self) -> int:
-        """
-        Get the maximum prompt size from configuration with validation.
-
-        Returns:
-            Maximum prompt size in characters (default: 500_000).
-        """
+        """Get the maximum prompt size from configuration with validation."""
         assert self.__config is not None
 
-        max_prompt_size = self.get("max_prompt_size", 500_000)
+        max_prompt_size = self.get("max_prompt_size", DEFAULT_MAX_PROMPT_SIZE)
 
         if not isinstance(max_prompt_size, int) or max_prompt_size <= 0:
-            max_prompt_size = 500_000
+            max_prompt_size = DEFAULT_MAX_PROMPT_SIZE
 
         return max_prompt_size
 
     def get_timeout(self) -> int:
-        """
-        Get the total timeout from configuration with validation.
-
-        Returns:
-            Total timeout in seconds (default: 120).
-        """
+        """Get the total timeout from configuration with validation."""
         assert self.__config is not None
 
-        timeout = self.get("timeout", 120)
+        timeout = self.get("timeout", DEFAULT_TIMEOUT)
 
         if not isinstance(timeout, int) or timeout <= 0:
-            timeout = 120
+            timeout = DEFAULT_TIMEOUT
 
         return timeout
 
     def get_connect_timeout(self) -> int:
-        """
-        Get the connect timeout from configuration with validation.
-
-        Returns:
-            Connect timeout in seconds (default: 10).
-        """
+        """Get the connect timeout from configuration with validation."""
         assert self.__config is not None
 
-        connect_timeout = self.get("connect_timeout", 10)
+        connect_timeout = self.get("connect_timeout", DEFAULT_CONNECT_TIMEOUT)
 
         if not isinstance(connect_timeout, int) or connect_timeout <= 0:
-            connect_timeout = 10
+            connect_timeout = DEFAULT_CONNECT_TIMEOUT
 
         return connect_timeout
 
