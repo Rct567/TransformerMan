@@ -20,7 +20,7 @@ class TestPromptBuilder:
         col: TestCollection,
     ) -> None:
         """Test build_prompt creates basic prompt with notes containing empty fields."""
-        # Get two existing note IDs (deterministic order)
+        # Get two existing note IDs
         note_ids = sorted(col.find_notes(""))[:2]
         # Modify them to have empty Front fields
         model = col.models.by_name("Basic")
@@ -33,7 +33,6 @@ class TestPromptBuilder:
         selected_notes = SelectedNotes(col, note_ids)
         builder = PromptBuilder(col)
 
-        # Build prompt
         prompt = builder.build_prompt(
             target_notes=selected_notes,
             selected_fields=["Front"],
@@ -41,25 +40,33 @@ class TestPromptBuilder:
             note_type_name="Basic",
         )
 
-        # Strategic assertions about the prompt structure
-        assert "You are an Anki note assistant" in prompt
-        assert "Please fill the empty fields" in prompt
-        # Examples should be present from test collection, so exactly 2 <notes> tags
-        assert prompt.count('<notes model="Basic">') == 2
+        prompt_with_writeable_fields = builder.build_prompt(
+            target_notes=selected_notes,
+            selected_fields=["Front", "Back"],
+            writable_fields=["Front"],
+            note_type_name="Basic",
+        )
 
-        # Check that our modified notes appear in the prompt
-        for note_id in note_ids:
-            assert f'<note nid="{note_id}"' in prompt
+        def check_prompt(prompt: str):
 
-        # Check that empty Front fields are present for our notes
-        assert prompt.count('<field name="Front"></field>') == 2
-        # Total field tags may vary depending on example selection; we just ensure at least 2
-        assert prompt.count('<field ') >= 2
+            assert "You are an Anki note assistant" in prompt
+            assert "Please fill" in prompt
 
-        # There should be exactly 2 </notes> tags (examples + target)
-        assert prompt.count("</notes>") == 2
+            assert prompt.count('<notes model="Basic">') == 2 # example list + target list
+
+            # Check that our modified notes appear in the prompt
+            for note_id in note_ids:
+                assert f'<note nid="{note_id}"' in prompt
+
+            assert prompt.count('<field name="Front"></field>') == 2 # 2 notes selected and targeted
+            assert prompt.count('<field name="Front"') == 5 # 3 example fields + 2 empty fields
+            assert prompt.count("</notes>") == 2 # examples + target list
+
+        check_prompt(prompt)
+        check_prompt(prompt_with_writeable_fields)
 
         col.lock_and_assert_result('test_build_prompt_basic', prompt)
+        col.lock_and_assert_result('test_build_prompt_basic_with_writeable_fields', prompt_with_writeable_fields)
 
     @with_test_collection("two_deck_collection")
     def test_build_prompt_with_field_instructions(
