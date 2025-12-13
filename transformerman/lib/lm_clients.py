@@ -5,17 +5,15 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NewType
+from typing import TYPE_CHECKING, NewType, Callable, Optional
 from abc import ABC, abstractmethod
 
-import json
 import re
-import urllib.error
-import urllib.request
 import requests
 
 from .utilities import override
 from .xml_parser import notes_from_xml
+from .http_utils import make_api_request_json, ProgressData
 
 import logging
 
@@ -78,11 +76,6 @@ class LMClient(ABC):
         self.logger = logging.getLogger(__name__)
 
     @property
-    def _total_timeout(self) -> int:
-        """Total timeout (connect + read)."""
-        return self._connect_timeout + self._read_timeout
-
-    @property
     @abstractmethod
     def id(self) -> str:
         """Return the unique identifier for this LM client."""
@@ -93,7 +86,7 @@ class LMClient(ABC):
         return True
 
     @abstractmethod
-    def transform(self, prompt: str) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
         pass
 
     @staticmethod
@@ -116,7 +109,7 @@ class DummyLMClient(LMClient):
         return False
 
     @override
-    def transform(self, prompt: str) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
 
         # Extract note IDs and field names from the prompt
         # This is a simple implementation that looks for empty fields
@@ -177,7 +170,7 @@ class OpenAILMClient(LMClient):
         return "openai"
 
     @override
-    def transform(self, prompt: str) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
         """Transform notes using OpenAI API."""
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for OpenAILMClient")
@@ -196,14 +189,15 @@ class OpenAILMClient(LMClient):
         }
 
         try:
-            response = requests.post(
-                url,
+            result = make_api_request_json(
+                url=url,
+                method="POST",
                 headers=headers,
-                json=data,
-                timeout=(self._connect_timeout, self._read_timeout)
+                json_data=data,
+                connect_timeout=self._connect_timeout,
+                read_timeout=self._read_timeout,
+                progress_callback=progress_callback,
             )
-            response.raise_for_status()
-            result = response.json()
 
             # Extract text from response
             try:
@@ -265,11 +259,10 @@ class ClaudeLMClient(LMClient):
         return "claude"
 
     @override
-    def transform(self, prompt: str) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
         """Transform notes using Claude API."""
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for ClaudeLMClient")
-
 
         url = "https://api.anthropic.com/v1/messages"
 
@@ -288,10 +281,15 @@ class ClaudeLMClient(LMClient):
         }
 
         try:
-            json_data = json.dumps(data).encode("utf-8")
-            req = urllib.request.Request(url, data=json_data, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=self._total_timeout) as response:
-                result = json.loads(response.read().decode("utf-8"))
+            result = make_api_request_json(
+                url=url,
+                method="POST",
+                headers=headers,
+                json_data=data,
+                connect_timeout=self._connect_timeout,
+                read_timeout=self._read_timeout,
+                progress_callback=progress_callback,
+            )
 
             # Extract text from response
             try:
@@ -307,13 +305,14 @@ class ClaudeLMClient(LMClient):
                 self.logger.error(f"Error parsing Claude response: {e}")
                 return LmResponse("", f"Error parsing AI response: {e}", e)
 
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode("utf-8")
-            self.logger.error(f"Claude HTTP Error {e.code}: {error_body}")
-            return LmResponse("", f"API Error {e.code}: {error_body}", e)
-        except urllib.error.URLError as e:
+        except requests.exceptions.HTTPError as e:
+            error_body = e.response.text if e.response else str(e)
+            self.logger.error(f"Claude HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
+            status_code = e.response.status_code if e.response else 'unknown'
+            return LmResponse("", f"API Error {status_code}: {error_body}", e)
+        except requests.exceptions.RequestException as e:
             self.logger.error(f"Claude Network Error: {e}")
-            return LmResponse("", f"Network Error: {e.reason}", e)
+            return LmResponse("", f"Network Error: {e}", e)
         except Exception as e:
             self.logger.error(f"Claude Unexpected error: {e}")
             return LmResponse("", f"Error: {e!s}", e)
@@ -339,11 +338,10 @@ class GeminiLMClient(LMClient):
         return "gemini"
 
     @override
-    def transform(self, prompt: str) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
         """Transform notes using Gemini API."""
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for GeminiLMClient")
-
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent"
 
@@ -355,11 +353,15 @@ class GeminiLMClient(LMClient):
         }
 
         try:
-            req = urllib.request.Request(
-                url, data=json.dumps(data).encode("utf-8"), headers=headers
+            result = make_api_request_json(
+                url=url,
+                method="POST",
+                headers=headers,
+                json_data=data,
+                connect_timeout=self._connect_timeout,
+                read_timeout=self._read_timeout,
+                progress_callback=progress_callback,
             )
-            with urllib.request.urlopen(req, timeout=self._total_timeout) as response:
-                result = json.loads(response.read().decode("utf-8"))
 
             # Extract text from response
             try:
@@ -382,13 +384,14 @@ class GeminiLMClient(LMClient):
                 self.logger.error(f"Error parsing Gemini response: {e}")
                 return LmResponse("", f"Error parsing AI response: {e}", e)
 
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode("utf-8")
-            self.logger.error(f"Gemini HTTP Error {e.code}: {error_body}")
-            return LmResponse("", f"API Error {e.code}: {error_body}", e)
-        except urllib.error.URLError as e:
+        except requests.exceptions.HTTPError as e:
+            error_body = e.response.text if e.response else str(e)
+            self.logger.error(f"Gemini HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
+            status_code = e.response.status_code if e.response else 'unknown'
+            return LmResponse("", f"API Error {status_code}: {error_body}", e)
+        except requests.exceptions.RequestException as e:
             self.logger.error(f"Gemini Network Error: {e}")
-            return LmResponse("", f"Network Error: {e.reason}", e)
+            return LmResponse("", f"Network Error: {e}", e)
         except Exception as e:
             self.logger.error(f"Gemini Unexpected error: {e}")
             return LmResponse("", f"Error: {e!s}", e)
@@ -410,7 +413,7 @@ class DeepSeekLMClient(LMClient):
         return "deepseek"
 
     @override
-    def transform(self, prompt: str) -> LmResponse:
+    def transform(self, prompt: str, progress_callback: Callable[[ProgressData], None] | None = None) -> LmResponse:
         """Transform notes using DeepSeek API."""
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for DeepSeekLMClient")
@@ -434,10 +437,15 @@ class DeepSeekLMClient(LMClient):
         }
 
         try:
-            json_data = json.dumps(data).encode("utf-8")
-            req = urllib.request.Request(url, data=json_data, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=self._total_timeout) as response:
-                result = json.loads(response.read().decode("utf-8"))
+            result = make_api_request_json(
+                url=url,
+                method="POST",
+                headers=headers,
+                json_data=data,
+                connect_timeout=self._connect_timeout,
+                read_timeout=self._read_timeout,
+                progress_callback=progress_callback,
+            )
 
             # Extract text from response
             try:
@@ -456,13 +464,14 @@ class DeepSeekLMClient(LMClient):
                 self.logger.error(f"Error parsing DeepSeek response: {e}")
                 return LmResponse("", f"Error parsing AI response: {e}", e)
 
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode("utf-8")
-            self.logger.error(f"DeepSeek HTTP Error {e.code}: {error_body}")
-            return LmResponse("", f"API Error {e.code}: {error_body}", e)
-        except urllib.error.URLError as e:
+        except requests.exceptions.HTTPError as e:
+            error_body = e.response.text if e.response else str(e)
+            self.logger.error(f"DeepSeek HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
+            status_code = e.response.status_code if e.response else 'unknown'
+            return LmResponse("", f"API Error {status_code}: {error_body}", e)
+        except requests.exceptions.RequestException as e:
             self.logger.error(f"DeepSeek Network Error: {e}")
-            return LmResponse("", f"Network Error: {e.reason}", e)
+            return LmResponse("", f"Network Error: {e}", e)
         except Exception as e:
             self.logger.error(f"DeepSeek Unexpected error: {e}")
             return LmResponse("", f"Error: {e!s}", e)

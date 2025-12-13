@@ -57,7 +57,7 @@ max-locals = 30
 max-branches = 120
 max-statements = 135
 max-returns = 70
-max-args = 8
+max-args = 9
 
 [tool.pyright]
 pythonVersion = "3.9"

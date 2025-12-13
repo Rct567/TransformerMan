@@ -352,7 +352,7 @@ class TestTransformerManMainWindow:
     @with_test_collection("empty_collection")
     @patch('transformerman.ui.main_window.TransformNotesWithProgress')
     @patch('transformerman.ui.main_window.showInfo')
-    def test_preview_button_click_triggers_transformation(  # noqa: PLR0913
+    def test_preview_button_click_triggers_transformation(
         self,
         mock_show_info: Mock,
         mock_transformer_class: Mock,
