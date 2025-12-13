@@ -15,6 +15,7 @@ from aqt.qt import QProgressDialog, QWidget, Qt
 from aqt.utils import showInfo
 
 from .prompt_builder import PromptBuilder
+from .http_utils import LmRequestStage
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -493,21 +494,24 @@ class TransformNotesWithProgress:
             def progress_callback(current: int, total: int, detailed: LmProgressData | None = None) -> None:
                 def update_ui() -> None:
                     if detailed:
-                        # Format detailed progress
-                        if not detailed.text_chunk:  # Download phase
-                            size_kb = detailed.total_chars / 1024
-                            speed_kb_s = (detailed.total_chars / detailed.elapsed) / 1024 if detailed.elapsed > 0 else 0
+                        if detailed.stage == LmRequestStage.SENDING:
+                            progress.setLabelText(f"Processing batch {current + 1} of {total}...\nSending request...")
+                        elif detailed.stage == LmRequestStage.RECEIVING:
+                            # Format detailed progress
+                            if not detailed.text_chunk:  # Download phase
+                                size_kb = detailed.total_chars / 1024
+                                speed_kb_s = (detailed.total_chars / detailed.elapsed) / 1024 if detailed.elapsed > 0 else 0
 
-                            if detailed.content_length:
-                                total_kb = detailed.content_length / 1024
-                                msg = f"Receiving response... ({size_kb:.0f} KB / {total_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+                                if detailed.content_length:
+                                    total_kb = detailed.content_length / 1024
+                                    msg = f"Receiving response... ({size_kb:.0f} KB / {total_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+                                else:
+                                    msg = f"Receiving response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+
+                                progress.setLabelText(f"Processing batch {current + 1} of {total}...\n{msg}")
                             else:
-                                msg = f"Receiving response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
-
-                            progress.setLabelText(f"Processing batch {current + 1} of {total}...\n{msg}")
-                        else:
-                            # Parsing phase
-                            progress.setLabelText(f"Processing batch {current + 1} of {total}...\nProcessing response... ({detailed.total_chars} chars)")
+                                # Parsing phase
+                                progress.setLabelText(f"Processing batch {current + 1} of {total}...\nProcessing response... ({detailed.total_chars} chars)")
                     else:
                         progress.setLabelText(f"Processing batch {current + 1} of {total}...")
 

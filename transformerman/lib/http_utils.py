@@ -7,6 +7,7 @@ HTTP utilities for making API requests with progress callbacks.
 
 from __future__ import annotations
 
+from enum import Enum, auto
 import json
 import time
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
@@ -17,9 +18,17 @@ if TYPE_CHECKING:
     from transformerman.lib.utilities import JSON_TYPE
 
 
+class LmRequestStage(Enum):
+    """Stage of the LM request."""
+
+    SENDING = auto()
+    RECEIVING = auto()
+
+
 class LmProgressData(NamedTuple):
     """Data passed to progress callbacks during LLM streaming."""
 
+    stage: LmRequestStage
     text_chunk: str  # Current text chunk (empty string for non-streaming updates)
     total_chars: int  # Total characters received so far
     elapsed: float  # Time elapsed since request started
@@ -62,6 +71,10 @@ def make_api_request(
     """
     if headers is None:
         headers = {}
+
+    # Report sending stage
+    if progress_callback:
+        progress_callback(LmProgressData(stage=LmRequestStage.SENDING, text_chunk="", total_chars=0, elapsed=0.0, content_length=None))
 
     # Make the request with parameters based on what's provided
     if json_data is not None:
@@ -118,7 +131,7 @@ def _handle_sse_stream(response: requests.Response, progress_callback: Optional[
             # Report download progress
             if progress_callback:
                 elapsed = time.time() - start_time
-                progress_data = LmProgressData(text_chunk="", total_chars=downloaded, elapsed=elapsed, content_length=content_length)
+                progress_data = LmProgressData(stage=LmRequestStage.RECEIVING, text_chunk="", total_chars=downloaded, elapsed=elapsed, content_length=content_length)
                 progress_callback(progress_data)
 
     response_text = response_content.decode("utf-8")
@@ -144,7 +157,7 @@ def _handle_sse_stream(response: requests.Response, progress_callback: Optional[
                     if chunk_text:
                         full_text += chunk_text
                         elapsed = time.time() - start_time
-                        progress_data = LmProgressData(text_chunk=chunk_text, total_chars=len(full_text), elapsed=elapsed, content_length=content_length)
+                        progress_data = LmProgressData(stage=LmRequestStage.RECEIVING, text_chunk=chunk_text, total_chars=len(full_text), elapsed=elapsed, content_length=content_length)
                         if progress_callback:
                             progress_callback(progress_data)
 
@@ -180,7 +193,7 @@ def _handle_sse_stream(response: requests.Response, progress_callback: Optional[
             # Call progress callback with complete text
             if full_text:
                 elapsed = time.time() - start_time
-                progress_data = LmProgressData(text_chunk=full_text, total_chars=len(full_text), elapsed=elapsed, content_length=content_length)
+                progress_data = LmProgressData(stage=LmRequestStage.RECEIVING, text_chunk=full_text, total_chars=len(full_text), elapsed=elapsed, content_length=content_length)
                 if progress_callback:
                     progress_callback(progress_data)
 
@@ -295,6 +308,7 @@ def _handle_byte_stream(response: requests.Response, progress_callback: Optional
             # For byte streaming, we don't have text chunks, so pass empty string
             # But we can show progress based on bytes downloaded
             progress_data = LmProgressData(
+                stage=LmRequestStage.RECEIVING,
                 text_chunk="",  # No text chunk for byte streaming
                 total_chars=downloaded,  # Use bytes as "chars" for compatibility
                 elapsed=elapsed,
