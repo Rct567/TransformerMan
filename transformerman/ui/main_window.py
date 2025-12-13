@@ -133,6 +133,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         self.fields_widget = QWidget()
         fields_container_layout = QVBoxLayout()
+        fields_container_layout.addWidget(QLabel("<span style='color: rgba(128, 128, 128, 0.5);'>Read, Write & Optional instructions</span>"))
         self.fields_widget.setLayout(fields_container_layout)
 
         self.fields_layout = QGridLayout()
@@ -310,7 +311,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         for row, field_name in enumerate(field_names):
             # Context Checkbox (Col 0)
             context_checkbox = QCheckBox()
-            context_checkbox.setToolTip("Include field content in the prompt")
+            context_checkbox.setToolTip("Allow read (include field content in the prompt)")
             # Select first two fields by default
             if row < 2:
                 context_checkbox.setChecked(True)
@@ -320,7 +321,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             # Writable Checkbox (Col 1)
             writable_checkbox = QCheckBox()
-            writable_checkbox.setToolTip("Allow AI to fill this field")
+            writable_checkbox.setToolTip("Allow write (allow this field to be filled)")
             writable_checkbox.stateChanged.connect(self._on_field_selection_changed)
             self.writable_checkboxes[field_name] = writable_checkbox
             self.fields_layout.addWidget(writable_checkbox, row, 1)
