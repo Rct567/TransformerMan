@@ -33,6 +33,7 @@ class TransformResults(TypedDict):
     num_notes_updated: int
     num_notes_failed: int
     num_batches_processed: int
+    num_batches_requested: int
     error: str | None
 
 
@@ -276,6 +277,7 @@ class NoteTransformer:
         results: TransformResults = {
             "num_notes_updated": total_updated,
             "num_notes_failed": total_failed,
+            "num_batches_requested": self.num_batches,
             "num_batches_processed": batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
             "error": error,
         }
@@ -485,7 +487,27 @@ class TransformNotesWithProgress:
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)  # Show immediately
         progress.setMinimumWidth(300)
+        progress.setAutoClose(False)
+        progress.setAutoReset(False)
+
+        cancel_requested = False
+
+        def on_cancel() -> None:
+            nonlocal cancel_requested
+            cancel_requested = True
+            #progress.setLabelText("Canceling... please wait for current batch to finish.")
+            progress.setCancelButtonText(None)  # Hide cancel button
+
+        # Disconnect default canceled slot to prevent immediate closing
+        try:
+            progress.canceled.disconnect()
+        except TypeError:
+            pass
+        progress.canceled.connect(on_cancel)
+
         progress.show()
+
+        is_dialog_active = True
 
         def process_batches(col: Collection) -> tuple[TransformResults, dict[NoteId, dict[str, str]]]:
             """Background operation that processes each batch."""
@@ -493,34 +515,44 @@ class TransformNotesWithProgress:
             # Create callbacks for progress and cancellation
             def progress_callback(current: int, total: int, detailed: LmProgressData | None = None) -> None:
                 def update_ui() -> None:
-                    if detailed:
-                        if detailed.stage == LmRequestStage.SENDING:
-                            progress.setLabelText(f"Processing batch {current + 1} of {total}...\nSending request...")
-                        elif detailed.stage == LmRequestStage.RECEIVING:
-                            # Format detailed progress
-                            if not detailed.text_chunk:  # Download phase
-                                size_kb = detailed.total_chars / 1024
-                                speed_kb_s = (detailed.total_chars / detailed.elapsed) / 1024 if detailed.elapsed > 0 else 0
+                    if not is_dialog_active:
+                        return
 
-                                if detailed.content_length:
-                                    total_kb = detailed.content_length / 1024
-                                    msg = f"Receiving response... ({size_kb:.0f} KB / {total_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+                    # if cancel_requested:
+                    #     return
+
+                    try:
+                        if detailed:
+                            if detailed.stage == LmRequestStage.SENDING:
+                                progress.setLabelText(f"Processing batch {current + 1} of {total}...\nSending request...")
+                            elif detailed.stage == LmRequestStage.RECEIVING:
+                                # Format detailed progress
+                                if not detailed.text_chunk:  # Download phase
+                                    size_kb = detailed.total_chars / 1024
+                                    speed_kb_s = (detailed.total_chars / detailed.elapsed) / 1024 if detailed.elapsed > 0 else 0
+
+                                    if detailed.content_length:
+                                        total_kb = detailed.content_length / 1024
+                                        msg = f"Receiving response... ({size_kb:.0f} KB / {total_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+                                    else:
+                                        msg = f"Receiving response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+
+                                    progress.setLabelText(f"Processing batch {current + 1} of {total}...\n{msg}")
                                 else:
-                                    msg = f"Receiving response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+                                    # Parsing phase
+                                    progress.setLabelText(f"Processing batch {current + 1} of {total}...\nProcessing response... ({detailed.total_chars} chars)")
+                        else:
+                            progress.setLabelText(f"Processing batch {current + 1} of {total}...")
 
-                                progress.setLabelText(f"Processing batch {current + 1} of {total}...\n{msg}")
-                            else:
-                                # Parsing phase
-                                progress.setLabelText(f"Processing batch {current + 1} of {total}...\nProcessing response... ({detailed.total_chars} chars)")
-                    else:
-                        progress.setLabelText(f"Processing batch {current + 1} of {total}...")
-
-                    progress.setValue(current)
+                        progress.setValue(current)
+                    except RuntimeError:
+                        # Progress dialog already deleted
+                        pass
 
                 mw.taskman.run_on_main(update_ui)
 
             def should_cancel() -> bool:
-                return progress.wasCanceled()
+                return cancel_requested
 
             # Run transformation with callbacks (always returns field updates)
             return transformer.get_field_updates(
@@ -530,7 +562,16 @@ class TransformNotesWithProgress:
 
         def on_success_callback(result_tuple: tuple[TransformResults, dict[NoteId, dict[str, str]]]) -> None:
             """Called when transformation succeeds."""
-            progress.close()
+            nonlocal is_dialog_active
+            is_dialog_active = False
+            try:
+                progress.close()
+            except RuntimeError:
+                pass
+
+            # if cancel_requested:
+            #     return
+
             results, field_updates = result_tuple
             # Cache the results
             self._cache[cache_key] = (results, field_updates)
@@ -538,7 +579,12 @@ class TransformNotesWithProgress:
 
         def on_failure(exc: Exception) -> None:
             """Called when operation fails."""
-            progress.close()
+            nonlocal is_dialog_active
+            is_dialog_active = False
+            try:
+                progress.close()
+            except RuntimeError:
+                pass
             showInfo(f"Error during transformation: {exc!s}", parent=self.parent)
 
         # Run the operation in the background
@@ -578,7 +624,6 @@ class TransformNotesWithProgress:
     def clear_cache(self) -> None:
         """Clear all cached transformation results."""
         self._cache.clear()
-
 
 
 def apply_field_updates_with_operation(
