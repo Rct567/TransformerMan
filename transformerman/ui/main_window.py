@@ -484,12 +484,17 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             # Check for error in results
             if results['error']:
-                # Show error with warning
-                showWarning(f"Error during preview:\n\n{results['error']}\n\nNo notes would be updated.", parent=self)
-                # Clear any partial results
-                self.preview_results.clear()
-                self.update_buttons_state()
-                return
+                # Show error, ask user if they want to use results
+                showWarning(f"An error occurred:\n\n{results['error']}", parent=self)
+                disregard_result = True
+
+                if results['num_notes_updated'] > 0 and field_updates:
+                    disregard_result = askUserDialog("Preview results anyway?", buttons=["Yes", "No"], parent=self).run() == "No"
+
+                if disregard_result:
+                    self.preview_results.clear()
+                    self.update_buttons_state()
+                    return
 
             # Store preview results
             self.preview_results = field_updates
