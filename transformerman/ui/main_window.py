@@ -244,20 +244,22 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             num_notes_empty_field = 0   # No writable fields selected
 
         # Calculate API calls needed using transformer method
-        api_calls_needed = self.transformer.get_num_api_calls_needed(
+        num_api_calls_needed = self.transformer.get_num_api_calls_needed(
             self.current_note_type, selected_fields, writable_fields, filtered_note_ids
         )
-        api_text = "API call" if api_calls_needed == 1 else "API calls"
+        api_text = "API call" if num_api_calls_needed == 1 else "API calls"
 
-        # Format with proper pluralization
-        note_text = "note" if total_count == 1 else "notes"
+        # Note count description
         empty_text = "note" if num_notes_empty_field == 1 else "notes"
         field_text = "field" if num_notes_empty_field == 1 else "fields"
+        appendix_text = f"{num_notes_empty_field} {empty_text} with empty writable {field_text}"
+
+        note_text = "note" if total_count == 1 else "notes"
 
         # Update label with bold HTML
         label_text = (
             f"<b>{total_count} {note_text} selected, "
-            f"{num_notes_empty_field} {empty_text} with empty {field_text} ({api_calls_needed} {api_text})</b>"
+            f"{appendix_text} ({num_api_calls_needed} {self.lm_client.id} {api_text}).</b>"
         )
         self.notes_count_label.setText(label_text)
 
