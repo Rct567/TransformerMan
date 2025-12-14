@@ -70,7 +70,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         super().__init__(parent, is_dark_mode)
         self.is_dark_mode = is_dark_mode
         self.col = col
-        self.note_ids = note_ids
         self.lm_client = lm_client
         self.addon_config = addon_config
         self.logger = logging.getLogger(__name__)

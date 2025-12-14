@@ -55,7 +55,6 @@ class TestTransformerManMainWindow:
         assert window.parent() is parent_widget
         assert window.is_dark_mode == is_dark_mode
         assert window.col is col
-        assert window.note_ids == note_ids
         assert window.lm_client is dummy_lm_client
         assert window.addon_config is addon_config
         assert window.user_files_dir == user_files_dir
