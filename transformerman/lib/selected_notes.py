@@ -61,15 +61,7 @@ class SelectedNotes:
         note_cache: dict[NoteId, Note] | None = None,
         deck_cache: dict[CardId, str] | None = None,
     ) -> None:
-        """
-        Initialize with collection and selected note IDs.
-
-        Args:
-            col: Anki collection.
-            note_ids: Sequence of selected note IDs.
-            card_ids: Sequence of selected card IDs (optional). If provided, used for deck detection.
-            note_cache: Optional note cache to share between SelectedNotes instances.
-        """
+        """Initialize with collection and selected note IDs and optional card IDs."""
         self.col = col
         self._note_ids = note_ids
         self._card_ids = card_ids if card_ids else None
