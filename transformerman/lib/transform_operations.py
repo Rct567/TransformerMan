@@ -270,6 +270,12 @@ class NoteTransformer:
             total_failed += num_notes_failed
             all_field_updates.update(batch_field_updates)
 
+            if len(batch_field_updates) < len(batch_selected_notes):
+                num_fields_updates_missing = len(batch_selected_notes) - len(batch_field_updates)
+                if not error:
+                    error = f"{num_fields_updates_missing} field updates appear to be missing from the response (expected {len(batch_selected_notes)}, but got {len(batch_field_updates)})."
+                    break
+
         # Report completion
         if progress_callback:
             progress_callback(self.num_batches, self.num_batches, None)

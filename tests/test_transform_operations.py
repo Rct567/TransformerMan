@@ -334,7 +334,7 @@ class TestNoteTransformer:
         assert results["num_notes_failed"] == 4  # All 4 notes in the single batch
         assert results["num_notes_updated"] == 0  # No notes updated due to batch failure
         assert results["num_batches_processed"] == 1  # Only one batch attempted
-        assert results["error"] is None  # No error in response
+        assert results["error"] and "4 field updates appear to be missing" in  results["error"]
 
         # Verify that no notes have updates (batch failed)
         assert len(field_updates) == 0
