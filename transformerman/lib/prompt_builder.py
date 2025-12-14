@@ -250,7 +250,7 @@ class PromptBuilder:
 
         refined_query_parts = [f'"note:{note_type_name}"']
         for field in selected_fields:
-            refined_query_parts.append(f"-{field}:") # filter out notes with empty selected fields
+            refined_query_parts.append(f'-"{field}:"') # filter out notes with empty selected fields
         refined_query = " ".join(refined_query_parts)
 
         candidate_note_ids = []
