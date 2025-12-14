@@ -261,7 +261,6 @@ class ClaudeLMClient(LMClient):
 
         data = {
             "model": self._model,
-            "max_tokens": 1024,
             "messages": [{"role": "user", "content": prompt}],
             "stream": True,
         }
@@ -322,7 +321,6 @@ class ClaudeLMClient(LMClient):
         ]
 
 class GeminiLMClient(LMClient):
-
 
     @property
     @override
@@ -416,7 +414,6 @@ class DeepSeekLMClient(LMClient):
             "model": self._model,
             "stream": True,
             "temperature": 1.0,
-            "max_tokens": 1000,
         }
 
         headers = {
