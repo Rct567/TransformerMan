@@ -248,19 +248,34 @@ class PromptBuilder:
             # Filter out target notes
             return [nid for nid in note_ids if nid not in target_note_ids]
 
-        # Try refined query first: filter out notes with empty selected fields
         refined_query_parts = [f'"note:{note_type_name}"']
         for field in selected_fields:
-            refined_query_parts.append(f"-{field}:")
+            refined_query_parts.append(f"-{field}:") # filter out notes with empty selected fields
+        refined_query = " ".join(refined_query_parts)
 
-        candidate_note_ids = find_candidate_notes(" ".join(refined_query_parts))
+        candidate_note_ids = []
 
-        # If refined query doesn't produce enough candidate notes, fall back to original query
+        # Attempt 1/3 Use deck and refined query
+
+        deck_name = target_notes.get_most_common_deck()
+
+        if deck_name:
+            candidate_note_ids = find_candidate_notes(refined_query + f' "deck:{deck_name}"')
+
+        # Attempt 2/3 Try just the refined query
+
+        if len(candidate_note_ids) < max_examples:
+            existing_ids = set(candidate_note_ids)
+            for note_id in find_candidate_notes(refined_query):
+                if note_id not in existing_ids:
+                    candidate_note_ids.append(note_id)
+
+        # Attempt 3/3 If refined query doesn't produce enough candidate notes, fall back to 'note type' based query
+
         if len(candidate_note_ids) < max_examples:
             existing_ids = set(candidate_note_ids)
             # Get all note IDs of this type
-            all_type_notes = find_candidate_notes(f'"note:{note_type_name}"')
-            for note_id in all_type_notes:
+            for note_id in find_candidate_notes(f'"note:{note_type_name}"'):
                 if note_id not in existing_ids:
                     candidate_note_ids.append(note_id)
 

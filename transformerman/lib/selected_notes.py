@@ -6,12 +6,14 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
+import random
 from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import Note, NoteId
+    from anki.cards import CardId
     from .prompt_builder import PromptBuilder
 
 
@@ -26,7 +28,9 @@ class SelectedNotes:
     """Manages selected notes for transformation."""
 
     _note_ids: Sequence[NoteId]
+    _card_ids: Sequence[CardId] | None
     _note_cache: dict[NoteId, Note]
+    _deck_cache: dict[CardId, str]
     batching_stats: BatchingStats | None
 
     # Constants for batch sizing algorithm
@@ -47,17 +51,28 @@ class SelectedNotes:
     # Increased from 1000 to 2000 based on empirical data showing batches up to ~1800
     MAX_START_SIZE: int = 2000
 
-    def __init__(self, col: Collection, note_ids: Sequence[NoteId], note_cache: dict[NoteId, Note] | None = None) -> None:
+    def __init__(
+        self,
+        col: Collection,
+        note_ids: Sequence[NoteId],
+        card_ids: Sequence[CardId] | None = None,
+        note_cache: dict[NoteId, Note] | None = None,
+        deck_cache: dict[CardId, str] | None = None,
+    ) -> None:
         """
         Initialize with collection and selected note IDs.
 
         Args:
             col: Anki collection.
             note_ids: Sequence of selected note IDs.
+            card_ids: Sequence of selected card IDs (optional). If provided, used for deck detection.
+            note_cache: Optional note cache to share between SelectedNotes instances.
         """
         self.col = col
         self._note_ids = note_ids
+        self._card_ids = card_ids if card_ids else None
         self._note_cache = note_cache if note_cache else {}
+        self._deck_cache = deck_cache if deck_cache else {}
         self.logger = logging.getLogger(__name__)
         self.batching_stats = None
 
@@ -446,7 +461,15 @@ class SelectedNotes:
         Returns:
             New SelectedNotes instance.
         """
-        return SelectedNotes(self.col, note_ids, self._note_cache)
+
+        card_ids = []
+        if self._card_ids:
+            for note in self.get_notes(note_ids):
+                for card_id in note.card_ids():
+                    if card_id in self._card_ids:
+                        card_ids.append(card_id)
+
+        return SelectedNotes(self.col, note_ids, card_ids, note_cache=self._note_cache, deck_cache=self._deck_cache)
 
     def get_field_names(self, note_type_name: str) -> list[str]:
         """
@@ -512,9 +535,102 @@ class SelectedNotes:
                 filtered_note_ids.append(nid)
         return self.new_selected_notes(filtered_note_ids)
 
+    def _get_deck_name_for_card_id(self, card_id: CardId) -> str:
+        """
+        Get deck name for a card ID, with caching.
+
+        Args:
+            card_id: Card ID.
+
+        Returns:
+            Deck name (full path) or empty string if card not found.
+        """
+        if card_id in self._deck_cache:
+            return self._deck_cache[card_id]
+
+        card = self.col.get_card(card_id)
+        if not card:
+            self._deck_cache[card_id] = ""
+            return ""
+
+        deck = self.col.decks.get(card.did)
+        name = deck["name"] if deck else ""
+        self._deck_cache[card_id] = name
+        return name
+
+    def _get_deck_name_for_note_id(self, note_id: NoteId) -> str:
+        """
+        Get deck name for a note ID (uses first card of the note).
+
+        Args:
+            note_id: Note ID.
+
+        Returns:
+            Deck name (full path) or empty string if note has no cards.
+        """
+        note = self.get_note(note_id)
+        card_ids = note.card_ids()
+        if not card_ids:
+            return ""
+
+        # Use first card's deck
+        return self._get_deck_name_for_card_id(card_ids[0])
+
+    def get_most_common_deck(self) -> str:
+        """
+        Return the full name of most common deck among the selected cards.
+
+        If there are more than 500 cards, uses a random sub-selection of 500 cards.
+        If card IDs are available, uses them directly. Otherwise uses note IDs
+        (getting first card from each note).
+
+        Returns:
+            Full deck name (e.g., "Parent::Child") or empty string if no decks found.
+        """
+        # Count deck frequencies
+        deck_counts: dict[str, int] = {}
+
+        sample_size = 500
+
+        if self._card_ids:
+            # Use card IDs directly
+            card_ids = list(self._card_ids)
+            if not card_ids:
+                return ""
+
+            # Random sampling for >500 cards
+            if len(card_ids) > sample_size:
+                card_ids = random.sample(card_ids, sample_size)
+
+            for card_id in card_ids:
+                deck_name = self._get_deck_name_for_card_id(card_id)
+                if deck_name:  # Skip empty deck names
+                    deck_counts[deck_name] = deck_counts.get(deck_name, 0) + 1
+        else:
+            # Use note IDs (get first card from each note)
+            note_ids = list(self._note_ids)
+            if not note_ids:
+                return ""
+
+            # Random sampling for >500 notes
+            if len(note_ids) > sample_size:
+                note_ids = random.sample(note_ids, sample_size)
+
+            for note_id in note_ids:
+                deck_name = self._get_deck_name_for_note_id(note_id)
+                if deck_name:  # Skip empty deck names
+                    deck_counts[deck_name] = deck_counts.get(deck_name, 0) + 1
+
+        # Return most common deck or empty string
+        if not deck_counts:
+            return ""
+
+        return max(deck_counts.items(), key=lambda x: x[1])[0]
+
     def clear_cache(self) -> None:
         """Clear the note cache."""
         self._note_cache.clear()
+        self._deck_cache.clear()
 
     def __len__(self) -> int:
         """Return the number of notes in the selection."""

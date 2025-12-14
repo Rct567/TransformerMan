@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from ..lib.lm_clients import LMClient
     from ..lib.addon_config import AddonConfig
     from anki.notes import NoteId
+    from anki.cards import CardId
     from ..lib.transform_operations import TransformResults
 
 
@@ -51,6 +52,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         lm_client: LMClient,
         addon_config: AddonConfig,
         user_files_dir: Path,
+        card_ids: list[CardId] | None = None,
     ) -> None:
         """
         Initialize the main window.
@@ -63,6 +65,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             lm_client: LM client instance.
             addon_config: Addon configuration instance.
             user_files_dir: Directory for user files.
+            card_ids: List of selected card IDs (optional). If provided, used for deck detection.
         """
         super().__init__(parent, is_dark_mode)
         self.is_dark_mode = is_dark_mode
@@ -73,7 +76,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.logger = logging.getLogger(__name__)
         self.user_files_dir = user_files_dir
 
-        self.selected_notes = SelectedNotes(col, note_ids)
+        self.selected_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
 
         # Initialize transformer
         self.transformer = TransformNotesWithProgress(

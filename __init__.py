@@ -56,8 +56,9 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
     if not mw.col:
         return
 
-    # Get selected note IDs
+    # Get selected note IDs and card IDs
     note_ids = list(browser.selected_notes())
+    card_ids = list(browser.selected_cards())
 
     if not note_ids:
         showInfo("Please select at least one note.", parent=browser)
@@ -80,6 +81,7 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
         is_dark_mode=is_dark_mode(mw),
         col=mw.col,
         note_ids=note_ids,
+        card_ids=card_ids,
         lm_client=lm_client,
         addon_config=addon_config,
         user_files_dir=TM_USER_FILES_DIR,

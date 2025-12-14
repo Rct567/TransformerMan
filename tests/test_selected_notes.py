@@ -4,6 +4,12 @@ Tests for selected_notes module.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from anki.notes import NoteId
+    from anki.cards import CardId
+
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.prompt_builder import PromptBuilder
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
@@ -598,3 +604,73 @@ class TestSelectedNotes:
 
         filtered_both = selected_notes.filter_by_empty_field(["Front", "Back"])
         assert len(filtered_both) == 3  # note1, note2, note3 (all except note4)
+
+    @with_test_collection("empty_collection")
+    def test_get_most_common_deck_multiple_decks(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test get_most_common_deck returns correct deck name."""
+        # Create decks
+        deck1_id = col.decks.id("Deck1")
+        deck2_id = col.decks.id("Deck2")
+        deck3_id = col.decks.id("Parent::Child")
+        assert deck1_id is not None
+        assert deck2_id is not None
+        assert deck3_id is not None
+
+        # Create notes in different decks
+        model = col.models.by_name("Basic")
+        assert model is not None
+
+        note_ids: list[NoteId] = []
+        card_ids: list[CardId] = []
+
+        # Add 3 notes to Deck1
+        for _ in range(3):
+            note = col.new_note(model)
+            note["Front"] = "Front"
+            note["Back"] = "Back"
+            col.add_note(note, deck1_id)
+            note_ids.append(note.id)
+            card_ids.extend(note.card_ids())
+
+        # Add 2 notes to Deck2
+        for _ in range(2):
+            note = col.new_note(model)
+            note["Front"] = "Front"
+            note["Back"] = "Back"
+            col.add_note(note, deck2_id)
+            note_ids.append(note.id)
+            card_ids.extend(note.card_ids())
+
+        # Add 4 notes to Parent::Child (most common)
+        for _ in range(4):
+            note = col.new_note(model)
+            note["Front"] = "Front"
+            note["Back"] = "Back"
+            col.add_note(note, deck3_id)
+            note_ids.append(note.id)
+            card_ids.extend(note.card_ids())
+
+        # Test with card IDs (preferred)
+        selected_notes_with_cards = SelectedNotes(col, note_ids, card_ids=card_ids)
+        most_common_deck = selected_notes_with_cards.get_most_common_deck()
+        assert most_common_deck == "Parent::Child"
+
+        # Test with note IDs only (no card IDs)
+        selected_notes_without_cards = SelectedNotes(col, note_ids, card_ids=None)
+        most_common_deck2 = selected_notes_without_cards.get_most_common_deck()
+        assert most_common_deck2 == "Parent::Child"
+
+        # Test with empty selection
+        selected_notes_empty = SelectedNotes(col, [], card_ids=[])
+        assert selected_notes_empty.get_most_common_deck() == ""
+
+        # Test with single deck
+        single_deck_note_ids = note_ids[:1]
+        single_deck_card_ids = card_ids[:1]
+        selected_notes_single = SelectedNotes(col, single_deck_note_ids, card_ids=single_deck_card_ids)
+        deck_name = selected_notes_single.get_most_common_deck()
+        assert deck_name == "Deck1"
+
