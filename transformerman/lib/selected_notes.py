@@ -9,6 +9,8 @@ import logging
 import random
 from typing import TYPE_CHECKING, NamedTuple
 
+from anki.utils import ids2str
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
@@ -75,6 +77,8 @@ class SelectedNotes:
         self._deck_cache = deck_cache if deck_cache else {}
         self.logger = logging.getLogger(__name__)
         self.batching_stats = None
+
+        assert self._card_ids is None or len(self._card_ids) >= len(self._note_ids)
 
     def get_note(self, nid: NoteId) -> Note:
         """
@@ -558,31 +562,22 @@ class SelectedNotes:
         self._deck_cache[card_id] = name
         return name
 
-    def _get_deck_name_for_note_id(self, note_id: NoteId) -> str:
-        """
-        Get deck name for a note ID (uses first card of the note).
 
-        Args:
-            note_id: Note ID.
+    def _get_all_card_ids(self) -> Sequence[CardId]:
+        """Get all card IDs for the selected notes."""
 
-        Returns:
-            Deck name (full path) or empty string if note has no cards.
-        """
-        note = self.get_note(note_id)
-        card_ids = note.card_ids()
-        if not card_ids:
-            return ""
+        assert self.col.db
 
-        # Use first card's deck
-        return self._get_deck_name_for_card_id(card_ids[0])
+        if self._card_ids:
+            return self._card_ids
+
+        return self.col.db.list(
+            f"SELECT id FROM cards WHERE nid IN {ids2str(self._note_ids)}"
+        )
 
     def get_most_common_deck(self) -> str:
         """
         Return the full name of most common deck among the selected cards.
-
-        If there are more than 500 cards, uses a random sub-selection of 500 cards.
-        If card IDs are available, uses them directly. Otherwise uses note IDs
-        (getting first card from each note).
 
         Returns:
             Full deck name (e.g., "Parent::Child") or empty string if no decks found.
@@ -592,34 +587,20 @@ class SelectedNotes:
 
         sample_size = 500
 
-        if self._card_ids:
-            # Use card IDs directly
-            card_ids = list(self._card_ids)
-            if not card_ids:
-                return ""
+        card_ids = self._get_all_card_ids()
 
-            # Random sampling for >500 cards
-            if len(card_ids) > sample_size:
-                card_ids = random.sample(card_ids, sample_size)
+        # Use card IDs
+        if not card_ids:
+            return ""
 
-            for card_id in card_ids:
-                deck_name = self._get_deck_name_for_card_id(card_id)
-                if deck_name:  # Skip empty deck names
-                    deck_counts[deck_name] = deck_counts.get(deck_name, 0) + 1
-        else:
-            # Use note IDs (get first card from each note)
-            note_ids = list(self._note_ids)
-            if not note_ids:
-                return ""
+        # Random sampling for >500 cards
+        if len(card_ids) > sample_size:
+            card_ids = random.sample(card_ids, sample_size)
 
-            # Random sampling for >500 notes
-            if len(note_ids) > sample_size:
-                note_ids = random.sample(note_ids, sample_size)
-
-            for note_id in note_ids:
-                deck_name = self._get_deck_name_for_note_id(note_id)
-                if deck_name:  # Skip empty deck names
-                    deck_counts[deck_name] = deck_counts.get(deck_name, 0) + 1
+        for card_id in card_ids:
+            deck_name = self._get_deck_name_for_card_id(card_id)
+            if deck_name:  # Skip empty deck names
+                deck_counts[deck_name] = deck_counts.get(deck_name, 0) + 1
 
         # Return most common deck or empty string
         if not deck_counts:
