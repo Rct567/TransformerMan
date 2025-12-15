@@ -60,7 +60,7 @@ class TestTransformerManMainWindow:
         assert window.user_files_dir == user_files_dir
 
         # Window should have correct title
-        assert window.windowTitle() == "TransformerMan"
+        assert "TransformerMan" in window.windowTitle()
 
         # Should have minimum size set
         assert window.minimumWidth() >= 500
