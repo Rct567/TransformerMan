@@ -695,6 +695,7 @@ def apply_field_updates_with_operation(
     # Collect notes that need updating
     notes_to_update = []
     failed = 0
+    field_updates.is_applied = True
 
     for note_id, updates in field_updates.items():
         try:

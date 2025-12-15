@@ -36,6 +36,7 @@ class FieldUpdates:
         self._updates: dict[NoteId, dict[str, str]] = updates.copy() if updates else {}
         self._overwritable_fields: set[str] = set()
         self._selected_notes = selected_notes
+        self.is_applied = False
 
     def clear(self) -> None:
         """Clear all field updates."""

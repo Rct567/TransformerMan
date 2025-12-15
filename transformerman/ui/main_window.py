@@ -524,7 +524,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             )
 
         # Apply button conditions
-        apply_enabled = len(self.preview_results) > 0
+        apply_enabled = len(self.preview_results) > 0 and not self.preview_results.is_applied
 
         # Update buttons
         self.preview_button.setEnabled(preview_enabled)
@@ -603,6 +603,14 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             # Update preview table with green highlighting
             self._update_preview_table_with_results(results, field_updates)
+
+            # Check for no field updates (results might be from cache)
+            if field_updates.is_applied:
+                showInfo("Preview complete, but field updates are already applied.", parent=self)
+                return
+            if len(field_updates) == 0:
+                showInfo("Preview complete, but no field updates found.", parent=self)
+                return
 
             # Show summary of results used for preview
             num_updated = results['num_notes_updated']
