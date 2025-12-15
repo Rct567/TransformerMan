@@ -19,6 +19,7 @@ from aqt.qt import (
 from aqt.operations import QueryOp
 
 from ..lib.utilities import batched
+from ..lib.field_updates import FieldUpdates
 
 import logging
 
@@ -94,19 +95,19 @@ class PreviewTable(QTableWidget):
         self.selected_notes = selected_notes
 
 
-    def set_note_fields_update(
+    def show_notes(
         self,
         note_ids: Sequence[NoteId],
         selected_fields: list[str],
-        field_updates: dict[NoteId, dict[str, str]] | None = None,
+        field_updates: FieldUpdates | None = None,
     ) -> None:
         """
-        Update the table with notes and optional field updates.
+        Display notes in the table with selected fields and optional highlighting.
 
         Args:
             note_ids: List of note IDs to display.
             selected_fields: List of selected field names (column headers).
-            field_updates: Optional dictionary of field updates for highlighting.
+            field_updates: Optional FieldUpdates instance for highlighting.
         """
         if not note_ids or not selected_fields:
             self.clear()
@@ -155,7 +156,7 @@ class PreviewTable(QTableWidget):
         self,
         note_ids: list[NoteId],
         selected_fields: list[str],
-        field_updates: dict[NoteId, dict[str, str]] | None = None,
+        field_updates: FieldUpdates | None = None,
     ) -> None:
         """
         Load notes in batches in a background thread and update the table as they come in.
@@ -163,7 +164,7 @@ class PreviewTable(QTableWidget):
         Args:
             note_ids: List of note IDs to load.
             selected_fields: List of selected field names.
-            field_updates: Optional dictionary of field updates for preview highlighting.
+            field_updates: Optional FieldUpdates instance for preview highlighting.
         """
         selected_notes = self.selected_notes
         if selected_notes is None:
@@ -175,7 +176,7 @@ class PreviewTable(QTableWidget):
         # Store the current state for the background operation
         current_ids = note_ids.copy()
         current_selected_fields = selected_fields.copy()
-        current_field_updates = field_updates.copy() if field_updates else {}
+        current_field_updates = field_updates if field_updates else FieldUpdates()
 
         def load_notes_batch(_: Collection) -> list[tuple[int, TableNoteData]]:
             """Background operation that loads notes in batches."""

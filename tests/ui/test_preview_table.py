@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
     from anki.notes import NoteId
     from collections.abc import Sequence
+    from transformerman.lib.field_updates import FieldUpdates
 
 from aqt.qt import QWidget, QColor
 
@@ -74,13 +75,13 @@ class TestPreviewTable:
         table.set_selected_notes(selected_notes)
 
         # Test with empty note IDs
-        table.set_note_fields_update([], ["Front", "Back"])
+        table.show_notes([], ["Front", "Back"])
 
         assert table.rowCount() == 0
         assert table.columnCount() == 0
 
         # Test with empty selected fields
-        table.set_note_fields_update([cast("NoteId", 123)], [])
+        table.show_notes([cast("NoteId", 123)], [])
 
         assert table.rowCount() == 0
         assert table.columnCount() == 0
@@ -113,7 +114,7 @@ class TestPreviewTable:
         # Convert set to list for consistent ordering
         selected_fields_list = list(test_selected_fields)
 
-        table.set_note_fields_update(test_note_ids, selected_fields_list)
+        table.show_notes(test_note_ids, selected_fields_list)
 
         # Should have correct number of columns
         assert table.columnCount() == len(selected_fields_list)
@@ -138,7 +139,7 @@ class TestPreviewTable:
         col: TestCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
-        test_field_updates: dict[NoteId, dict[str, str]],
+        test_field_updates: FieldUpdates,
     ) -> None:
         """Test that table highlights cells with field updates."""
         table = PreviewTable(parent_widget, is_dark_mode)
@@ -167,7 +168,7 @@ class TestPreviewTable:
         mock_query_op.side_effect = mock_query_op_constructor
 
         # Set up table with field updates
-        table.set_note_fields_update(
+        table.show_notes(
             test_note_ids,
             selected_fields_list,
             test_field_updates
@@ -257,7 +258,7 @@ class TestPreviewTable:
         mock_query_op.reset_mock()
         mock_query_op.side_effect = mock_query_op_constructor2
 
-        table2.set_note_fields_update(
+        table2.show_notes(
             test_note_ids,
             selected_fields_list,
             None  # No field updates
@@ -302,7 +303,7 @@ class TestPreviewTable:
 
         # We can't easily test the full background loading without
         # complex mocking, but we can verify the method doesn't crash
-        table.set_note_fields_update(
+        table.show_notes(
             test_note_ids,
             selected_fields_list,
             None  # No field updates
@@ -326,7 +327,7 @@ class TestPreviewTable:
         col: TestCollection,
         test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
-        test_field_updates: dict[NoteId, dict[str, str]],
+        test_field_updates: FieldUpdates,
     ) -> None:
         """Test that table handles field updates for highlighting."""
         table = PreviewTable(parent_widget, is_dark_mode)
@@ -344,7 +345,7 @@ class TestPreviewTable:
         mock_query_op.return_value = mock_op_instance
 
         # Set up table with field updates
-        table.set_note_fields_update(
+        table.show_notes(
             test_note_ids,
             selected_fields_list,
             test_field_updates

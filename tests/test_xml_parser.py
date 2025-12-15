@@ -7,6 +7,7 @@ from __future__ import annotations
 from anki.notes import NoteId
 
 from transformerman.lib.xml_parser import notes_from_xml, escape_xml_content, unescape_xml_content
+from transformerman.lib.field_updates import FieldUpdates
 
 
 class TestXmlParser:
@@ -23,7 +24,7 @@ class TestXmlParser:
 
         result = notes_from_xml(xml)
 
-        assert 123 in result
+        assert NoteId(123) in result
         assert result[NoteId(123)]["Front"] == "Hello"
         assert result[NoteId(123)]["Back"] == "World"
 
@@ -65,7 +66,7 @@ class TestXmlParser:
 
         result = notes_from_xml(xml)
 
-        assert 123 in result
+        assert NoteId(123) in result
         assert result[NoteId(123)]["Front"] == front_content
         assert result[NoteId(123)]["Back"] == back_content
 
@@ -75,7 +76,8 @@ class TestXmlParser:
 
         result = notes_from_xml(xml)
 
-        assert result == {}
+        assert len(result) == 0
+        assert isinstance(result, FieldUpdates)
 
     def test_parse_malformed_xml(self) -> None:
         """Test parsing malformed XML raises ValueError."""
@@ -83,7 +85,8 @@ class TestXmlParser:
 
         # Should still work with regex-based parsing
         result = notes_from_xml(xml)
-        assert result == {}
+        assert len(result) == 0
+        assert isinstance(result, FieldUpdates)
 
     def test_escape_xml_content(self) -> None:
         """Test XML content escaping."""

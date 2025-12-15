@@ -16,6 +16,7 @@ from aqt.utils import showInfo
 
 from .prompt_builder import PromptBuilder
 from .http_utils import LmRequestStage
+from .field_updates import FieldUpdates
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -157,7 +158,7 @@ class NoteTransformer:
         log_request: Callable[[str], None],
         log_response: Callable[[LmResponse], None],
         progress_callback: Callable[[LmProgressData], None] | None = None,
-    ) -> tuple[int, int, dict[NoteId, dict[str, str]], str | None]:
+    ) -> tuple[int, int, FieldUpdates, str | None]:
         """
         Get field updates for a single batch of notes (preview mode).
 
@@ -169,12 +170,12 @@ class NoteTransformer:
 
         Returns:
             Tuple of (updated_count, failed_count, field_updates, error) for this batch.
-            field_updates is a dict mapping note_id -> dict of field_name -> new_value.
+            field_updates is a FieldUpdates instance mapping note_id -> dict of field_name -> new_value.
             error is None if no error, otherwise error message string.
         """
         num_notes_updated = 0
         num_notes_failed = 0
-        field_updates_dict: dict[NoteId, dict[str, str]] = {}
+        field_updates_dict = FieldUpdates()
         error: str | None = None
 
         try:
@@ -222,7 +223,7 @@ class NoteTransformer:
 
                     if batch_field_updates:
                         # Store field updates for preview
-                        field_updates_dict[note.id] = batch_field_updates
+                        field_updates_dict.update({note.id: batch_field_updates})
                         num_notes_updated += 1
 
                 except Exception as e:
@@ -240,7 +241,7 @@ class NoteTransformer:
         self,
         progress_callback: Callable[[int, int, LmProgressData | None], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
-    ) -> tuple[TransformResults, dict[NoteId, dict[str, str]]]:
+    ) -> tuple[TransformResults, FieldUpdates]:
         """
         Get field updates for notes in batches.
 
@@ -255,12 +256,12 @@ class NoteTransformer:
         Returns:
             Tuple of (results, field_updates) where:
             - results: Transformation results dictionary
-            - field_updates: dict mapping note_id -> dict of field_name -> new_value
+            - field_updates: FieldUpdates instance mapping note_id -> dict of field_name -> new_value
         """
         total_updated = 0
         total_failed = 0
         batch_idx = 0
-        all_field_updates: dict[NoteId, dict[str, str]] = {}
+        all_field_updates = FieldUpdates()
         error: str | None = None
 
         log_request, log_response = create_lm_logger(self.addon_config, self.user_files_dir)
@@ -359,7 +360,7 @@ class TransformNotesWithProgress:
         # Value: (results, field_updates)
         self._cache: dict[
             CacheKey,
-            tuple[TransformResults, dict[NoteId, dict[str, str]]],
+            tuple[TransformResults, FieldUpdates],
         ] = {}
 
     def _get_cache_key(
@@ -477,7 +478,7 @@ class TransformNotesWithProgress:
         writable_fields: Sequence[str],
         overwritable_fields: Sequence[str],
         note_type_name: str,
-        on_success: Callable[[TransformResults, dict[NoteId, dict[str, str]]], None],
+        on_success: Callable[[TransformResults, FieldUpdates], None],
     ) -> None:
         """
         Transform notes in batches with progress tracking.
@@ -550,7 +551,7 @@ class TransformNotesWithProgress:
 
         is_dialog_active = True
 
-        def process_batches(col: Collection) -> tuple[TransformResults, dict[NoteId, dict[str, str]]]:
+        def process_batches(col: Collection) -> tuple[TransformResults, FieldUpdates]:
             """Background operation that processes each batch."""
 
             # Create callbacks for progress and cancellation
@@ -601,7 +602,7 @@ class TransformNotesWithProgress:
                 should_cancel=should_cancel,
             )
 
-        def on_success_callback(result_tuple: tuple[TransformResults, dict[NoteId, dict[str, str]]]) -> None:
+        def on_success_callback(result_tuple: tuple[TransformResults, FieldUpdates]) -> None:
             """Called when transformation succeeds."""
             nonlocal is_dialog_active
             is_dialog_active = False
@@ -637,7 +638,7 @@ class TransformNotesWithProgress:
 
     def apply_field_updates(
         self,
-        field_updates: dict[NoteId, dict[str, str]],
+        field_updates: FieldUpdates,
         on_success: Callable[[dict[str, int]], None] | None = None,
         on_failure: Callable[[Exception], None] | None = None,
     ) -> None:
@@ -645,7 +646,7 @@ class TransformNotesWithProgress:
         Apply stored field updates to the Anki collection.
 
         Args:
-            field_updates: Dictionary mapping note_id -> dict of field_name -> new_value.
+            field_updates: FieldUpdates mapping note_id -> dict of field_name -> new_value.
             on_success: Callback called with results dict when operation succeeds.
             on_failure: Callback called with exception when operation fails.
         """
@@ -670,7 +671,7 @@ class TransformNotesWithProgress:
 def apply_field_updates_with_operation(
     parent: QWidget,
     col: Collection,
-    field_updates: dict[NoteId, dict[str, str]],
+    field_updates: FieldUpdates,
     logger: logging.Logger,
     on_success: Callable[[dict[str, int]], None] | None = None,
     on_failure: Callable[[Exception], None] | None = None,
@@ -681,7 +682,7 @@ def apply_field_updates_with_operation(
     Args:
         parent: Parent widget for the operation.
         col: Anki collection.
-        field_updates: Dictionary mapping note_id -> dict of field_name -> new_value.
+        field_updates: FieldUpdates mapping note_id -> dict of field_name -> new_value.
         logger: Logger instance.
         on_success: Callback called with results dict when operation succeeds.
         on_failure: Callback called with exception when operation fails.

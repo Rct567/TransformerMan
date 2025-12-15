@@ -14,6 +14,7 @@ import requests
 from .utilities import override
 from .xml_parser import notes_from_xml
 from .http_utils import make_api_request_json, LmProgressData
+from .field_updates import FieldUpdates
 
 import logging
 
@@ -21,7 +22,6 @@ ApiKey = NewType("ApiKey", str)
 ModelName = NewType("ModelName", str)
 
 if TYPE_CHECKING:
-    from anki.notes import NoteId
     from typing import Optional
 
 
@@ -33,10 +33,10 @@ class LmResponse:
         self.error = error
         self.exception = exception
 
-    def get_notes_from_xml(self) -> dict[NoteId, dict[str, str]]:
+    def get_notes_from_xml(self) -> FieldUpdates:
         """Parse XML response and extract field updates by note ID."""
         if self.error is not None or self.exception is not None:
-            return {}
+            return FieldUpdates()
         return notes_from_xml(self.text_response)
 
 

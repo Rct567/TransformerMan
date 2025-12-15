@@ -32,6 +32,7 @@ from .preview_table import PreviewTable
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes
 from ..lib.utilities import override
+from ..lib.field_updates import FieldUpdates
 
 import logging
 
@@ -218,7 +219,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.field_widgets: dict[str, FieldWidget] = {}
 
         # Preview state
-        self.preview_results: dict[NoteId, dict[str, str]] = {}  # note_id -> field_name -> new_value
+        self.preview_results = FieldUpdates()  # note_id -> field_name -> new_value
 
         self._setup_ui()
         self._load_note_types()
@@ -502,7 +503,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
         # Update the preview table
-        self.preview_table.set_note_fields_update(filtered_note_ids, selected_fields)
+        self.preview_table.show_notes(filtered_note_ids, selected_fields)
 
     def update_buttons_state(self) -> None:
         """Update the enabled/disabled state of all buttons based on current state."""
@@ -577,7 +578,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             if askUserDialog(warning_message, buttons=["Continue", "Cancel"], parent=self).run() != "Continue":
                 return
 
-        def on_preview_success(results: TransformResults, field_updates: dict[NoteId, dict[str, str]]) -> None:
+        def on_preview_success(results: TransformResults, field_updates: FieldUpdates) -> None:
             """Handle successful preview."""
 
             # Check for error in results
@@ -701,7 +702,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
     def _update_preview_table_with_results(
         self,
         results: TransformResults,
-        field_updates: dict[NoteId, dict[str, str]],
+        field_updates: FieldUpdates,
     ) -> None:
         """Update the preview table with preview results and green highlighting."""
         # Get selected fields
@@ -709,4 +710,4 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
         # Update the preview table with field updates for highlighting
-        self.preview_table.set_note_fields_update(filtered_note_ids, selected_fields, field_updates)
+        self.preview_table.show_notes(filtered_note_ids, selected_fields, field_updates)

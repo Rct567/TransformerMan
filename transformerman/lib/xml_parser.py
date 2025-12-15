@@ -7,14 +7,15 @@ from __future__ import annotations
 
 import re
 
-
 from typing import TYPE_CHECKING, cast
+
+from .field_updates import FieldUpdates
 
 if TYPE_CHECKING:
     from anki.notes import NoteId
 
 
-def notes_from_xml(xml_response: str) -> dict[NoteId, dict[str, str]]:
+def notes_from_xml(xml_response: str) -> FieldUpdates:
     """
     Parse XML-like LM response and extract field updates by note ID.
 
@@ -22,8 +23,8 @@ def notes_from_xml(xml_response: str) -> dict[NoteId, dict[str, str]]:
         xml_response: The XML-like response from the LM containing filled notes.
 
     Returns:
-        Dictionary mapping note IDs to dictionaries of field updates.
-        Example: {123: {"Front": "Hello", "Back": "World"}}
+        FieldUpdates instance mapping note IDs to dictionaries of field updates.
+        Example: FieldUpdates({123: {"Front": "Hello", "Back": "World"}})
 
     Raises:
         ValueError: If the XML response is malformed or cannot be parsed.
@@ -34,21 +35,19 @@ def notes_from_xml(xml_response: str) -> dict[NoteId, dict[str, str]]:
         note_pattern = r'<note nid="(\d+)"[^>]*>(.*?)</note>'
         notes = re.findall(note_pattern, xml_response, re.DOTALL)
 
-        if not notes:
-            return {}
-
-        result: dict[NoteId, dict[str, str]] = {}
+        result = FieldUpdates()
 
         for nid, note_content in notes:
             # Find all fields within this note
             field_pattern = r'<field name="([^"]+)">([^<]*)</field>'
             fields = re.findall(field_pattern, note_content)
 
-            if fields:
-                result[cast("NoteId", int(nid))] = {
-                    field_name: unescape_xml_content(field_value)
-                    for field_name, field_value in fields
-                }
+            for field_name, field_value in fields:
+                result.add_field_update(
+                    cast("NoteId", int(nid)),
+                    field_name,
+                    unescape_xml_content(field_value)
+                )
 
         return result
 

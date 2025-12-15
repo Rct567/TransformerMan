@@ -16,6 +16,7 @@ from transformerman.lib.transform_operations import (
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.prompt_builder import PromptBuilder
+from transformerman.lib.field_updates import FieldUpdates
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection, mock_collection_op
 
 col = test_collection_fixture
@@ -441,12 +442,12 @@ class TestApplyFieldUpdatesWithOperation:
             note_ids.append(note.id)
 
         # Create field updates to apply
-        field_updates = {
+        field_updates = FieldUpdates({
             note_ids[0]: {"Front": "Updated content 1"},
             note_ids[1]: {"Front": "Updated content 2"},
             note_ids[2]: {"Front": "Updated content 3"},
             note_ids[3]: {"Front": "Updated content 4"},
-        }
+        })
 
         # Mock logger
         logger = Mock()
@@ -505,12 +506,12 @@ class TestApplyFieldUpdatesWithOperation:
         col.add_note(note, deck_id)
 
         # Create field updates with nonexistent field
-        field_updates = {
+        field_updates = FieldUpdates({
             note.id: {
                 "Front": "Updated content",  # Valid field
                 "NonexistentField": "Some content",  # Nonexistent field
             }
-        }
+        })
 
         # Mock logger
         logger = Mock()
@@ -551,9 +552,9 @@ class TestApplyFieldUpdatesWithOperation:
     ) -> None:
         """Test that apply_field_updates_with_operation handles note not found."""
         # Create field updates for a non-existent note ID
-        field_updates = {
+        field_updates = FieldUpdates({
             cast("NoteId", 999999): {"Front": "Updated content"},  # Non-existent note ID
-        }
+        })
 
         # Mock logger
         logger = Mock()
@@ -590,7 +591,7 @@ class TestApplyFieldUpdatesWithOperation:
     ) -> None:
         """Test that apply_field_updates_with_operation handles empty field updates."""
         # Create field updates with no notes
-        field_updates: dict[NoteId, dict[str, str]] = {}
+        field_updates = FieldUpdates()
 
         # Mock logger
         logger = Mock()

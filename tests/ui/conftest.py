@@ -15,6 +15,7 @@ import pytest
 from aqt.qt import QWidget, QMessageBox
 
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
+from transformerman.lib.field_updates import FieldUpdates
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -88,12 +89,12 @@ def user_files_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def test_field_updates() -> dict[NoteId, dict[str, str]]:
+def test_field_updates() -> FieldUpdates:
     """Test field updates for preview highlighting."""
-    return {
+    return FieldUpdates({
         cast('NoteId', 123): {"Front": "Updated Front 1", "Back": "Updated Back 1"},
         cast('NoteId', 456): {"Front": "Updated Front 2", "Back": "Updated Back 2"},
-    }
+    })
 
 
 @pytest.fixture
