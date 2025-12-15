@@ -38,10 +38,6 @@ class FieldUpdates:
         self._selected_notes = selected_notes
         self.is_applied = False
 
-    def clear(self) -> None:
-        """Clear all field updates."""
-        self._updates.clear()
-        self._overwritable_fields.clear()
 
     def __len__(self) -> int:
         """Return the number of notes with field updates."""
@@ -91,6 +87,7 @@ class FieldUpdates:
         Args:
             other: Dictionary or FieldUpdates instance to merge into this one.
         """
+        assert not self.is_applied, "Cannot update FieldUpdates after they have been applied."
         if isinstance(other, FieldUpdates):
             # Merge field updates
             for note_id, updates in other._updates.items():
@@ -116,6 +113,7 @@ class FieldUpdates:
             field_name: The name of the field to update.
             content: The new content for the field.
         """
+        assert not self.is_applied, "Cannot add field updates after they have been applied."
         if note_id not in self._updates:
             self._updates[note_id] = {}
         self._updates[note_id][field_name] = content
@@ -128,6 +126,7 @@ class FieldUpdates:
             note_id: The note ID to update.
             field_updates: Dictionary of field names to new content.
         """
+        assert not self.is_applied, "Cannot add field updates after they have been applied."
         if note_id not in self._updates:
             self._updates[note_id] = {}
         self._updates[note_id].update(field_updates)
@@ -139,6 +138,7 @@ class FieldUpdates:
         Args:
             field_name: The name of the field that is overwritable.
         """
+        assert not self.is_applied, "Cannot add overwritable fields after updates have been applied."
         self._overwritable_fields.add(field_name)
 
     def get_overwritable_fields(self) -> set[str]:

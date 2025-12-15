@@ -32,17 +32,17 @@ from .preview_table import PreviewTable
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes
 from ..lib.utilities import override
-from ..lib.field_updates import FieldUpdates
 
 import logging
 
 if TYPE_CHECKING:
     from pathlib import Path
     from anki.collection import Collection
-    from ..lib.lm_clients import LMClient
-    from ..lib.addon_config import AddonConfig
     from anki.notes import NoteId
     from anki.cards import CardId
+    from ..lib.lm_clients import LMClient
+    from ..lib.addon_config import AddonConfig
+    from ..lib.field_updates import FieldUpdates
     from ..lib.transform_operations import TransformResults
 
 
@@ -169,6 +169,8 @@ class FieldWidget(QWidget):
 class TransformerManMainWindow(TransformerManBaseDialog):
     """Main window for TransformerMan plugin."""
 
+    preview_results: FieldUpdates | None
+
     def __init__(
         self,
         parent: QWidget,
@@ -219,7 +221,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.field_widgets: dict[str, FieldWidget] = {}
 
         # Preview state
-        self.preview_results = FieldUpdates()  # note_id -> field_name -> new_value
+        self.preview_results = None  # note_id -> field_name -> new_value
 
         self._setup_ui()
         self._load_note_types()
@@ -368,7 +370,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             update_preview_table: Whether to update the preview table display.
         """
         if clear_preview_results:
-            self.preview_results.clear()
+            self.preview_results = None
 
         field_instructions = self._get_current_field_instructions()
         self.transformer.update_field_instructions(field_instructions)
@@ -519,12 +521,11 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             preview_enabled = (
                 len(filtered_note_ids) > 0
                 and has_fillable_fields
-                and len(self.preview_results) == 0
+                and self.preview_results is None
                 and has_notes_with_fillable_fields
             )
 
-        # Apply button conditions
-        apply_enabled = len(self.preview_results) > 0 and not self.preview_results.is_applied
+        apply_enabled = self.preview_results is not None and len(self.preview_results) > 0 and not self.preview_results.is_applied
 
         # Update buttons
         self.preview_button.setEnabled(preview_enabled)
@@ -591,7 +592,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                     disregard_result = askUserDialog("Preview results anyway?", buttons=["Yes", "No"], parent=self).run() == "No"
 
                 if disregard_result:
-                    self.preview_results.clear()
+                    self.preview_results = None
                     self.update_buttons_state()
                     return
 

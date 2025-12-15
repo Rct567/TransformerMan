@@ -121,27 +121,6 @@ class TestFieldUpdates:
         overwritable = field_updates1.get_overwritable_fields()
         assert overwritable == {"field1", "field2", "field3"}
 
-    def test_clear_removes_overwritable_fields(self) -> None:
-        """Test that clear() removes both field updates and overwritable fields."""
-        field_updates = FieldUpdates()
-        note_id = NoteId(123)
-
-        # Add field updates and overwritable fields
-        field_updates.add_field_update(note_id, "field1", "content1")
-        field_updates.add_overwritable_field("field1")
-
-        # Verify data exists
-        assert field_updates.has_overwritable_fields() is True
-        assert len(field_updates) == 1
-
-        # Clear everything
-        field_updates.clear()
-
-        # Verify everything is cleared
-        assert field_updates.has_overwritable_fields() is False
-        assert len(field_updates) == 0
-        assert field_updates.get_overwritable_fields() == set()
-
     def test_equality_includes_overwritable_fields(self) -> None:
         """Test that equality check includes overwritable fields."""
         field_updates1 = FieldUpdates()
