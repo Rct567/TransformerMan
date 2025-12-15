@@ -48,10 +48,11 @@ class LMClient(ABC):
     _model: ModelName
     _connect_timeout: int
     _read_timeout: int
+    _custom_settings: dict[str, str]
 
-    def __init__(self, api_key: ApiKey, model: ModelName, timeout: int = 120, connect_timeout: int = 10) -> None:
+    def __init__(self, api_key: ApiKey, model: ModelName, timeout: int = 120, connect_timeout: int = 10, custom_settings: dict[str, str] | None = None) -> None:
 
-        if model not in self.get_available_models():
+        if self.get_available_models() and model not in self.get_available_models():
             raise ValueError(f"Model {model} is not available for {self.id} LMClient")
 
         if self.api_key_required() and not api_key:
@@ -68,6 +69,7 @@ class LMClient(ABC):
         self._model = model
         self._connect_timeout = connect_timeout
         self._read_timeout = timeout - connect_timeout
+        self._custom_settings = custom_settings or {}
         self.logger = logging.getLogger(__name__)
 
     @property
@@ -88,6 +90,16 @@ class LMClient(ABC):
     @abstractmethod
     def get_available_models() -> list[str]:
         pass
+
+    @staticmethod
+    def custom_settings() -> list[str]:
+        """Return list of custom setting names for this client."""
+        return []
+
+    @staticmethod
+    def validate_custom_settings(settings: dict[str, str]) -> tuple[bool, str]:
+        """Validate custom settings. Returns (is_valid, error_message)."""
+        return True, ""
 
 
 class DummyLMClient(LMClient):
@@ -169,13 +181,26 @@ class OpenAILMClient(LMClient):
         if not self._api_key or not self._api_key.strip():
             raise ValueError("API key is required for OpenAILMClient")
 
-        url = "https://api.openai.com/v1/chat/completions"
+        # Use custom end_point if provided, otherwise use default
+        url = self._custom_settings.get("end_point", "https://api.openai.com/v1/chat/completions")
+
+        if url.endswith("/v1"):
+            url += "/chat/completions"
+
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
         }
+
+        # Add organization ID if provided
+        organization_id = self._custom_settings.get("organization_id")
+        if organization_id:
+            headers["OpenAI-Organization"] = organization_id.strip()
+
+        model = self._custom_settings.get("model", self._model)
+
         data = {
-            "model": self._model,
+            "model":model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.7,
             "stream": True,
@@ -242,6 +267,56 @@ class OpenAILMClient(LMClient):
             "o1",
             "o1-mini",
         ]
+
+    @staticmethod
+    @override
+    def custom_settings() -> list[str]:
+        """Return list of custom setting names for OpenAI client."""
+        return ["organization_id"]
+
+    @staticmethod
+    @override
+    def validate_custom_settings(settings: dict[str, str]) -> tuple[bool, str]:
+        """Validate custom settings for OpenAI client."""
+        # Validate end_point if provided
+        if "end_point" in settings:
+            end_point = settings["end_point"].strip()
+            if end_point and not end_point.startswith(("http://", "https://")):
+                return False, "end_point must be a valid URL starting with http:// or https://"
+
+        if "model" in settings:
+            model = settings["model"].strip()
+            if model and not re.match(r"^[a-zA-Z0-9\-_\.]+$", model):
+                return False, "model must contain only alphanumeric characters, hyphens, underscores, and periods"
+
+        # Validate organization_id if provided
+        if "organization_id" in settings:
+            org_id = settings["organization_id"].strip()
+            if org_id and not org_id.replace("-", "").replace("_", "").isalnum():
+                return False, "organization_id must contain only alphanumeric characters, hyphens, and underscores"
+
+        return True, ""
+
+
+class OpenAiCustom(OpenAILMClient):
+
+    @property
+    @override
+    def id(self) -> str:
+        return "custom-openai-endpoint"
+
+    @staticmethod
+    @override
+    def custom_settings() -> list[str]:
+        """Return list of custom setting names for OpenAI client."""
+        return ["end_point", "model", "organization_id"]
+
+    @staticmethod
+    @override
+    def get_available_models() -> list[str]:
+        return []
+
+
 
 
 class ClaudeLMClient(LMClient):
@@ -477,6 +552,7 @@ LM_CLIENTS = {
     "claude": ClaudeLMClient,
     "gemini": GeminiLMClient,
     "deepseek": DeepSeekLMClient,
+    "openai_custom": OpenAiCustom,
 }
 
 def get_lm_client_class(name: str) -> Optional[type[LMClient]]:

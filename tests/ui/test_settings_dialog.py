@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 from aqt.qt import QWidget, QComboBox, QLineEdit, QSpinBox, QPushButton, Qt, QMessageBox
 
 from transformerman.ui.settings_dialog import SettingsDialog
+from transformerman.lib.lm_clients import OpenAILMClient, LM_CLIENTS
 
 
 class TestSettingsDialog:
@@ -92,21 +93,14 @@ class TestSettingsDialog:
         assert dialog.api_key_input.text() == "test-api-key"
         assert dialog.max_prompt_size_spin.value() == 500000
 
-    @patch('transformerman.ui.settings_dialog.LM_CLIENTS', {'dummy': Mock(), 'openai': Mock()})
-    @patch('transformerman.ui.settings_dialog.get_lm_client_class')
+    @patch('transformerman.ui.settings_dialog.LM_CLIENTS', {**LM_CLIENTS, 'openai': OpenAILMClient})
     def test_client_change_updates_api_key(
         self,
-        mock_get_lm_client_class: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         addon_config: AddonConfig,
     ) -> None:
         """Test that changing client updates API key field."""
-        # Mock get_lm_client_class to return a mock with get_available_models
-        mock_client_class = Mock()
-        mock_client_class.get_available_models.return_value = ["gpt-3.5-turbo", "gpt-4"]
-        mock_get_lm_client_class.return_value = mock_client_class
-
         # Add openai API key to config
         addon_config.update_setting("openai_api_key", "api-key-for-openai")
 
@@ -121,9 +115,9 @@ class TestSettingsDialog:
         assert dialog.api_key_input.text() == "api-key-for-openai"
 
         # Should have populated models for the new client
-        mock_get_lm_client_class.assert_called_with("openai")
-        # get_available_models is called during initialization and when client changes
-        mock_client_class.get_available_models.assert_called()
+        assert dialog.model_combo.count() > 0
+        available_models = [dialog.model_combo.itemText(i) for i in range(dialog.model_combo.count())]
+        assert "gpt-4o" in available_models  # Use an actual model from the real client
 
     def test_setting_change_enables_buttons(
         self,
@@ -147,28 +141,21 @@ class TestSettingsDialog:
         assert dialog.save_button.isEnabled()
         assert dialog.reset_button.isEnabled()
 
-    @patch('transformerman.ui.settings_dialog.LM_CLIENTS', {'dummy': Mock(), 'openai': Mock()})
-    @patch('transformerman.ui.settings_dialog.get_lm_client_class')
+    @patch('transformerman.ui.settings_dialog.LM_CLIENTS', {**LM_CLIENTS, 'openai': OpenAILMClient})
     def test_save_button_functionality(
         self,
-        mock_get_lm_client_class: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         addon_config: AddonConfig,
     ) -> None:
         """Test that save button saves settings."""
-        # Mock get_lm_client_class to return a mock with get_available_models
-        mock_client_class = Mock()
-        mock_client_class.get_available_models.return_value = ["gpt-3.5-turbo", "gpt-4"]
-        mock_get_lm_client_class.return_value = mock_client_class
-
         dialog = SettingsDialog(parent_widget, addon_config)
         qtbot.addWidget(dialog)
 
         # Change settings - trigger UI signals
         dialog.client_combo.setCurrentText("openai")
         dialog.client_combo.currentTextChanged.emit("openai")
-        dialog.model_combo.setCurrentText("gpt-4")
+        dialog.model_combo.setCurrentText("gpt-4o")
         dialog.api_key_input.setText("new-api-key")
         dialog.api_key_input.textChanged.emit("new-api-key")
         dialog.max_prompt_size_spin.setValue(550000)
@@ -182,7 +169,7 @@ class TestSettingsDialog:
 
         # Check that config was actually updated
         assert addon_config.get("lm_client", "") == "openai"
-        assert addon_config.get("model", "") == "gpt-4"
+        assert addon_config.get("openai_model", "") == "gpt-4o"
         assert addon_config.get("max_prompt_size", 0) == 550000
         # Check API key was set
         assert str(addon_config.get_api_key("openai")) == "new-api-key"

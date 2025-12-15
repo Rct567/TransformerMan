@@ -92,7 +92,7 @@ class TestAddonConfig:
         """Test getting LM client."""
 
         def loader() -> dict[str, JSON_TYPE]:
-            return {"lm_client": "openai", "model": "gpt-5", "api_key": "test-key"}
+            return {"lm_client": "openai", "openai_model": "gpt-5", "openai_api_key": "test-key"}
 
         def saver(config: dict[str, JSON_TYPE]) -> None:
             pass

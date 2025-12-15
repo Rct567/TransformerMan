@@ -92,6 +92,29 @@ class AddonConfig:
         # Fall back to generic "api_key" for backward compatibility
         return ApiKey(str(self.get("api_key", "")))
 
+    def get_model(self, client_id: str) -> str:
+        """Get the model for a specific LM client."""
+        if self.__config is None:
+            self.load()
+
+        # After load(), __config should not be None
+        assert self.__config is not None
+
+        model_key = f"{client_id}_model"
+        return str(self.get(model_key, ""))
+
+    def set_model(self, client_id: str, model: str) -> None:
+        """Set the model for a specific LM client."""
+        if self.__config is None:
+            self.load()
+
+        # After load(), __config should not be None
+        assert self.__config is not None
+
+        # Store with client-specific prefix
+        model_key = f"{client_id}_model"
+        self.update_setting(model_key, model)
+
     def set_api_key(self, client_id: str, api_key: str) -> None:
         """Set the API key for a specific LM client."""
         if self.__config is None:
@@ -103,6 +126,47 @@ class AddonConfig:
         # Store with client-specific prefix
         client_key = f"{client_id}_api_key"
         self.update_setting(client_key, api_key)
+
+    def get_custom_client_settings(self, client_id: str) -> dict[str, str]:
+        """Get custom settings for a specific LM client."""
+        if self.__config is None:
+            self.load()
+
+        # After load(), __config should not be None
+        assert self.__config is not None
+
+        custom_settings = {}
+        prefix = f"{client_id}_custom_"
+
+        for key, value in self.__config.items():
+            if key.startswith(prefix) and isinstance(value, str):
+                setting_name = key[len(prefix):]
+                custom_settings[setting_name] = value
+
+        return custom_settings
+
+    def set_custom_client_setting(self, client_id: str, setting_name: str, setting_value: str) -> None:
+        """Set a custom setting for a specific LM client."""
+        if self.__config is None:
+            self.load()
+
+        # After load(), __config should not be None
+        assert self.__config is not None
+
+        # Store with client-specific prefix
+        client_key = f"{client_id}_custom_{setting_name}"
+        self.update_setting(client_key, setting_value)
+
+    def set_custom_client_settings(self, client_id: str, settings: dict[str, str]) -> None:
+        """Set multiple custom settings for a specific LM client."""
+        if self.__config is None:
+            self.load()
+
+        # After load(), __config should not be None
+        assert self.__config is not None
+
+        for setting_name, setting_value in settings.items():
+            self.set_custom_client_setting(client_id, setting_name, setting_value)
 
     def get_max_prompt_size(self) -> int:
         """Get the maximum prompt size from configuration with validation."""
@@ -153,21 +217,24 @@ class AddonConfig:
         if client_name not in LM_CLIENTS:
             return None, f"Unknown LM client '{client_name}' configured"
 
-        # Model of LM client
-        model_str = self.get("model", None)
-
-        if not isinstance(model_str, str):
-            return None, "Configured model is not a string"
-        elif not model_str:
-            return None, "No model configured"
-
+        # get client
         client_class = get_lm_client_class(client_name)
 
         if not client_class:
             return None, f"Unknown LM client '{client_name}' configured"
 
-        if model_str not in client_class.get_available_models():
-            return None, f"Configured model '{model_str}' is not available for client '{client_name}'"
+        # Model of LM client (stored with client prefix like API key)
+        model_str = self.get_model(client_name)
+
+        if not isinstance(model_str, str):
+            return None, "Configured model is not a string"
+
+        if client_class.get_available_models():
+            if not model_str:
+                return None, "No model configured"
+
+            if model_str not in client_class.get_available_models():
+                return None, f"Configured model '{model_str}' is not available for client '{client_name}'"
 
         # Api key
         api_key: ApiKey = ApiKey("")
@@ -179,7 +246,8 @@ class AddonConfig:
 
         # Create client with proper types
         model = ModelName(model_str)
-        client = client_class(api_key, model, self.get_timeout(), self.get_connect_timeout())
+        custom_settings = self.get_custom_client_settings(client_name)
+        client = client_class(api_key, model, self.get_timeout(), self.get_connect_timeout(), custom_settings)
         return client, None
 
     @staticmethod

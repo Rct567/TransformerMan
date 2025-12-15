@@ -111,6 +111,16 @@ class SettingsDialog(TransformerManBaseDialog):
         self.timeout_spin.valueChanged.connect(self._on_setting_changed)
         form_layout.addRow("Timeout:", self.timeout_spin)
 
+        # Custom settings (will be populated dynamically)
+        self.custom_settings_widgets: dict[str, QLineEdit] = {}
+        self.custom_settings_group = QGroupBox("Custom Settings")
+        self.custom_settings_layout = QVBoxLayout()
+        self.custom_settings_layout.setContentsMargins(10, 10, 10, 10)
+        self.custom_settings_layout.setSpacing(5)
+        self.custom_settings_group.setLayout(self.custom_settings_layout)
+        self.custom_settings_group.setVisible(False)  # Hidden by default
+        form_layout.addRow(self.custom_settings_group)
+
         # Add the form layout to the group layout
         group_layout.addLayout(form_layout)
 
@@ -193,9 +203,9 @@ class SettingsDialog(TransformerManBaseDialog):
         # Save LM client
         self.addon_config.update_setting("lm_client", client_name)
 
-        # Save model
+        # Save model with client prefix (like API key)
         model = self.model_combo.currentText()
-        self.addon_config.update_setting("model", model)
+        self.addon_config.set_model(client_name, model)
 
         # Save max prompt size
         max_prompt_size = self.max_prompt_size_spin.value()
@@ -209,6 +219,10 @@ class SettingsDialog(TransformerManBaseDialog):
             timeout = 1
         self.addon_config.update_setting("timeout", timeout)
 
+        # Save custom settings
+        client_name = self.client_combo.currentText()
+        self._save_custom_settings(client_name)
+
         # Disable save and reset buttons after saving
         self.save_button.setEnabled(False)
         self.reset_button.setEnabled(False)
@@ -218,12 +232,98 @@ class SettingsDialog(TransformerManBaseDialog):
         api_key = self.addon_config.get_api_key(client_name)
         self.api_key_input.setText(str(api_key))
         self._populate_models_for_client(client_name)
+        self._populate_custom_settings_for_client(client_name)
 
     def _on_setting_changed(self) -> None:
         # Enable save and reset buttons when settings are changed.
         if not self._is_loading_settings:
             self.save_button.setEnabled(True)
             self.reset_button.setEnabled(True)
+
+    def _populate_custom_settings_for_client(self, client_name: str) -> None:
+        """Populate custom settings UI for the selected client."""
+        client_class = get_lm_client_class(client_name)
+
+        # Clear existing custom settings widgets
+        for widget in self.custom_settings_widgets.values():
+            widget.deleteLater()
+        self.custom_settings_widgets.clear()
+
+        # Clear layout completely (including nested layouts)
+        while self.custom_settings_layout.count():
+            item = self.custom_settings_layout.takeAt(0)
+            if item is None:
+                continue
+            item_widget = item.widget()
+            if item_widget:
+                item_widget.deleteLater()
+            elif item.layout():
+                # Clear nested layout
+                if (nested_layout := item.layout()):
+                    while nested_layout.count():
+                        sub_item = nested_layout.takeAt(0)
+                        if sub_item and (sub_item_widget := sub_item.widget()):
+                            sub_item_widget.deleteLater()
+
+        if client_class is None:
+            self.custom_settings_group.setVisible(False)
+            return
+
+        custom_setting_names = client_class.custom_settings()
+        if not custom_setting_names:
+            self.custom_settings_group.setVisible(False)
+            return
+
+        # Create form layout for custom settings
+        custom_form_layout = QFormLayout()
+        custom_form_layout.setSpacing(5)
+        custom_form_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Get current custom settings for this client
+        current_settings = self.addon_config.get_custom_client_settings(client_name)
+
+        for setting_name in custom_setting_names:
+            # Create label and input field
+            label_text = setting_name.replace('_', ' ').title()
+            input_field = QLineEdit()
+            input_field.setText(current_settings.get(setting_name, ""))
+            input_field.textChanged.connect(self._on_setting_changed)
+
+            # Store reference
+            self.custom_settings_widgets[setting_name] = input_field
+
+            # Add to form
+            custom_form_layout.addRow(f"{label_text}:", input_field)
+
+        self.custom_settings_layout.addLayout(custom_form_layout)
+        self.custom_settings_group.setVisible(True)
+
+    def _save_custom_settings(self, client_name: str) -> None:
+        """Save custom settings for the selected client."""
+        client_class = get_lm_client_class(client_name)
+        if client_class is None:
+            return
+
+        custom_setting_names = client_class.custom_settings()
+        if not custom_setting_names:
+            return
+
+        # Collect settings from UI
+        settings_to_save: dict[str, str] = {}
+        for setting_name in custom_setting_names:
+            if setting_name in self.custom_settings_widgets:
+                value = self.custom_settings_widgets[setting_name].text().strip()
+                if value:
+                    settings_to_save[setting_name] = value
+
+        # Validate settings
+        is_valid, error_message = client_class.validate_custom_settings(settings_to_save)
+        if not is_valid:
+            showWarning(f"Invalid custom settings for {client_name}: {error_message}")
+            return
+
+        # Save settings
+        self.addon_config.set_custom_client_settings(client_name, settings_to_save)
 
     def _populate_models_for_client(self, client_name: str) -> None:
         client_class = get_lm_client_class(client_name)
@@ -234,10 +334,13 @@ class SettingsDialog(TransformerManBaseDialog):
         self.model_combo.clear()
         if models:
             self.model_combo.addItems(models)
-            current_model = str(self.addon_config.get("model", "claude-v1.3-100k"))
-            index = self.model_combo.findText(current_model)
-            if index >= 0:
-                self.model_combo.setCurrentIndex(index)
+
+            current_model = self.addon_config.get_model(client_name)
+
+            if current_model:
+                index = self.model_combo.findText(current_model)
+                if index >= 0:
+                    self.model_combo.setCurrentIndex(index)
 
     def _on_restore_clicked(self) -> None:
         """Handle restore button click."""
