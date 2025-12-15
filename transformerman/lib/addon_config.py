@@ -201,6 +201,20 @@ class AddonConfig:
 
         return connect_timeout
 
+
+    def get_max_examples(self) -> int:
+        """Get the maximum number of examples from configuration with validation."""
+        assert self.__config is not None
+
+        default = 10
+
+        max_examples = self.get("max_examples", default)
+
+        if not isinstance(max_examples, int) or max_examples < 0:
+            max_examples = default
+
+        return max_examples
+
     def get_client(self) -> tuple[Optional[LMClient], Optional[str]]:
         """Return the configured LM client, or None if the client is unknown."""
         if self.__config is None:

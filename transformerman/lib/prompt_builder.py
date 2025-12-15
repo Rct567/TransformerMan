@@ -27,8 +27,9 @@ class PromptBuilder:
     card_cache: dict[CardId, Card]
     find_notes_cache: dict[str, Sequence[NoteId]]
     note_xml_cache: dict[tuple[NoteId, tuple[str, ...]], str]
+    max_examples: int
 
-    def __init__(self, col: Collection) -> None:
+    def __init__(self, col: Collection, max_examples: int = 10) -> None:
         self.col = col
         self.field_instructions = {}
         self.deck_cache = {}
@@ -36,6 +37,7 @@ class PromptBuilder:
         self.card_cache = {}
         self.find_notes_cache = {}
         self.note_xml_cache = {}
+        self.max_examples = max_examples
 
     def _get_note(self, note_id: NoteId) -> Note:
         """Get a note from cache or collection."""
@@ -234,7 +236,6 @@ class PromptBuilder:
         target_notes: SelectedNotes,
         selected_fields: Sequence[str],
         note_type_name: str,
-        max_examples: int = 3,
     ) -> Sequence[Note]:
         """
         Select up to max_examples example notes from the collection.
@@ -248,7 +249,6 @@ class PromptBuilder:
             target_notes: SelectedNotes instance (to avoid selecting them as examples).
             selected_fields: Sequence of field names to consider.
             note_type_name: Name of the note type.
-            max_examples: Maximum number of examples to return.
 
         Returns:
             List of example notes.
@@ -282,7 +282,7 @@ class PromptBuilder:
 
         # Attempt 2/3 Try just the refined query
 
-        if len(candidate_note_ids) < max_examples:
+        if len(candidate_note_ids) < self.max_examples:
             existing_ids = set(candidate_note_ids)
             for note_id in find_candidate_notes(refined_query):
                 if note_id not in existing_ids:
@@ -290,7 +290,7 @@ class PromptBuilder:
 
         # Attempt 3/3 If refined query doesn't produce enough candidate notes, fall back to 'note type' based query
 
-        if len(candidate_note_ids) < max_examples:
+        if len(candidate_note_ids) < self.max_examples:
             existing_ids = set(candidate_note_ids)
             # Get all note IDs of this type
             for note_id in find_candidate_notes(f'"note:{note_type_name}"'):
@@ -327,7 +327,7 @@ class PromptBuilder:
         scored_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
 
         # Return top examples
-        return [note for _, _, note in scored_candidates[:max_examples]]
+        return [note for _, _, note in scored_candidates[:self.max_examples]]
 
     def _format_notes_as_xml(
         self,

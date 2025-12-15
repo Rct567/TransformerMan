@@ -107,7 +107,7 @@ class TestNoteTransformer:
         dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
         # Create a real PromptBuilder
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = PromptBuilder(col, max_examples=3)
 
         # Create NoteTransformer with max prompt size of 1000
         transformer = NoteTransformer(

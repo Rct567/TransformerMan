@@ -111,6 +111,15 @@ class SettingsDialog(TransformerManBaseDialog):
         self.timeout_spin.valueChanged.connect(self._on_setting_changed)
         form_layout.addRow("Timeout:", self.timeout_spin)
 
+        # Max Examples
+        self.max_examples_spin = FormattedSpinBox()
+        self.max_examples_spin.setMinimum(0)  # 0 examples minimum
+        self.max_examples_spin.setMaximum(500)  # 500 examples maximum
+        self.max_examples_spin.setSuffix(" examples")
+        self.max_examples_spin.setSingleStep(1)  # Step by 1
+        self.max_examples_spin.valueChanged.connect(self._on_setting_changed)
+        form_layout.addRow("Max Examples:", self.max_examples_spin)
+
         # Custom settings (will be populated dynamically)
         self.custom_settings_widgets: dict[str, QLineEdit] = {}
         self.custom_settings_group = QGroupBox("Custom Settings")
@@ -189,6 +198,9 @@ class SettingsDialog(TransformerManBaseDialog):
         # Load timeout
         self.timeout_spin.setValue(self.addon_config.get_timeout())
 
+        # Load max examples
+        self.max_examples_spin.setValue(self.addon_config.get_max_examples())
+
         self._is_loading_settings = False
 
     def _on_save_clicked(self) -> None:
@@ -218,6 +230,12 @@ class SettingsDialog(TransformerManBaseDialog):
         if timeout < 1:
             timeout = 1
         self.addon_config.update_setting("timeout", timeout)
+
+        # Save max examples
+        max_examples = self.max_examples_spin.value()
+        if max_examples < 0:
+            max_examples = 0
+        self.addon_config.update_setting("max_examples", max_examples)
 
         # Save custom settings
         client_name = self.client_combo.currentText()

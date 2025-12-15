@@ -31,7 +31,7 @@ class TestPromptBuilder:
             col.update_note(note)
 
         selected_notes = SelectedNotes(col, note_ids)
-        builder = PromptBuilder(col)
+        builder = PromptBuilder(col, max_examples=3)
 
         prompt_with_writeable_fields = builder.build_prompt(
             target_notes=selected_notes,
@@ -87,7 +87,7 @@ class TestPromptBuilder:
         col.update_note(note)
 
         selected_notes = SelectedNotes(col, [note_id])
-        builder = PromptBuilder(col)
+        builder = PromptBuilder(col, max_examples=3)
 
         # Set field instructions
         instructions = {"Front": "Provide a concise question", "Back": "Provide detailed answer"}
@@ -137,7 +137,7 @@ class TestPromptBuilder:
         col.add_note(note, deck_id)
 
         selected_notes = SelectedNotes(col, [note.id])
-        builder = PromptBuilder(col)
+        builder = PromptBuilder(col, max_examples=3)
 
         # Build prompt
         prompt = builder.build_prompt(
