@@ -74,7 +74,7 @@ class PromptBuilder:
         return self._get_deck_name(card.did)
 
 
-    def _format_note_as_xml(self, note: Note, fields_included: Sequence[str]) -> str:
+    def _format_note_as_xml(self, note: Note, fields_included: Sequence[str], leave_empty: Sequence[str] | None) -> str:
         """Format a single note as XML with caching."""
         # Create cache key
         cache_key = (note.id, tuple(fields_included))
@@ -95,7 +95,10 @@ class PromptBuilder:
         for field_name in fields_included:
             if field_name in note:
                 field_value = note[field_name]
-                escaped_value = escape_xml_content(field_value)
+                if leave_empty and field_name in leave_empty:
+                    escaped_value = ""
+                else:
+                    escaped_value = escape_xml_content(field_value)
                 lines.append(f'    <field name="{escape_xml_content(field_name)}">{escaped_value}</field>')
 
         lines.append('  </note>')
@@ -154,9 +157,11 @@ class PromptBuilder:
             for field in overwritable_fields
         )
         if not has_empty_writable and not has_overwritable:
-            raise ValueError(
-                "No notes with empty writable fields found and no notes with overwritable fields"
-            )
+            raise ValueError("No notes with empty writable fields found and no notes with overwritable fields")
+
+        fields_to_fill = overwritable_fields if overwritable_fields else writable_fields
+        if not fields_to_fill:
+            raise ValueError("No writable or overwritable fields specified")
 
         # Get example notes
         example_notes = self._select_example_notes(target_notes, selected_fields, note_type_name)
@@ -180,11 +185,11 @@ class PromptBuilder:
             else:
                 prompt_parts.append("- Fill empty fields intelligently based on field names and deck context.")
 
-            if writable_fields:
-                if len(writable_fields) == 1:
-                    prompt_parts.append(f"- Fill in only the following empty field: \"{writable_fields[0]}\".")
+            if fields_to_fill:
+                if len(fields_to_fill) == 1:
+                    prompt_parts.append(f"- Fill in only the following empty field: \"{fields_to_fill[0]}\".")
                 else:
-                    fields_str = ", ".join(f"'{f}'" for f in writable_fields)
+                    fields_str = ", ".join(f"'{f}'" for f in fields_to_fill)
                     prompt_parts.append(f"- Fill in only the following empty fields: {fields_str}.")
 
         # Only include examples section if there are examples
@@ -215,9 +220,9 @@ class PromptBuilder:
         if not notes_to_include:
             raise ValueError("No notes with empty writable fields or overwritable fields found")
 
-        if writable_fields:
-            if len(writable_fields) == 1:
-                prompt_parts.append("Please fill the specified empty field (\"{}\") in the following notes and return them in the same XML format:".format(writable_fields[0]))
+        if fields_to_fill:
+            if len(fields_to_fill) == 1:
+                prompt_parts.append("Please fill the specified empty field (\"{}\") in the following notes and return them in the same XML format:".format(fields_to_fill[0]))
             else:
                 prompt_parts.append("Please fill the specified empty fields in the following notes and return them in the same XML format:")
         else:
@@ -226,7 +231,7 @@ class PromptBuilder:
         prompt_parts.extend(
             [
                 "",
-                self._format_notes_as_xml(notes_to_include, note_type_name, selected_fields),
+                self._format_notes_as_xml(notes_to_include, note_type_name, selected_fields, overwritable_fields),
             ]
         )
 
@@ -337,6 +342,7 @@ class PromptBuilder:
         notes: Sequence[Note],
         note_type_name: str,
         fields_included: Sequence[str],
+        leave_empty: Sequence[str] | None = None,
     ) -> str:
         """
         Format notes as XML-like structure.
@@ -350,10 +356,12 @@ class PromptBuilder:
             XML-like string representation.
         """
 
+        assert not leave_empty or all(field in fields_included for field in leave_empty)
+
         lines = [f'<notes model="{escape_xml_content(note_type_name)}">']
 
         for note in notes:
-            lines.append(self._format_note_as_xml(note, fields_included))
+            lines.append(self._format_note_as_xml(note, fields_included, leave_empty))
 
         lines.append("</notes>")
 

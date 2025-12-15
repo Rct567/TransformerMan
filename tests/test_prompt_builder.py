@@ -33,19 +33,19 @@ class TestPromptBuilder:
         selected_notes = SelectedNotes(col, note_ids)
         builder = PromptBuilder(col)
 
-        prompt = builder.build_prompt(
-            target_notes=selected_notes,
-            selected_fields=["Front"],
-            writable_fields=None,
-            overwritable_fields=None,
-            note_type_name="Basic",
-        )
-
         prompt_with_writeable_fields = builder.build_prompt(
             target_notes=selected_notes,
             selected_fields=["Front", "Back"],
             writable_fields=["Front"],
             overwritable_fields=None,
+            note_type_name="Basic",
+        )
+
+        prompt_with_overwritable_fields = builder.build_prompt(
+            target_notes=selected_notes,
+            selected_fields=["Front", "Back"],
+            writable_fields=None,
+            overwritable_fields=["Front"],
             note_type_name="Basic",
         )
 
@@ -63,12 +63,14 @@ class TestPromptBuilder:
             assert prompt.count('<field name="Front"></field>') == 2 # 2 notes selected and targeted
             assert prompt.count('<field name="Front"') == 5 # 3 example fields + 2 empty fields
             assert prompt.count("</notes>") == 2 # examples + target list
+            assert prompt.count('<') == prompt.count('>')  # Basic XML well-formedness
 
-        check_prompt(prompt)
+
         check_prompt(prompt_with_writeable_fields)
+        check_prompt(prompt_with_overwritable_fields)
 
-        col.lock_and_assert_result('test_build_prompt_basic', prompt)
         col.lock_and_assert_result('test_build_prompt_basic_with_writeable_fields', prompt_with_writeable_fields)
+        col.lock_and_assert_result('test_build_prompt_basic_with_overwritable_fields', prompt_with_overwritable_fields)
 
     @with_test_collection("two_deck_collection")
     def test_build_prompt_with_field_instructions(
@@ -95,7 +97,7 @@ class TestPromptBuilder:
         prompt = builder.build_prompt(
             target_notes=selected_notes,
             selected_fields=["Front", "Back"],
-            writable_fields=None,
+            writable_fields=["Front"],
             overwritable_fields=None,
             note_type_name="Basic",
         )
