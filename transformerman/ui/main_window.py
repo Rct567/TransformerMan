@@ -638,19 +638,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             return
 
         # Check for overwritable fields that will cause data loss
-        overwritable_fields = self._get_overwritable_fields()
-        if overwritable_fields:
-            # Determine which notes will have content overwritten
-            notes_with_overwritten_content: dict[NoteId, list[str]] = {}
-            overwritable_set = set(overwritable_fields)
-            for note_id, field_updates in self.preview_results.items():
-                note = self.selected_notes.get_note(note_id)
-                overwritten_fields_for_note: list[str] = []
-                for field_name in field_updates.keys():
-                    if field_name in overwritable_set and field_name in note and note[field_name].strip():
-                        overwritten_fields_for_note.append(field_name)
-                if overwritten_fields_for_note:
-                    notes_with_overwritten_content[note_id] = overwritten_fields_for_note
+        if self.preview_results.has_overwritable_fields():
+            notes_with_overwritten_content = self.preview_results.get_notes_with_overwritten_content()
 
             if notes_with_overwritten_content:
                 num_notes = len(notes_with_overwritten_content)
@@ -660,6 +649,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                     all_overwritten_fields.update(fields)
                 fields_str = ", ".join(f'"{field}"' for field in sorted(all_overwritten_fields))
 
+                overwritable_fields = self.preview_results.get_overwritable_fields()
                 field_text = "field" if len(overwritable_fields) == 1 else "fields"
                 note_text = "note" if num_notes == 1 else "notes"
 

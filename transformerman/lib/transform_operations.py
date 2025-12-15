@@ -175,7 +175,7 @@ class NoteTransformer:
         """
         num_notes_updated = 0
         num_notes_failed = 0
-        field_updates_dict = FieldUpdates()
+        field_updates = FieldUpdates()
         error: str | None = None
 
         try:
@@ -201,19 +201,19 @@ class NoteTransformer:
             if response.error is not None:
                 error = response.error
                 # Stop processing on first error
-                return num_notes_updated, num_notes_failed, field_updates_dict, error
+                return num_notes_updated, num_notes_failed, field_updates, error
 
             # Parse response
-            field_updates = response.get_notes_from_xml()
+            response_field_updates = response.get_notes_from_xml()
 
             # Collect field updates (preview mode)
             for note in batch_selected_notes.get_notes():
                 try:
-                    updates = field_updates.get(note.id, {})
+                    note_field_updates = response_field_updates.get(note.id, {})
 
                     batch_field_updates: dict[str, str] = {}
 
-                    for field_name, content in updates.items():
+                    for field_name, content in note_field_updates.items():
                         # Collect if field is in writable fields and is empty
                         if field_name in self.writable_fields and not note[field_name].strip():
                             batch_field_updates[field_name] = content
@@ -223,7 +223,7 @@ class NoteTransformer:
 
                     if batch_field_updates:
                         # Store field updates for preview
-                        field_updates_dict.update({note.id: batch_field_updates})
+                        field_updates.add_field_updates(note.id, batch_field_updates)
                         num_notes_updated += 1
 
                 except Exception as e:
@@ -235,7 +235,7 @@ class NoteTransformer:
             self.logger.error(f"Error processing batch in preview: {e!r}")
             num_notes_failed += len(batch_selected_notes)
 
-        return num_notes_updated, num_notes_failed, field_updates_dict, error
+        return num_notes_updated, num_notes_failed, field_updates, error
 
     def get_field_updates(
         self,
@@ -261,7 +261,12 @@ class NoteTransformer:
         total_updated = 0
         total_failed = 0
         batch_idx = 0
-        all_field_updates = FieldUpdates()
+        all_field_updates = FieldUpdates(selected_notes=self.selected_notes)
+
+        # Add overwritable fields to track globally
+        for field_name in self.overwritable_fields:
+            all_field_updates.add_overwritable_field(field_name)
+
         error: str | None = None
 
         log_request, log_response = create_lm_logger(self.addon_config, self.user_files_dir)
