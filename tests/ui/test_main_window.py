@@ -16,9 +16,9 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
     from transformerman.lib.addon_config import AddonConfig
 
-from aqt.qt import QWidget, QCheckBox, QLineEdit, QComboBox, QPushButton, Qt
+from aqt.qt import QWidget, QLineEdit, QComboBox, QPushButton, Qt
 
-from transformerman.ui.main_window import TransformerManMainWindow
+from transformerman.ui.main_window import TransformerManMainWindow, FieldWidget
 from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
 
 col = test_collection_fixture
@@ -211,23 +211,22 @@ class TestTransformerManMainWindow:
         window.note_type_combo.currentTextChanged.emit("Basic")
 
         # Wait for signal to be processed
-        qtbot.waitUntil(lambda: len(window.field_checkboxes) > 0)
+        qtbot.waitUntil(lambda: len(window.field_widgets) > 0)
 
-        # Should have field checkboxes for Basic note type fields
-        assert len(window.field_checkboxes) > 0
-        assert "Front" in window.field_checkboxes
-        assert "Back" in window.field_checkboxes
+        # Should have field widgets for Basic note type fields
+        assert len(window.field_widgets) > 0
+        assert "Front" in window.field_widgets
+        assert "Back" in window.field_widgets
 
-        # Checkboxes should be QCheckBox instances
-        front_checkbox = window.field_checkboxes["Front"]
-        assert isinstance(front_checkbox, QCheckBox)
+        # Widgets should be FieldWidget instances
+        front_widget = window.field_widgets["Front"]
+        assert isinstance(front_widget, FieldWidget)
 
         # First two fields should be checked by default
-        assert front_checkbox.isChecked()
+        assert front_widget.is_context_selected()
 
         # Should have corresponding instruction inputs
-        assert "Front" in window.field_instructions
-        front_input = window.field_instructions["Front"]
+        front_input = front_widget.instruction_input
         assert isinstance(front_input, QLineEdit)
         assert front_input.placeholderText() == "Optional instructions for this field..."
 
@@ -263,10 +262,11 @@ class TestTransformerManMainWindow:
         window.note_type_combo.addItem("Basic")
         window.note_type_combo.setCurrentText("Basic")
         window.note_type_combo.currentTextChanged.emit("Basic")
-        qtbot.waitUntil(lambda: len(window.field_checkboxes) > 0)
+        qtbot.waitUntil(lambda: len(window.field_widgets) > 0)
 
-        front_checkbox = window.field_checkboxes["Front"]
-        front_input = window.field_instructions["Front"]
+        front_widget = window.field_widgets["Front"]
+        front_checkbox = front_widget.context_checkbox
+        front_input = front_widget.instruction_input
 
         # Initially should be enabled (checked by default)
         assert front_checkbox.isChecked()
@@ -313,7 +313,7 @@ class TestTransformerManMainWindow:
         window.note_type_combo.addItem("Basic")
         window.note_type_combo.setCurrentText("Basic")
         window.note_type_combo.currentTextChanged.emit("Basic")
-        qtbot.waitUntil(lambda: len(window.field_checkboxes) > 0)
+        qtbot.waitUntil(lambda: len(window.field_widgets) > 0)
 
         # With notes selected and fields checked but no empty fields,
         # preview button should be disabled (nothing to transform)
@@ -399,17 +399,17 @@ class TestTransformerManMainWindow:
         window.note_type_combo.addItem("Basic")
         window.note_type_combo.setCurrentText("Basic")
         window.note_type_combo.currentTextChanged.emit("Basic")
-        qtbot.waitUntil(lambda: len(window.field_checkboxes) > 0)
+        qtbot.waitUntil(lambda: len(window.field_widgets) > 0)
 
         # Check the "Front" writable checkbox
-        if "Front" in window.writable_checkboxes:
-            window.writable_checkboxes["Front"].setChecked(True)
-            window.writable_checkboxes["Front"].toggled.emit(True)
+        if "Front" in window.field_widgets:
+            front_widget = window.field_widgets["Front"]
+            front_widget.writable_checkbox.setChecked(True)
+            front_widget.writable_checkbox.toggled.emit(True)
 
         # Click preview button
         qtbot.mouseClick(window.preview_button, Qt.MouseButton.LeftButton)
 
-        # Should call transformer.transform() method
         # Should call transformer.transform() method
         mock_transformer_instance.transform.assert_called_once()
         # Verify call args include writable_fields
@@ -475,18 +475,18 @@ class TestTransformerManMainWindow:
         # Change to Basic note type by triggering the signal
         window.note_type_combo.setCurrentText("Basic")
         window.note_type_combo.currentTextChanged.emit("Basic")
-        qtbot.waitUntil(lambda: len(window.field_checkboxes) > 0)
+        qtbot.waitUntil(lambda: len(window.field_widgets) > 0)
 
         assert window.current_note_type == "Basic"
-        assert "Front" in window.field_checkboxes
-        assert "Back" in window.field_checkboxes
+        assert "Front" in window.field_widgets
+        assert "Back" in window.field_widgets
 
         # Change to Cloze note type by triggering the signal
         window.note_type_combo.setCurrentText("Cloze")
         window.note_type_combo.currentTextChanged.emit("Cloze")
-        qtbot.waitUntil(lambda: "Text" in window.field_checkboxes)
+        qtbot.waitUntil(lambda: "Text" in window.field_widgets)
 
         assert window.current_note_type == "Cloze"
-        assert "Text" in window.field_checkboxes
-        assert "Back Extra" in window.field_checkboxes
-        assert "Front" not in window.field_checkboxes  # Old fields cleared
+        assert "Text" in window.field_widgets
+        assert "Back Extra" in window.field_widgets
+        assert "Front" not in window.field_widgets  # Old fields cleared

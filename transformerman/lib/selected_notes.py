@@ -23,7 +23,7 @@ class BatchingStats(NamedTuple):
     num_prompts_tried: int
     avg_batch_size: int | None
     num_batches: int
-    num_notes_selected: int # noqa: vulture
+    num_notes_selected: int  # noqa: vulture
     max_prompt_size: int
 
 class SelectedNotes:
@@ -194,11 +194,51 @@ class SelectedNotes:
         # Apply bounds
         return max(1, min(estimate, cls.MAX_START_SIZE))
 
+    def filter_by_writable_or_overwritable(
+        self,
+        writable_fields: Sequence[str],
+        overwritable_fields: Sequence[str],
+    ) -> SelectedNotes:
+        """
+        Return a new SelectedNotes instance containing only notes that have:
+        1. At least one empty field among writable_fields, OR
+        2. At least one field among overwritable_fields (regardless of content).
+
+        Args:
+            writable_fields: Sequence of field names to check for emptiness.
+            overwritable_fields: Sequence of field names to include regardless of content.
+
+        Returns:
+            New SelectedNotes instance with filtered note IDs.
+        """
+        filtered_note_ids: list[NoteId] = []
+        writable_set = set(writable_fields)
+        overwritable_set = set(overwritable_fields)
+
+        for nid in self._note_ids:
+            note = self.get_note(nid)
+            # Check if note has empty field in writable_fields
+            has_empty_writable = any(
+                field in note and not note[field].strip()
+                for field in writable_set
+            )
+            # Check if note has field in overwritable_fields
+            has_overwritable = any(
+                field in note
+                for field in overwritable_set
+            )
+
+            if has_empty_writable or has_overwritable:
+                filtered_note_ids.append(nid)
+
+        return self.new_selected_notes(filtered_note_ids)
+
     def batched_by_prompt_size(
         self,
         prompt_builder: PromptBuilder,
         selected_fields: Sequence[str],
         writable_fields: Sequence[str] | None,
+        overwritable_fields: Sequence[str] | None,
         note_type_name: str,
         max_chars: int,
     ) -> list[SelectedNotes]:
@@ -210,7 +250,11 @@ class SelectedNotes:
 
         Args:
             prompt_builder: PromptBuilder instance for building prompts.
-            selected_fields: Sequence of field names to fill.
+            selected_fields: Sequence of field names to include in the prompt.
+            writable_fields: Sequence of field names that can be filled if empty.
+                If None, defaults to selected_fields.
+            overwritable_fields: Sequence of field names that can be filled even if already have content.
+                If None, defaults to empty list.
             note_type_name: Name of the note type.
             max_chars: Maximum prompt size in characters.
 
@@ -223,13 +267,16 @@ class SelectedNotes:
         if writable_fields is None:
             writable_fields = selected_fields
 
-        # Filter to only notes with empty fields (these are the ones that will be in the prompt)
-        notes_with_empty_fields = self.filter_by_empty_field(writable_fields)
-        if not notes_with_empty_fields:
+        if overwritable_fields is None:
+            overwritable_fields = []
+
+        # Filter to notes with empty fields in writable_fields OR notes with fields in overwritable_fields
+        notes_with_fields = self.filter_by_writable_or_overwritable(writable_fields, overwritable_fields)
+        if not notes_with_fields:
             return []
 
         # Get note objects
-        notes = notes_with_empty_fields.get_notes()
+        notes = notes_with_fields.get_notes()
 
         batches: list[SelectedNotes] = []
         i = 0  # Current position in notes list
@@ -245,6 +292,7 @@ class SelectedNotes:
                 target_notes=test_selected_notes,
                 selected_fields=selected_fields,
                 writable_fields=writable_fields,
+                overwritable_fields=overwritable_fields,
                 note_type_name=note_type_name,
             )
 
@@ -530,6 +578,7 @@ class SelectedNotes:
             if SelectedNotes.has_empty_field(note, selected_fields):
                 filtered_note_ids.append(nid)
         return self.new_selected_notes(filtered_note_ids)
+
 
     def _get_deck_name_for_card_id(self, card_id: CardId) -> str:
         """

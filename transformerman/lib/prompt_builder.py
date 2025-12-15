@@ -132,11 +132,13 @@ class PromptBuilder:
         target_notes: SelectedNotes,
         selected_fields: Sequence[str],
         writable_fields: Sequence[str] | None,
+        overwritable_fields: Sequence[str] | None,
         note_type_name: str = "",
     ) -> str:
         """
         Build a complete prompt for the LM including examples and target notes.
-        Precondition: `target_notes` must contain at least one note with an empty field;
+        Precondition: `target_notes` must contain at least one note with an empty field in writable_fields
+        OR at least one note with a field in overwritable_fields.
         """
 
         if writable_fields is None:
@@ -144,7 +146,17 @@ class PromptBuilder:
         else:
             target_fields = writable_fields
 
-        assert target_notes.has_note_with_empty_field(target_fields)
+        # Check precondition: notes with empty writable fields OR notes with overwritable fields
+        has_empty_writable = target_notes.has_note_with_empty_field(target_fields)
+        has_overwritable = overwritable_fields and any(
+            field in note
+            for note in target_notes.get_notes()
+            for field in overwritable_fields
+        )
+        if not has_empty_writable and not has_overwritable:
+            raise ValueError(
+                "No notes with empty writable fields found and no notes with overwritable fields"
+            )
 
         # Get example notes
         example_notes = self._select_example_notes(target_notes, selected_fields, note_type_name)
@@ -187,12 +199,21 @@ class PromptBuilder:
                 ]
             )
 
-        # Get target notes and filter to only include those with empty fields
-        notes_with_empty_fields = [note for note in target_notes.get_notes() if SelectedNotes.has_empty_field(note, target_fields)]
+        # Get target notes and filter to include:
+        # 1. Notes with empty fields in writable_fields
+        # 2. Notes with fields in overwritable_fields (regardless of emptiness)
+        notes_to_include = []
+        for note in target_notes.get_notes():
+            # Check if note has empty field in writable_fields
+            if SelectedNotes.has_empty_field(note, target_fields):
+                notes_to_include.append(note)
+            # Check if note has field in overwritable_fields
+            elif overwritable_fields and any(field in note for field in overwritable_fields):
+                notes_to_include.append(note)
 
         # Add target notes
-        if not notes_with_empty_fields:
-            raise ValueError("No notes with empty fields found")
+        if not notes_to_include:
+            raise ValueError("No notes with empty writable fields or overwritable fields found")
 
         if writable_fields:
             if len(writable_fields) == 1:
@@ -205,7 +226,7 @@ class PromptBuilder:
         prompt_parts.extend(
             [
                 "",
-                self._format_notes_as_xml(notes_with_empty_fields, note_type_name, selected_fields),
+                self._format_notes_as_xml(notes_to_include, note_type_name, selected_fields),
             ]
         )
 

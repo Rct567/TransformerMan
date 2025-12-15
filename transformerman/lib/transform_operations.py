@@ -42,6 +42,7 @@ class CacheKey(NamedTuple):
     note_type_name: str
     selected_fields: tuple[str, ...]
     writable_fields: tuple[str, ...]
+    overwritable_fields: tuple[str, ...]
     note_ids: tuple[NoteId, ...]
     max_prompt_size: int
     field_instructions_hash: int
@@ -86,6 +87,7 @@ class NoteTransformer:
         prompt_builder: PromptBuilder,
         selected_fields: Sequence[str],
         writable_fields: Sequence[str],
+        overwritable_fields: Sequence[str],
         note_type_name: str,
         max_prompt_size: int,
         addon_config: AddonConfig,
@@ -101,6 +103,8 @@ class NoteTransformer:
             lm_client: LM client instance.
             prompt_builder: Prompt builder instance.
             selected_fields: Sequence of field names to fill.
+            writable_fields: Sequence of field names to fill (empty fields only).
+            overwritable_fields: Sequence of field names to fill (even if not empty).
             note_type_name: Name of the note type.
             max_prompt_size: Maximum prompt size in characters per batch.
             addon_config: Addon configuration instance.
@@ -113,29 +117,37 @@ class NoteTransformer:
         self.prompt_builder = prompt_builder
         self.selected_fields = selected_fields
         self.writable_fields = writable_fields
+        self.overwritable_fields = overwritable_fields
         self.note_type_name = note_type_name
         self.max_prompt_size = max_prompt_size
         self.addon_config = addon_config
         self.user_files_dir = user_files_dir
         self.logger = logging.getLogger(__name__)
 
-        # Validate that we have notes with empty fields
+        # Validate that we have notes with empty fields in writable_fields OR notes with overwritable_fields
         notes_to_transform = self.selected_notes.new_selected_notes(self.note_ids)
-        if not notes_to_transform.has_note_with_empty_field(self.writable_fields):
-            raise ValueError("No notes with empty writable fields found")
+        has_empty_writable = notes_to_transform.has_note_with_empty_field(self.writable_fields)
+        has_overwritable = bool(self.overwritable_fields)
 
-        # Filter to only notes with empty fields
-        notes_to_transform = notes_to_transform.filter_by_empty_field(self.writable_fields)
+        if not has_empty_writable and not has_overwritable:
+            raise ValueError("No notes with empty writable fields found and no overwritable fields selected")
+
+        # Filter to notes with empty fields in writable_fields OR notes with fields in overwritable_fields
+        filtered_notes = notes_to_transform.filter_by_writable_or_overwritable(
+            self.writable_fields, self.overwritable_fields
+        )
+
         # Update note_ids to filtered IDs
-        self.note_ids = notes_to_transform.get_ids()
+        self.note_ids = filtered_notes.get_ids()
 
         # Create batches based on prompt size
-        self.batches = notes_to_transform.batched_by_prompt_size(
+        self.batches = filtered_notes.batched_by_prompt_size(
             prompt_builder=self.prompt_builder,
             selected_fields=self.selected_fields,
             writable_fields=self.writable_fields,
             note_type_name=self.note_type_name,
             max_chars=self.max_prompt_size,
+            overwritable_fields=self.overwritable_fields,
         )
         self.num_batches = len(self.batches)
 
@@ -167,7 +179,13 @@ class NoteTransformer:
 
         try:
             # Build prompt
-            prompt = self.prompt_builder.build_prompt(batch_selected_notes, self.selected_fields, self.writable_fields, self.note_type_name)
+            prompt = self.prompt_builder.build_prompt(
+                batch_selected_notes,
+                self.selected_fields,
+                self.writable_fields,
+                self.overwritable_fields,
+                self.note_type_name,
+            )
 
             # Log request
             log_request(prompt)
@@ -195,8 +213,11 @@ class NoteTransformer:
                     batch_field_updates: dict[str, str] = {}
 
                     for field_name, content in updates.items():
-                        # Only collect if field is in writable fields and is empty
+                        # Collect if field is in writable fields and is empty
                         if field_name in self.writable_fields and not note[field_name].strip():
+                            batch_field_updates[field_name] = content
+                        # Also collect if field is in overwritable fields (regardless of content)
+                        elif field_name in self.overwritable_fields:
                             batch_field_updates[field_name] = content
 
                     if batch_field_updates:
@@ -346,6 +367,7 @@ class TransformNotesWithProgress:
         note_type_name: str,
         selected_fields: Sequence[str],
         writable_fields: Sequence[str],
+        overwritable_fields: Sequence[str],
         note_ids: Sequence[NoteId],
         max_prompt_size: int,
     ) -> CacheKey:
@@ -359,6 +381,7 @@ class TransformNotesWithProgress:
             note_type_name=note_type_name,
             selected_fields=tuple(selected_fields),
             writable_fields=tuple(writable_fields),
+            overwritable_fields=tuple(overwritable_fields),
             note_ids=tuple(note_ids),
             max_prompt_size=max_prompt_size,
             field_instructions_hash=field_instructions_hash,
@@ -369,6 +392,7 @@ class TransformNotesWithProgress:
         note_type_name: str,
         selected_fields: Sequence[str],
         writable_fields: Sequence[str],
+        overwritable_fields: Sequence[str],
         note_ids: Sequence[NoteId],
     ) -> bool:
         """
@@ -377,12 +401,14 @@ class TransformNotesWithProgress:
         Args:
             note_type_name: Name of the note type.
             selected_fields: Sequence of field names to fill.
+            writable_fields: Sequence of field names to fill (empty fields only).
+            overwritable_fields: Sequence of field names to fill (even if not empty).
             note_ids: List of note IDs to transform.
 
         Returns:
             True if results are cached, False otherwise.
         """
-        cache_key = self._get_cache_key(note_type_name, selected_fields, writable_fields, note_ids, self.max_prompt_size)
+        cache_key = self._get_cache_key(note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids, self.max_prompt_size)
         return cache_key in self._cache
 
     def get_num_api_calls_needed(
@@ -390,6 +416,7 @@ class TransformNotesWithProgress:
         note_type_name: str,
         selected_fields: Sequence[str],
         writable_fields: Sequence[str],
+        overwritable_fields: Sequence[str],
         note_ids: Sequence[NoteId],
     ) -> int:
         """
@@ -400,16 +427,18 @@ class TransformNotesWithProgress:
         Args:
             note_type_name: Name of the note type.
             selected_fields: Sequence of field names to fill.
+            writable_fields: Sequence of field names to fill (empty fields only).
+            overwritable_fields: Sequence of field names to fill (even if not empty).
             note_ids: List of note IDs to transform.
 
         Returns:
             Number of API calls needed.
         """
         # If cached, no API calls needed
-        if self._is_cached(note_type_name, selected_fields, writable_fields, note_ids):
+        if self._is_cached(note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids):
             return 0
 
-        if not writable_fields:
+        if not writable_fields and not overwritable_fields:
             return 0
 
         # Filter by note type first - filter_by_note_type returns a list of NoteIds
@@ -421,19 +450,22 @@ class TransformNotesWithProgress:
         if not filtered_note_ids:
             return 0
 
-        # Get notes with empty fields
-        notes_with_empty_fields = self.selected_notes.new_selected_notes(filtered_note_ids).filter_by_empty_field(writable_fields)
+        # Get notes with empty fields in writable_fields OR notes with fields in overwritable_fields
+        notes_with_fields = self.selected_notes.new_selected_notes(filtered_note_ids).filter_by_writable_or_overwritable(
+            writable_fields, overwritable_fields
+        )
 
-        if not notes_with_empty_fields:
+        if not notes_with_fields:
             return 0
 
         # Calculate actual batches
-        batches = notes_with_empty_fields.batched_by_prompt_size(
+        batches = notes_with_fields.batched_by_prompt_size(
             prompt_builder=self._prompt_builder,
             selected_fields=selected_fields,
             writable_fields=writable_fields,
             note_type_name=note_type_name,
             max_chars=self.max_prompt_size,
+            overwritable_fields=overwritable_fields,
         )
 
         return len(batches)
@@ -443,6 +475,7 @@ class TransformNotesWithProgress:
         note_ids: Sequence[NoteId],
         selected_fields: Sequence[str],
         writable_fields: Sequence[str],
+        overwritable_fields: Sequence[str],
         note_type_name: str,
         on_success: Callable[[TransformResults, dict[NoteId, dict[str, str]]], None],
     ) -> None:
@@ -455,13 +488,14 @@ class TransformNotesWithProgress:
         Args:
             note_ids: List of note IDs to transform.
             selected_fields: Sequence of field names to use as context.
-            writable_fields: Sequence of field names to fill.
+            writable_fields: Sequence of field names to fill (empty fields only).
+            overwritable_fields: Sequence of field names to fill (even if not empty).
             note_type_name: Name of the note type.
             on_success: Callback for transformation success.
                 Called with (results, field_updates) when transformation completes successfully.
         """
         # Check cache first
-        cache_key = self._get_cache_key(note_type_name, selected_fields, writable_fields, note_ids, self.max_prompt_size)
+        cache_key = self._get_cache_key(note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids, self.max_prompt_size)
         if cache_key in self._cache:
             results, field_updates = self._cache[cache_key]
             on_success(results, field_updates)
@@ -476,6 +510,7 @@ class TransformNotesWithProgress:
             prompt_builder=self._prompt_builder,
             selected_fields=selected_fields,
             writable_fields=writable_fields,
+            overwritable_fields=overwritable_fields,
             note_type_name=note_type_name,
             max_prompt_size=self.max_prompt_size,
             addon_config=self.addon_config,

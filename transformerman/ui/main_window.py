@@ -19,6 +19,10 @@ from aqt.qt import (
     QPushButton,
     QScrollArea,
     QWidget,
+    Qt,
+    QMouseEvent,
+    QObject,
+    QEvent
 )
 from aqt.utils import showInfo, showWarning, askUserDialog
 
@@ -27,6 +31,7 @@ from .preview_table import PreviewTable
 
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes
+from ..lib.utilities import override
 
 import logging
 
@@ -38,6 +43,126 @@ if TYPE_CHECKING:
     from anki.notes import NoteId
     from anki.cards import CardId
     from ..lib.transform_operations import TransformResults
+
+
+class FieldWidget(QWidget):
+    """Widget containing all UI elements for a single field."""
+
+    def __init__(
+        self,
+        field_name: str,
+        main_window: TransformerManMainWindow,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.field_name = field_name
+        self.main_window = main_window
+        self.is_overwritable = False
+
+        # Create widgets
+        self.context_checkbox = QCheckBox()
+        self.context_checkbox.setToolTip("Allow read (include field content in the prompt)")
+        self.context_checkbox.stateChanged.connect(self._on_context_changed)
+
+        self.writable_checkbox = QCheckBox()
+        self.writable_checkbox.setToolTip("Allow write (allow this field to be filled). Click with CTRL to make overwritable (red).")
+        self.writable_checkbox.stateChanged.connect(self._on_writable_changed)
+
+        # Install event filter to capture CTRL+click
+        self.writable_checkbox.installEventFilter(self)
+
+        self.field_label = QLabel(field_name)
+
+        self.instruction_input = QLineEdit()
+        self.instruction_input.setPlaceholderText("Optional instructions for this field...")
+        self.instruction_input.textChanged.connect(self._on_instruction_changed)
+
+        # Initial state
+        self.instruction_input.setEnabled(False)
+
+    @override
+    def eventFilter(self, a0: QObject | None, a1: QEvent | None) -> bool:
+        """Filter events for the writable checkbox to detect CTRL+click."""
+        if a0 == self.writable_checkbox and a1 is not None and a1.type() == a1.Type.MouseButtonPress:
+            if not isinstance(a1, QMouseEvent):
+                return super().eventFilter(a0, a1)
+            if a1.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                # CTRL+click: toggle overwritable state
+                if self.writable_checkbox.isChecked():
+                    # Currently checked: toggle between writable and overwritable
+                    if self.is_overwritable:
+                        # Currently overwritable (red) -> uncheck
+                        self.set_overwritable(False)
+                        self.writable_checkbox.setChecked(False)
+                    else:
+                        # Currently writable (normal) -> make overwritable (red)
+                        self.set_overwritable(True)
+                else:
+                    # Currently unchecked -> check as overwritable (red) directly
+                    self.set_overwritable(True)
+                    self.writable_checkbox.setChecked(True)
+                # Return True to indicate we've handled the event
+                return True
+        # Let the parent class handle other events
+        return super().eventFilter(a0, a1)
+
+    def _on_context_changed(self) -> None:
+        """Handle context checkbox state change."""
+        if not self.context_checkbox.isChecked():
+            # If context unchecked, uncheck writable
+            self.writable_checkbox.setChecked(False)
+        self.instruction_input.setEnabled(self.context_checkbox.isChecked())
+        self.main_window._on_field_selection_changed()  # type: ignore[reportPrivateUsage]
+
+    def _on_writable_changed(self) -> None:
+        """Handle writable checkbox state change."""
+        if self.writable_checkbox.isChecked():
+            # If writable checked, check context
+            self.context_checkbox.setChecked(True)
+        else:
+            # If writable unchecked, clear overwritable state
+            self.set_overwritable(False)
+        self.main_window._on_field_selection_changed()  # type: ignore[reportPrivateUsage]
+
+    def _on_instruction_changed(self) -> None:
+        """Handle instruction input text change."""
+        self.main_window._on_instruction_changed()  # type: ignore[reportPrivateUsage]
+
+    def set_overwritable(self, overwritable: bool) -> None:
+        """Set overwritable state and update visual appearance."""
+        self.is_overwritable = overwritable
+        if overwritable:
+            self.field_label.setStyleSheet("color: red; font-weight: bold;")
+            self.writable_checkbox.setToolTip("Overwritable (field will be filled even if already has content).")
+        else:
+            self.field_label.setStyleSheet("")
+            self.writable_checkbox.setToolTip("Allow write (allow this field to be filled). Click with CTRL to make overwritable (red).")
+
+    def is_context_selected(self) -> bool:
+        """Return True if context checkbox is checked."""
+        return self.context_checkbox.isChecked()
+
+    def is_writable(self) -> bool:
+        """Return True if writable checkbox is checked and not overwritable."""
+        return self.writable_checkbox.isChecked() and not self.is_overwritable
+
+    def is_overwritable_selected(self) -> bool:
+        """Return True if field is in overwritable state."""
+        return self.writable_checkbox.isChecked() and self.is_overwritable
+
+    def get_instruction(self) -> str:
+        """Get instruction text."""
+        return self.instruction_input.text().strip()
+
+    def set_instruction_enabled(self, enabled: bool) -> None:
+        """Enable or disable instruction input."""
+        self.instruction_input.setEnabled(enabled)
+
+    def set_context_checked(self, checked: bool) -> None:
+        """Set context checkbox state."""
+        self.context_checkbox.setChecked(checked)
+
+
 
 
 class TransformerManMainWindow(TransformerManBaseDialog):
@@ -90,9 +215,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # State
         self.note_type_counts: dict[str, int] = {}
         self.current_note_type: str = ""
-        self.field_checkboxes: dict[str, QCheckBox] = {}
-        self.writable_checkboxes: dict[str, QCheckBox] = {}
-        self.field_instructions: dict[str, QLineEdit] = {}
+        self.field_widgets: dict[str, FieldWidget] = {}
 
         # Preview state
         self.preview_results: dict[NoteId, dict[str, str]] = {}  # note_id -> field_name -> new_value
@@ -177,25 +300,57 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         """Get the currently selected field names."""
         return [
             field_name
-            for field_name, checkbox in self.field_checkboxes.items()
-            if checkbox.isChecked()
+            for field_name, widget in self.field_widgets.items()
+            if widget.is_context_selected()
         ]
 
     def _get_writable_fields(self) -> list[str]:
-        """Get the currently selected writable field names."""
+        """Get the currently selected writable field names (excluding overwritable fields)."""
         return [
             field_name
-            for field_name, checkbox in self.writable_checkboxes.items()
-            if checkbox.isChecked()
+            for field_name, widget in self.field_widgets.items()
+            if widget.is_writable()
         ]
 
+    def _get_overwritable_fields(self) -> list[str]:
+        """Get the currently selected overwritable field names."""
+        return [
+            field_name
+            for field_name, widget in self.field_widgets.items()
+            if widget.is_overwritable_selected()
+        ]
+
+    def _get_fillable_fields(self) -> list[str]:
+        """Get all fields that can be filled (writable or overwritable)."""
+        return [
+            field_name
+            for field_name, widget in self.field_widgets.items()
+            if widget.is_writable() or widget.is_overwritable_selected()
+        ]
+
+    def _has_fillable_fields(self) -> bool:
+        """Return True if any fillable fields are selected."""
+        return len(self._get_fillable_fields()) > 0
+
+    def _has_notes_with_fillable_fields(self) -> bool:
+        """Return True if there are notes that can be filled (empty writable fields or overwritable fields)."""
+        writable_fields = self._get_writable_fields()
+        overwritable_fields = self._get_overwritable_fields()
+        if not writable_fields and not overwritable_fields:
+            return False
+        # Use the existing method that checks both conditions
+        filtered = self.selected_notes.filter_by_writable_or_overwritable(
+            writable_fields, overwritable_fields
+        )
+        return len(filtered) > 0
+
     def _get_current_field_instructions(self) -> dict[str, str]:
-        """Get current field instructions for the selected fields. """
+        """Get current field instructions for the selected fields."""
         selected_fields = self._get_selected_fields()
         return {
-            field_name: instruction_input.text().strip()
-            for field_name, instruction_input in self.field_instructions.items()
-            if instruction_input.text().strip() and field_name in selected_fields
+            field_name: widget.get_instruction()
+            for field_name, widget in self.field_widgets.items()
+            if widget.get_instruction() and field_name in selected_fields
         }
 
     def _update_state(
@@ -246,8 +401,9 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             num_notes_empty_field = 0   # No writable fields selected
 
         # Calculate API calls needed using transformer method
+        overwritable_fields = self._get_overwritable_fields()
         num_api_calls_needed = self.transformer.get_num_api_calls_needed(
-            self.current_note_type, selected_fields, writable_fields, filtered_note_ids
+            self.current_note_type, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
         )
         api_text = "API call" if num_api_calls_needed == 1 else "API calls"
 
@@ -305,42 +461,23 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                 if widget:
                     widget.deleteLater()
 
-        self.field_checkboxes.clear()
-        self.writable_checkboxes.clear()
-        self.field_instructions.clear()
+        self.field_widgets.clear()
 
         # Get field names for this note type
         field_names = self.selected_notes.get_field_names(note_type_name)
-        # Create checkbox and instruction input for each field
+        # Create FieldWidget for each field
         for row, field_name in enumerate(field_names):
-            # Context Checkbox (Col 0)
-            context_checkbox = QCheckBox()
-            context_checkbox.setToolTip("Allow read (include field content in the prompt)")
+            widget = FieldWidget(field_name, self)
             # Select first two fields by default
             if row < 2:
-                context_checkbox.setChecked(True)
-            context_checkbox.stateChanged.connect(self._on_field_selection_changed)
-            self.field_checkboxes[field_name] = context_checkbox
-            self.fields_layout.addWidget(context_checkbox, row, 0)
-
-            # Writable Checkbox (Col 1)
-            writable_checkbox = QCheckBox()
-            writable_checkbox.setToolTip("Allow write (allow this field to be filled)")
-            writable_checkbox.stateChanged.connect(self._on_field_selection_changed)
-            self.writable_checkboxes[field_name] = writable_checkbox
-            self.fields_layout.addWidget(writable_checkbox, row, 1)
-
-            # Field Name Label (Col 2)
-            field_label = QLabel(field_name)
-            self.fields_layout.addWidget(field_label, row, 2)
-
-            # Instruction input (Col 3)
-            instruction_input = QLineEdit()
-            instruction_input.setPlaceholderText("Optional instructions for this field...")
-            instruction_input.setEnabled(row < 2)  # Enable for checked fields
-            instruction_input.textChanged.connect(self._on_instruction_changed)
-            self.field_instructions[field_name] = instruction_input
-            self.fields_layout.addWidget(instruction_input, row, 3)
+                widget.set_context_checked(True)
+                widget.set_instruction_enabled(True)
+            self.field_widgets[field_name] = widget
+            # Add child widgets to grid columns
+            self.fields_layout.addWidget(widget.context_checkbox, row, 0)
+            self.fields_layout.addWidget(widget.writable_checkbox, row, 1)
+            self.fields_layout.addWidget(widget.field_label, row, 2)
+            self.fields_layout.addWidget(widget.instruction_input, row, 3)
 
         # Set column stretch so that instruction column expands
         self.fields_layout.setColumnStretch(3, 1)
@@ -350,53 +487,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
     def _on_field_selection_changed(self) -> None:
         """Handle field checkbox state changes."""
-        sender = self.sender()
-
-        # Enforce dependencies
-        if sender:
-            # Find which field this sender belongs to
-            changed_field = None
-            is_writable_checkbox = False
-
-            for field_name, checkbox in self.writable_checkboxes.items():
-                if checkbox is sender:
-                    changed_field = field_name
-                    is_writable_checkbox = True
-                    break
-
-            if not changed_field:
-                for field_name, checkbox in self.field_checkboxes.items():
-                    if checkbox is sender:
-                        changed_field = field_name
-                        is_writable_checkbox = False
-                        break
-
-            if changed_field:
-                context_checkbox = self.field_checkboxes[changed_field]
-                writable_checkbox = self.writable_checkboxes[changed_field]
-
-                # Block signals to prevent recursive calls
-                context_checkbox.blockSignals(True)
-                writable_checkbox.blockSignals(True)
-
-                if is_writable_checkbox:
-                    # If Writable checked -> Check Context
-                    if writable_checkbox.isChecked():
-                        context_checkbox.setChecked(True)
-                else:
-                    # If Context unchecked -> Uncheck Writable
-                    if not context_checkbox.isChecked():
-                        writable_checkbox.setChecked(False)
-
-                # Unblock signals
-                context_checkbox.blockSignals(False)
-                writable_checkbox.blockSignals(False)
-
-        # Enable/disable instruction inputs based on checkbox state
-        for field_name, checkbox in self.field_checkboxes.items():
-            instruction_input = self.field_instructions[field_name]
-            instruction_input.setEnabled(checkbox.isChecked())
-
         # Update state (clears preview results, updates transformer, notes count, preview table, and buttons)
         self._update_state(clear_preview_results=True)
 
@@ -421,11 +511,16 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         if self.current_note_type:
             filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
 
-            writable_fields = self._get_writable_fields()
-            # Enable preview if we have notes AND at least one writable field selected
-            # AND no preview results exist (would generate same results)
-            # AND there are notes with empty fields to fill among writable fields
-            preview_enabled = len(filtered_note_ids) > 0 and len(writable_fields) > 0 and len(self.preview_results) == 0 and self.selected_notes.has_note_with_empty_field(writable_fields)
+            # Use helper methods for cleaner logic
+            has_fillable_fields = self._has_fillable_fields()
+            has_notes_with_fillable_fields = self._has_notes_with_fillable_fields()
+
+            preview_enabled = (
+                len(filtered_note_ids) > 0
+                and has_fillable_fields
+                and len(self.preview_results) == 0
+                and has_notes_with_fillable_fields
+            )
 
         # Apply button conditions
         apply_enabled = len(self.preview_results) > 0
@@ -438,18 +533,17 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         """Handle preview button click."""
         # Get selected fields
         selected_fields = self._get_selected_fields()
-        writable_fields = self._get_writable_fields()
 
         if not selected_fields:
             showInfo("Please select at least one field to include.", parent=self)
             return
 
-        if not writable_fields:
+        if not self._has_fillable_fields():
             showInfo("Please select at least one field to write to.", parent=self)
             return
 
-        if not self.selected_notes.has_note_with_empty_field(writable_fields):
-            showInfo("No notes with empty writable fields found.", parent=self)
+        if not self._has_notes_with_fillable_fields():
+            showInfo("No notes with empty writable fields found and no overwritable fields selected.", parent=self)
             return
 
         # Get filtered note IDs
@@ -461,14 +555,16 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Calculate API calls needed using transformer method
         # Note: transformer should already have latest field instructions from _update_state calls
+        writable_fields = self._get_writable_fields()
+        overwritable_fields = self._get_overwritable_fields()
         api_calls_needed = self.transformer.get_num_api_calls_needed(
-            self.current_note_type, selected_fields, writable_fields, filtered_note_ids
+            self.current_note_type, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
         )
 
         # Show warning if API calls > 10
         if api_calls_needed > 10:
             # Need to get empty count for warning message
-            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(writable_fields))
+            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(writable_fields)) if writable_fields else 0
             max_prompt_size = self.addon_config.get_max_prompt_size()
 
             warning_message = (
@@ -529,6 +625,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             note_ids=filtered_note_ids,
             selected_fields=selected_fields,
             writable_fields=writable_fields,
+            overwritable_fields=overwritable_fields,
             note_type_name=self.current_note_type,
             on_success=on_preview_success,
         )
@@ -538,6 +635,40 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         if not self.preview_results:
             showInfo("No preview results to apply. Please run Preview first.", parent=self)
             return
+
+        # Check for overwritable fields that will cause data loss
+        overwritable_fields = self._get_overwritable_fields()
+        if overwritable_fields:
+            # Determine which notes will have content overwritten
+            notes_with_overwritten_content: dict[NoteId, list[str]] = {}
+            overwritable_set = set(overwritable_fields)
+            for note_id, field_updates in self.preview_results.items():
+                note = self.selected_notes.get_note(note_id)
+                overwritten_fields_for_note: list[str] = []
+                for field_name in field_updates.keys():
+                    if field_name in overwritable_set and field_name in note and note[field_name].strip():
+                        overwritten_fields_for_note.append(field_name)
+                if overwritten_fields_for_note:
+                    notes_with_overwritten_content[note_id] = overwritten_fields_for_note
+
+            if notes_with_overwritten_content:
+                num_notes = len(notes_with_overwritten_content)
+                # Collect unique fields that will be overwritten
+                all_overwritten_fields = set()
+                for fields in notes_with_overwritten_content.values():
+                    all_overwritten_fields.update(fields)
+                fields_str = ", ".join(f'"{field}"' for field in sorted(all_overwritten_fields))
+
+                field_text = "field" if len(overwritable_fields) == 1 else "fields"
+                note_text = "note" if num_notes == 1 else "notes"
+
+                warning_message = (
+                    f"Warning: You have selected {len(overwritable_fields)} overwritable {field_text}.\n\n"
+                    f"{num_notes} {note_text} will have their content overwritten in these fields: {fields_str}.\n\n"
+                    "Do you want to continue?"
+                )
+                if askUserDialog(warning_message, buttons=["Continue", "Cancel"], parent=self).run() != "Continue":
+                    return
 
         # Apply field updates using operation (which will trigger Browser refresh)
         def on_success(results: dict[str, int]) -> None:
@@ -574,14 +705,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
     ) -> None:
         """Update the preview table with preview results and green highlighting."""
         # Get selected fields
-        selected_fields = [
-            field_name
-            for field_name, checkbox in self.field_checkboxes.items()
-            if checkbox.isChecked()
-        ]
-
+        selected_fields = self._get_selected_fields()
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
-
         # Update the preview table with field updates for highlighting
         self.preview_table.set_note_fields_update(filtered_note_ids, selected_fields, field_updates)

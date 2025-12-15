@@ -250,6 +250,7 @@ class TestSelectedNotes:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
             writable_fields=["Front"],
+            overwritable_fields=None,
             note_type_name="Basic",
             max_chars=1000,
         )
@@ -283,6 +284,7 @@ class TestSelectedNotes:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],  # All notes have non-empty Front
             writable_fields=["Front"],
+            overwritable_fields=None,
             note_type_name="Basic",
             max_chars=1000,
         )
@@ -317,6 +319,7 @@ class TestSelectedNotes:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
             writable_fields=["Front"],
+            overwritable_fields=None,
             note_type_name="Basic",
             max_chars=500000,  # Very large
         )
@@ -358,6 +361,7 @@ class TestSelectedNotes:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
             writable_fields=["Front"],
+            overwritable_fields=None,
             note_type_name="Basic",
             max_chars=1000,  # Moderate size to get multiple batches
         )
@@ -406,6 +410,7 @@ class TestSelectedNotes:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
             writable_fields=["Front"],
+            overwritable_fields=None,
             note_type_name="Basic",
             max_chars=10,  # Extremely small
         )
@@ -413,6 +418,7 @@ class TestSelectedNotes:
             prompt_builder=prompt_builder,
             selected_fields=["Front"],
             writable_fields=["Front"],
+            overwritable_fields=None,
             note_type_name="Basic",
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
         )
@@ -420,6 +426,7 @@ class TestSelectedNotes:
             prompt_builder=prompt_builder,
             selected_fields=["Front", "Back"],
             writable_fields=["Front", "Back"],
+            overwritable_fields=None,
             note_type_name="Basic",
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
         )

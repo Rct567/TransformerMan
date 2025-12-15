@@ -37,6 +37,7 @@ class TestPromptBuilder:
             target_notes=selected_notes,
             selected_fields=["Front"],
             writable_fields=None,
+            overwritable_fields=None,
             note_type_name="Basic",
         )
 
@@ -44,6 +45,7 @@ class TestPromptBuilder:
             target_notes=selected_notes,
             selected_fields=["Front", "Back"],
             writable_fields=["Front"],
+            overwritable_fields=None,
             note_type_name="Basic",
         )
 
@@ -94,6 +96,7 @@ class TestPromptBuilder:
             target_notes=selected_notes,
             selected_fields=["Front", "Back"],
             writable_fields=None,
+            overwritable_fields=None,
             note_type_name="Basic",
         )
 
@@ -139,6 +142,7 @@ class TestPromptBuilder:
             target_notes=selected_notes,
             selected_fields=["Front"],
             writable_fields=["Front"],
+            overwritable_fields=None,
             note_type_name="Basic",
         )
 
@@ -187,6 +191,7 @@ class TestPromptBuilder:
             target_notes=selected_notes,
             selected_fields=["Front"],
             writable_fields=["Front"],
+            overwritable_fields=None,
             note_type_name="Basic",
         )
 
