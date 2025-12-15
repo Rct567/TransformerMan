@@ -668,10 +668,6 @@ class TransformNotesWithProgress:
         """Update the field instructions for the transformer."""
         self._prompt_builder.update_field_instructions(field_instructions)
 
-    def clear_cache(self) -> None:
-        """Clear all cached transformation results."""
-        self._cache.clear()
-
 
 def apply_field_updates_with_operation(
     parent: QWidget,

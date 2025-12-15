@@ -37,14 +37,6 @@ class PromptBuilder:
         self.find_notes_cache = {}
         self.note_xml_cache = {}
 
-    def clear_cache(self) -> None:
-        """Clear the internal caches."""
-        self.deck_cache.clear()
-        self.note_cache.clear()
-        self.card_cache.clear()
-        self.find_notes_cache.clear()
-        self.note_xml_cache.clear()
-
     def _get_note(self, note_id: NoteId) -> Note:
         """Get a note from cache or collection."""
         if note_id in self.note_cache:

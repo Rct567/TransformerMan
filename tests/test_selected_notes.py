@@ -510,31 +510,6 @@ class TestSelectedNotes:
         assert non_existent_fields == []
 
     @with_test_collection("two_deck_collection")
-    def test_clear_cache(
-        self,
-        col: TestCollection,
-    ) -> None:
-        """Test clear_cache actually clears the note cache."""
-        # Get some note IDs
-        note_ids = col.find_notes("")[:2]
-        selected_notes = SelectedNotes(col, note_ids)
-
-        # Get a note to populate cache
-        note1 = selected_notes.get_note(note_ids[0])
-
-        # Get same note again (should come from cache)
-        note1_cached = selected_notes.get_note(note_ids[0])
-        assert note1 is note1_cached  # Same object from cache
-
-        # Clear cache
-        selected_notes.clear_cache()
-
-        # Getting note again should fetch fresh copy
-        note2 = selected_notes.get_note(note_ids[0])
-        # Note objects should be different (newly fetched after cache clear)
-        assert note1 is not note2
-
-    @with_test_collection("two_deck_collection")
     def test_note_cache_sharing(
         self,
         col: TestCollection,

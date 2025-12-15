@@ -677,14 +677,14 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             if updated > 0:
                 showInfo(f"Successfully applied changes to {updated} notes.", parent=self)
-                # Clear preview results and refresh UI state
-                self.selected_notes.clear_cache()
-                self._update_state(
-                    clear_preview_results=True,
-                    update_preview_table=True,
-                )
             else:
                 showInfo(f"No notes were updated. {failed} notes failed.", parent=self)
+
+            # Clear preview results and refresh UI state
+            self._update_state(
+                clear_preview_results=True,
+                update_preview_table=True,
+            )
 
         def on_failure(exception: Exception) -> None:
             """Handle failure of field updates operation."""
