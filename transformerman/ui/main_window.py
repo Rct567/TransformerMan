@@ -88,12 +88,13 @@ class FieldWidget(QWidget):
 
     @override
     def eventFilter(self, a0: QObject | None, a1: QEvent | None) -> bool:
-        """Filter events for the writable checkbox to detect CTRL+click."""
+        """Filter events for the writable checkbox to detect CTRL+click (or shift or meta click on macOS)."""
         if a0 == self.writable_checkbox and a1 is not None and a1.type() == a1.Type.MouseButtonPress:
             if not isinstance(a1, QMouseEvent):
                 return super().eventFilter(a0, a1)
-            if a1.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                # CTRL+click: toggle overwritable state
+            modifiers = a1.modifiers()
+            if (modifiers & Qt.KeyboardModifier.ControlModifier) or (modifiers & Qt.KeyboardModifier.MetaModifier) or (modifiers & Qt.KeyboardModifier.ShiftModifier):
+                # CTRL+click or meta+shift click: toggle overwritable state
                 if self.writable_checkbox.isChecked():
                     # Currently checked: toggle between writable and overwritable
                     if self.is_overwritable:
