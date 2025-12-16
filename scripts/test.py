@@ -1,5 +1,5 @@
 """
-FrequencyMan by Rick Zuidhoek. Licensed under the GNU GPL-3.0.
+TransformerMan by Rick Zuidhoek. Licensed under the GNU GPL-3.0.
 See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 """
 
@@ -333,7 +333,7 @@ def get_user_choice() -> MenuTestOption:
 
 def main() -> NoReturn:
     print(" "*60)
-    print("FrequencyMan Test Runner")
+    print("TransformerMan Test Runner")
 
     start_time = time.perf_counter()
 
