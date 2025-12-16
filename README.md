@@ -34,10 +34,12 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
    - Open the card browser
    - Select one or more notes
    - Right-click and select **TransformerMan**
-   - Select which fields to fill (click the "Write" checkbox to allow writing to the field)
+   - Select which fields to include via the "__Read__" checkbox 
+   - Click the "__Write__" checkbox to allow writing to the field
+   - CTRL or shift click on the "__Write__" checkbox to allow overwriting existing content
    - (Optional) Add custom instructions for specific fields
    - Click **Preview** to see what changes will be made
-   - Review the preview and click **Apply** to save changes
+   - Review the changes and click **Apply** to save changes
 
 ## Free Options
 
