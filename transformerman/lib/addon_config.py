@@ -223,6 +223,8 @@ class AddonConfig:
         # Lm client name
         client_name = self.get("lm_client", None)
 
+        if client_name is None:
+            return None, "No LM client configured"
         if not isinstance(client_name, str):
             return None, "Configured LM client is not a string"
         elif not client_name:

@@ -145,7 +145,8 @@ class SettingsDialog(TransformerManBaseDialog):
 
         self.save_button = QPushButton("Save")
         self.save_button.clicked.connect(self._on_save_clicked)
-        self.save_button.setEnabled(False)
+        configs_missing = 'lm_client' not in self.addon_config
+        self.save_button.setEnabled(configs_missing)
         self.save_button.setFixedWidth(80)
         self.save_button.setDefault(True)  # Make Save the default button
 
