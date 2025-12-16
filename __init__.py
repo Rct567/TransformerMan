@@ -11,7 +11,7 @@ from typing import Any, TYPE_CHECKING
 
 from aqt import mw as anki_main_window, gui_hooks
 from aqt.main import AnkiQt
-from aqt.qt import QAction
+from aqt.qt import QAction, QWidget
 from aqt.utils import showInfo, showWarning
 
 from .transformerman.ui.main_window import TransformerManMainWindow # type: ignore[import-not-found]
@@ -38,12 +38,12 @@ if not TM_USER_FILES_DIR.is_dir():
 ADDON_NAME = "TransformerMan"
 
 
-def open_settings(mw: AnkiQt, addon_config: AddonConfig) -> None:
+def open_settings(parent: QWidget, addon_config: AddonConfig) -> None:
     """Open the settings dialog."""
 
     addon_config.reload()
 
-    dialog = SettingsDialog(mw, addon_config)
+    dialog = SettingsDialog(parent, addon_config)
     dialog.exec()
 
 def is_dark_mode(mw: AnkiQt) -> bool:
@@ -67,7 +67,7 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
     addon_config.reload()
 
     if 'lm_client' not in addon_config:
-        open_settings(mw, addon_config)
+        open_settings(browser, addon_config)
         return
 
     lm_client, error = addon_config.get_client()
