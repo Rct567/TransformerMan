@@ -10,7 +10,7 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
 - 🤖 **AI-Powered Field Completion**: Fill empty fields in bulk using language models
 - 📝 **Context-Aware**: Uses example notes from your collection to guide the LM
 - 📋 **Custom Instructions**: Add field-specific instructions to guide the LM
-- ⚙️ **Configurable**: Customize API settings, model selection, and batch size
+- ⚙️ **Configurable**: Customize API settings, model selection, and prompt size
 - 🔍 **Preview Before Applying**: See what changes will be made before applying them
 - ✅ **Multiple LM Support**: Gemini, DeepSeek, Claude, OpenAI, and a Dummy client for testing
 
@@ -29,7 +29,6 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
    - Go to **Tools → TransformerMan Settings**
    - Enter your API key (when using a real LM service)
    - Select your preferred model
-   - Adjust batch size if needed (default: 20)
 
 2. **Transform Notes**:
    - Open the card browser
