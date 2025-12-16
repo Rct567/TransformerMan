@@ -2,6 +2,9 @@
 
 An Anki add-on that uses language models to intelligently fill empty fields in your notes based on context, examples, and custom instructions.
 
+![TransformerMan](tranformerman_showcase_1.gif)
+
+
 ## Features
 
 - 🤖 **AI-Powered Field Completion**: Fill empty fields in bulk using language models
