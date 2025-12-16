@@ -252,9 +252,8 @@ class SettingsDialog(TransformerManBaseDialog):
         # Save custom settings
         self._save_custom_settings(client_name)
 
-        # Disable save and reset buttons after saving
-        self.save_button.setEnabled(False)
-        self.reset_button.setEnabled(False)
+        # Update UI state after saving
+        self._update_state()
 
     def _on_client_changed(self, client_name: str) -> None:
         # Update API key field for the selected client
@@ -263,11 +262,81 @@ class SettingsDialog(TransformerManBaseDialog):
         self._populate_models_for_client(client_name)
         self._populate_custom_settings_for_client(client_name)
 
+    def _update_state(self) -> None:
+        """Update the state of UI buttons based on current conditions."""
+        if self._is_loading_settings:
+            return
+            
+        # Check if there are unsaved changes
+        has_unsaved_changes = self._has_unsaved_changes()
+        
+        self.save_button.setEnabled(has_unsaved_changes)
+        self.reset_button.setEnabled(has_unsaved_changes)
+
+    def _has_unsaved_changes(self) -> bool:
+        """Check if there are unsaved changes in the dialog."""
+        # Get current client
+        current_client = self.client_combo.currentText()
+        
+        # Check if client has changed from what was originally saved
+        saved_client = str(self.addon_config.get("lm_client", "dummy"))
+        if current_client != saved_client:
+            return True
+        
+        # Check if API key has changed
+        current_api_key = self.api_key_input.text().strip()
+        saved_api_key = str(self.addon_config.get_api_key(current_client))
+        if current_api_key != saved_api_key:
+            return True
+            
+        # Check if model has changed
+        current_model = self.model_combo.currentText()
+        saved_model = self.addon_config.get_model(current_client)
+        if current_model != saved_model:
+            return True
+            
+        # Check if max prompt size has changed
+        if self.max_prompt_size_spin.value() != self.addon_config.get_max_prompt_size():
+            return True
+            
+        # Check if timeout has changed
+        if self.timeout_spin.value() != self.addon_config.get_timeout():
+            return True
+            
+        # Check if max examples has changed
+        if self.max_examples_spin.value() != self.addon_config.get_max_examples():
+            return True
+            
+        # Check if custom settings have changed
+        if self._custom_settings_have_changed(current_client):
+            return True
+            
+        return False
+
+    def _custom_settings_have_changed(self, client_name: str) -> bool:
+        """Check if custom settings have changed for the given client."""
+        client_class = get_lm_client_class(client_name)
+        if client_class is None:
+            return False
+            
+        custom_setting_names = client_class.custom_settings()
+        if not custom_setting_names:
+            return False
+            
+        current_settings = self.addon_config.get_custom_client_settings(client_name)
+        
+        for setting_name in custom_setting_names:
+            if setting_name in self.custom_settings_widgets:
+                current_value = self.custom_settings_widgets[setting_name].text().strip()
+                saved_value = current_settings.get(setting_name, "")
+                if current_value != saved_value:
+                    return True
+                    
+        return False
+
     def _on_setting_changed(self) -> None:
-        # Enable save and reset buttons when settings are changed.
-        if not self._is_loading_settings:
-            self.save_button.setEnabled(True)
-            self.reset_button.setEnabled(True)
+        """Handle setting changes by updating UI state."""
+        self._update_state()
 
     def _populate_custom_settings_for_client(self, client_name: str) -> None:
         """Populate custom settings UI for the selected client."""
@@ -377,9 +446,8 @@ class SettingsDialog(TransformerManBaseDialog):
         self.addon_config.reload()
         self._load_settings()
 
-        # Disable save and restore buttons
-        self.save_button.setEnabled(False)
-        self.reset_button.setEnabled(False)
+        # Update UI state after restoring
+        self._update_state()
 
     @override
     def closeEvent(self, a0: QCloseEvent | None) -> None:
