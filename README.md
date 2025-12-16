@@ -4,19 +4,18 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
 
 ## Features
 
-- 🤖 **AI-Powered Field Completion**: Automatically fill empty fields using language models
+- 🤖 **AI-Powered Field Completion**: Fill empty fields in bulk using language models
 - 📝 **Context-Aware**: Uses example notes from your collection to guide the LM
-- 🎯 **Selective Processing**: Choose which fields to fill and which note types to process
 - 📋 **Custom Instructions**: Add field-specific instructions to guide the LM
 - ⚙️ **Configurable**: Customize API settings, model selection, and batch size
 - 🔍 **Preview Before Applying**: See what changes will be made before applying them
-- ✅ **Multiple LM Support**: OpenAI (GPT-5, GPT-4o, o3), Claude, Gemini, DeepSeek, and Dummy client for testing
+- ✅ **Multiple LM Support**: Gemini, DeepSeek, Claude, OpenAI, and a Dummy client for testing
 
 ## Installation
 
-1. Download the latest release
+1. Download the latest release from the [GitHub repository](https://github.com/Rct567/TransformerMan/releases)
 2. Open Anki and go to **Tools → Add-ons**
-3. Click **Install from file...** and select the downloaded file
+3. Click **Install from file...** and select the downloaded `.ankiaddon` file
 4. Restart Anki
 
 ## Usage
@@ -39,52 +38,48 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
    - Click **Preview** to see what changes will be made
    - Review the preview and click **Apply** to save changes
 
-### Example Workflow
-
-Let's say you have German vocabulary notes with "Front" (German word) and "Back" (English translation) fields:
-
-1. Select notes where "Back" is empty
-2. Open TransformerMan
-3. Select the "Basic" note type
-4. Check the "Back" field
-5. Add instruction: "Provide a concise English translation"
-6. Click Preview, then Apply
-
-The plugin will:
-- Find up to 3 example notes with both fields filled
-- Send them to the LM along with your notes
-- Fill the empty "Back" fields with translations
-- Show a preview of changes before applying them
-
 ## Configuration
 
 ### Settings
 
 Access via **Tools → TransformerMan Settings**:
 
-- **API Key**: Your language model API key (required for real LM services)
-- **Model**: Choose from available models (OpenAI GPT-5/4o, Claude, Gemini, DeepSeek, or Dummy for testing)
-- **Batch Size**: Number of notes to process per batch (default: 20, range: 1-100)
-- **Log LM Requests/Responses**: Enable logging for debugging (saved to user_files directory)
+- **LM Client**: Choose from available language model clients (Dummy, OpenAI, Claude, Gemini, DeepSeek, OpenAI Custom)
+- **Model**: Select model based on chosen client (e.g., OpenAI: GPT-4o/GPT-4o-mini/o1/o3 series, Claude: various models, etc.)
+- **API Key**: Your language model API key (required for real LM services, not needed for Dummy client)
+- **Max Prompt Size**: Maximum prompt size in characters (default: 100,000, range: 10,000-1,000,000)
+- **Timeout**: Request timeout in seconds (default: 240, range: 60-600)
+- **Max Examples**: Maximum number of example notes to use (default: 3, range: 0-500)
+- **Custom Settings**: Client-specific settings (e.g., Organization ID for OpenAI)
 
 
 ## How It Works
 
-1. **Example Selection**: The plugin selects up to 3 example notes from your collection that:
+1. **Note Selection**: Select notes in the Anki browser and open TransformerMan from the menu or right-click context menu
+
+2. **Field Configuration**: For each field in your note type, you can:
+   - **Context (read)**: Include field content in the prompt to provide context
+   - **Writable (write)**: Allow the field to be filled (only empty fields by default)
+   - **Overwritable**: Hold Ctrl+click on writable fields to allow overwriting existing content
+   - **Instructions**: Add field-specific instructions to guide the LM
+
+3. **Example Selection**: The plugin selects example notes from your collection (up to your configured "Max Examples" setting, default: 3) that:
    - Have the same note type
    - Have the most filled fields (in the selected field set)
    - Have the highest word count in those fields
 
-2. **Prompt Construction**: Creates a structured prompt with:
+4. **Batch Processing**: Notes are automatically batched based on your "Max Prompt Size" setting to optimize API usage and minimize costs
+
+5. **Prompt Construction**: Creates structured prompts with:
    - Field-specific instructions (if provided)
    - Example notes in XML format
    - Target notes to fill
 
-3. **LM Processing**: Sends the prompt to the language model and receives filled notes
+6. **LM Processing**: Sends batches to the language model and receives filled notes with progress tracking
 
-4. **Preview Display**: Shows what changes will be made with green highlighting
+7. **Preview Display**: Shows what changes will be made with green highlighting in a table format
 
-5. **Note Updates**: Updates only the empty fields in the selected field set (after user confirmation)
+8. **Note Updates**: Updates only the writable fields (empty by default, or overwritable if enabled) after user confirmation
 
 ## Contributing
 
@@ -101,7 +96,10 @@ For issues, questions, or contributions, please visit the project repository.
 ## Roadmap
 
 - [x] Preview before applying changes
-- [x] Enhanced error reporting and logging
-- [ ] Undo support integration
+- [x] Settings dialog improvements (state management, first-open dialog)
+- [x] Shift-click option for overwrite field checkbox
+- [x] Configurable max examples setting
+- [x] Undo support integration
+- [x] Support for custom OpenAi endpoint
 - [ ] Cost and token usage tracking and optimization
 - [ ] Support for more LM providers
