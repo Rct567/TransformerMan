@@ -27,18 +27,25 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
 
 1. **Configure Settings** (first time only):
    - Go to **Tools → TransformerMan Settings**
-   - Enter your API key (when using a real LM service)
+   - Enter your API key (if needed)
    - Select your preferred model
 
 2. **Transform Notes**:
    - Open the card browser
    - Select one or more notes
-   - Right-click and select **Edit → TransformerMan** (or use the TransformerMan button in the menu bar)
-   - Choose the note type from the dropdown
-   - Select which fields to fill
+   - Right-click and select **TransformerMan**
+   - Select which fields to fill (click the "Write" checkbox to allow writing to the field)
    - (Optional) Add custom instructions for specific fields
    - Click **Preview** to see what changes will be made
    - Review the preview and click **Apply** to save changes
+
+## Free Options
+
+
+- **Gemini**: Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+- **LM Studio**: Download [LM Studio](https://lmstudio.ai/), run local LLMs like gpt-oss, Qwen3, DeepSeek on your computer.
+- **DeepSeek**: Free tier with generous limits, get API key from [DeepSeek Platform](https://platform.deepseek.com/)
+- **Groq**: Free tier available with rate limits, get API key from [Groq Console](https://console.groq.com/)
 
 ## Configuration
 
@@ -48,10 +55,10 @@ Access via **Tools → TransformerMan Settings**:
 
 - **LM Client**: Choose from available language model clients (Dummy, OpenAI, Claude, Gemini, DeepSeek, OpenAI Custom)
 - **Model**: Select model based on chosen client (e.g., OpenAI: GPT-4o/GPT-4o-mini/o1/o3 series, Claude: various models, etc.)
-- **API Key**: Your language model API key (required for real LM services, not needed for Dummy client)
-- **Max Prompt Size**: Maximum prompt size in characters (default: 100,000, range: 10,000-1,000,000)
-- **Timeout**: Request timeout in seconds (default: 240, range: 60-600)
-- **Max Examples**: Maximum number of example notes to use (default: 3, range: 0-500)
+- **API Key**: Your language model API key
+- **Max Prompt Size**: Maximum prompt size in characters (lower number would require more batches)
+- **Timeout**: Request timeout in seconds
+- **Max Examples**: Maximum number of example notes to use for generated prompt
 - **Custom Settings**: Client-specific settings (e.g., Organization ID for OpenAI)
 
 
@@ -81,7 +88,7 @@ Access via **Tools → TransformerMan Settings**:
 
 7. **Preview Display**: Shows what changes will be made with green highlighting in a table format
 
-8. **Note Updates**: Updates only the writable fields (empty by default, or overwritable if enabled) after user confirmation
+8. **Note Updates**: Updates only the writable fields after user confirmation
 
 ## Contributing
 
