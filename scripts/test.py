@@ -252,6 +252,23 @@ def run_vulture(options: Sequence[str]) -> None:
     print(f"{GREEN} Vulture was successful! ({elapsed_time:.0f} seconds){RESET}")
 
 
+def check_code_duplication() -> None:
+    """Check for code duplication using pylint."""
+    print("=" * 60)
+    print("Checking for code duplication...")
+    start_time = time.perf_counter()
+
+    ensure_packages_installed(["pylint"])
+
+    run_and_print_on_failure(
+        ["pylint", "--disable=all", "--enable=duplicate-code", "--min-similarity-lines=4", "./transformerman"],
+        "Code Duplication Check"
+    )
+
+    elapsed_time = time.perf_counter() - start_time
+    print(f"{GREEN} Code duplication check was successful! ({elapsed_time:.0f} seconds){RESET}")
+
+
 @dataclass(frozen=True)
 class MenuTestOption:
     key: str
@@ -346,7 +363,9 @@ def main() -> NoReturn:
     run_ruff(selected_options)
     run_pyright(selected_options)
     run_mypy(selected_options)
+
     run_vulture(selected_options)
+    check_code_duplication()
 
     selected_menu_options = [option for option in get_test_menu_options() if option.is_available() and option.key in selected_options]
 
