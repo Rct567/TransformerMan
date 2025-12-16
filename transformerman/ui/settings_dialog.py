@@ -209,14 +209,25 @@ class SettingsDialog(TransformerManBaseDialog):
         # Get current client
         client_name = self.client_combo.currentText()
 
-        # Save API key using AddonConfig's method
+        lm_client = get_lm_client_class(client_name)
+
+        if not lm_client:
+            showWarning(f"Cannot save settings: Unknown LM client '{client_name}'.", parent=self)
+            return
+
+        # Save API key
         api_key = self.api_key_input.text().strip()
+
+        if not api_key and lm_client.api_key_required():
+            showWarning(f"API key is required for LM client '{client_name}'.", parent=self)
+            return
+
         self.addon_config.set_api_key(client_name, api_key)
 
-        # Save LM client
+        # Save selected LM client
         self.addon_config.update_setting("lm_client", client_name)
 
-        # Save model with client prefix (like API key)
+        # Save selected model
         model = self.model_combo.currentText()
         self.addon_config.set_model(client_name, model)
 
@@ -239,7 +250,6 @@ class SettingsDialog(TransformerManBaseDialog):
         self.addon_config.update_setting("max_examples", max_examples)
 
         # Save custom settings
-        client_name = self.client_combo.currentText()
         self._save_custom_settings(client_name)
 
         # Disable save and reset buttons after saving
