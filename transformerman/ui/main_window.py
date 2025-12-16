@@ -511,6 +511,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
     def _update_preview_table(self) -> None:
         """Update the preview table with data from selected notes."""
+        if self.preview_table.selected_notes:
+            self.preview_table.selected_notes.clear_cache()
         # Get selected fields
         selected_fields = self._get_selected_fields()
         # Get filtered note IDs

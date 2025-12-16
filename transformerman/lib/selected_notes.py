@@ -649,6 +649,11 @@ class SelectedNotes:
 
         return max(deck_counts.items(), key=lambda x: x[1])[0]
 
+    def clear_cache(self) -> None:
+        """Clear the note cache."""
+        self._note_cache.clear()
+        self._deck_cache.clear()
+
 
     def __len__(self) -> int:
         """Return the number of notes in the selection."""
