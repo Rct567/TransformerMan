@@ -286,7 +286,7 @@ class OpenAILMClient(LMClient):
 
         if "model" in settings:
             model = settings["model"].strip()
-            if model and not re.match(r"^[a-zA-Z0-9\-_\.]+$", model):
+            if model and not re.match(r"^[a-zA-Z0-9\-_\.\/]+$", model):
                 return False, "model must contain only alphanumeric characters, hyphens, underscores, and periods"
 
         # Validate organization_id if provided
@@ -317,6 +317,30 @@ class OpenAiCustom(OpenAILMClient):
         return []
 
 
+class Groq(OpenAILMClient):
+
+    @property
+    @override
+    def id(self) -> str:
+        return "groq"
+
+    @override
+    def __init__(self, api_key: ApiKey, model: ModelName, timeout: int = 120, connect_timeout: int = 10, custom_settings: dict[str, str] | None = None) -> None:
+        if not custom_settings:
+            custom_settings = {}
+        custom_settings["end_point"] = "https://api.groq.com/openai/v1/chat/completions"
+        super().__init__(api_key, model, timeout, connect_timeout, custom_settings)
+
+    @staticmethod
+    @override
+    def custom_settings() -> list[str]:
+        """Return list of custom setting names for OpenAI client."""
+        return ["model", "organization_id"]
+
+    @staticmethod
+    @override
+    def get_available_models() -> list[str]:
+        return []
 
 
 class ClaudeLMClient(LMClient):
@@ -552,6 +576,7 @@ LM_CLIENTS = {
     "claude": ClaudeLMClient,
     "gemini": GeminiLMClient,
     "deepseek": DeepSeekLMClient,
+    "groq": Groq,
     "openai_custom": OpenAiCustom,
 }
 
