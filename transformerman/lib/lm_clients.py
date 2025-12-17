@@ -411,12 +411,9 @@ class ClaudeLMClient(LMClient):
     @override
     def get_available_models() -> list[str]:
         return [
-            "claude-3-5-sonnet-latest",
-            "claude-3-opus-20240229",
-            "claude-3-haiku-20240307",
-            "claude-opus-4-5",
-            "claude-sonnet-3-5",
-            "claude-haiku-3-0",
+            "claude-sonnet-4-5",          # Latest Sonnet 4.5 (balanced, recommended starting point)
+            "claude-opus-4-5",            # Latest Opus 4.5 (most capable)
+            "claude-haiku-4-5",           # Latest Haiku 4.5 (fastest/cheapest)
         ]
 
 class GeminiLMClient(LMClient):
@@ -489,8 +486,10 @@ class GeminiLMClient(LMClient):
     @override
     def get_available_models() -> list[str]:
         return [
-            "gemini-flash-latest",
-            "gemini-2.5-flash",
+            "gemini-2.5-flash",           # Stable Gemini 2.5 Flash (fast, balanced, recommended for most apps)
+            "gemini-2.5-pro",             # Stable Gemini 2.5 Pro (advanced reasoning, complex tasks)
+            "gemini-2.5-flash-lite",      # Stable lite variant (cheapest/fastest for high-volume)
+            "gemini-flash-latest",        # Alias for the absolute latest Flash experimental (auto-updates)
         ]
 
 
