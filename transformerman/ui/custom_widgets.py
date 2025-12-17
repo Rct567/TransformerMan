@@ -24,6 +24,13 @@ class FormattedSpinBox(QSpinBox):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
+    def _strip_suffix_and_clean(self, text: str) -> str:
+        """Remove suffix and clean text for parsing."""
+        suffix = self.suffix()
+        if suffix and text.endswith(suffix):
+            text = text[:-len(suffix)]
+        return text.replace("_", "").replace(" ", "").strip()
+
     @override
     def textFromValue(self, v: int) -> str:
         """
@@ -61,8 +68,7 @@ class FormattedSpinBox(QSpinBox):
         if text is None:
             return 0
 
-        # Remove underscores and any other non-digit characters (except minus sign)
-        cleaned = text.replace("_", "").replace(" ", "")
+        cleaned = self._strip_suffix_and_clean(text)
         try:
             return int(cleaned)
         except ValueError:
@@ -83,14 +89,16 @@ class FormattedSpinBox(QSpinBox):
         if input is None:
             return QValidator.State.Intermediate, "", pos
 
-        # Allow digits, underscores, and spaces
-        cleaned = input.replace("_", "").replace(" ", "")
+        cleaned = self._strip_suffix_and_clean(input)
 
         if cleaned == "":
             return QValidator.State.Intermediate, input, pos
 
         try:
-            int(cleaned)
-            return QValidator.State.Acceptable, input, pos
+            value = int(cleaned)
+            if self.minimum() <= value <= self.maximum():
+                return QValidator.State.Acceptable, input, pos
+            else:
+                return QValidator.State.Intermediate, input, pos
         except ValueError:
             return QValidator.State.Invalid, input, pos
