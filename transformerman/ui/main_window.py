@@ -31,7 +31,7 @@ from .preview_table import PreviewTable
 
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes
-from ..lib.utilities import override
+from ..lib.utilities import debounce, override
 
 import logging
 
@@ -131,6 +131,7 @@ class FieldWidget(QWidget):
             self.set_overwritable(False)
         self.main_window._on_field_selection_changed()  # type: ignore[reportPrivateUsage]
 
+    @debounce(500)
     def _on_instruction_changed(self) -> None:
         """Handle instruction input text change."""
         self.main_window._on_instruction_changed()  # type: ignore[reportPrivateUsage]

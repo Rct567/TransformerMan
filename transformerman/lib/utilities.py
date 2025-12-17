@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import itertools
 import sys
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
+
+from typing import Callable
+from typing_extensions import ParamSpec, TypeVar
+
+from functools import wraps
+from aqt.qt import QTimer
+
+import inspect
 
 if TYPE_CHECKING:
     from typing import Union
@@ -52,3 +60,75 @@ else:
     # Dummy decorator for runtime on Python < 3.12
     def override(func):  # type: ignore[misc]
         return func
+
+
+# debounce decorator for Qt6 functions
+
+
+P = ParamSpec('P')
+
+
+def debounce(wait_ms: int) -> Callable[[Callable[P, Any]], Callable[P, None]]:
+    """
+    Debounce decorator for Qt6 functions.
+
+    Delays function execution until after `wait_ms` milliseconds have elapsed
+    since the last time it was invoked. Automatically handles Qt signal arguments
+    by matching them to the decorated function's signature.
+
+    Args:
+        wait_ms: The number of milliseconds to delay (must be an integer)
+
+    Returns:
+        A decorator that debounces the decorated function
+
+    Example:
+        @debounce(500)
+        def on_text_changed(self, text: str) -> None:
+            print(f"Processing: {text}")
+
+        @debounce(500)
+        def on_something_changed(self) -> None:
+            # Signal arguments are automatically ignored
+            print("Something changed")
+    """
+    def decorator(func: Callable[P, Any]) -> Callable[P, None]:
+        timer: QTimer | None = None
+        pending_call: tuple[tuple[Any, ...], dict[str, Any]] | None = None
+
+        # Inspect the function signature to see how many parameters it accepts
+        sig = inspect.signature(func)
+        num_params = len(sig.parameters)
+
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> None:
+            nonlocal timer, pending_call
+
+            # Match arguments to function signature
+            # If function expects fewer args than provided, trim the extras
+            if len(args) > num_params:
+                pending_call = (args[:num_params], kwargs)
+            else:
+                pending_call = (args, kwargs)
+
+            # Stop existing timer if it's running
+            if timer is not None and timer.isActive():
+                timer.stop()
+
+            # Create timer if needed
+            if timer is None:
+                timer = QTimer()
+                timer.setSingleShot(True)
+
+                def execute_pending() -> None:
+                    if pending_call is not None:
+                        call_args, call_kwargs = pending_call  # type: ignore[var-annotated]
+                        func(*call_args, **call_kwargs)  # type: ignore[arg-type]
+
+                timer.timeout.connect(execute_pending)
+
+            # Start the timer (ensure wait_ms is an int)
+            timer.start(int(wait_ms))
+
+        return wrapper
+    return decorator
