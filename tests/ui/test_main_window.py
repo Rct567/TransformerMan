@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 from aqt.qt import QWidget, QLineEdit, QComboBox, QPushButton, Qt
 
 from transformerman.ui.main_window import TransformerManMainWindow, FieldWidget
+from transformerman.lib.field_updates import FieldUpdates
 from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
 
 col = test_collection_fixture
@@ -117,6 +118,16 @@ class TestTransformerManMainWindow:
         assert hasattr(window, 'apply_button')
         assert isinstance(window.apply_button, QPushButton)
         assert window.apply_button.text() == "Apply"
+        # Initially apply button should be disabled with no styling
+        assert not window.apply_button.isEnabled()
+        assert window.apply_button.styleSheet() == ""
+
+        assert hasattr(window, 'discard_button')
+        assert isinstance(window.discard_button, QPushButton)
+        assert window.discard_button.text() == "Discard"
+        # Initially discard button should be disabled with no styling
+        assert not window.discard_button.isEnabled()
+        assert window.discard_button.styleSheet() == ""
 
         assert hasattr(window, 'preview_table')
         # preview_table is a PreviewTable widget
@@ -490,3 +501,68 @@ class TestTransformerManMainWindow:
         assert "Text" in window.field_widgets
         assert "Back Extra" in window.field_widgets
         assert "Front" not in window.field_widgets  # Old fields cleared
+
+    @with_test_collection("empty_collection")
+    def test_discard_button_clears_preview_results(
+        self,
+        qtbot: QtBot,
+        parent_widget: QWidget,
+        col: TestCollection,
+        dummy_lm_client: Mock,
+        addon_config: AddonConfig,
+        user_files_dir: Path,
+        is_dark_mode: bool,
+    ) -> None:
+        """Test that discard button clears preview results and updates UI state."""
+
+        # Add some notes to the collection
+        model = col.models.by_name("Basic")
+        assert model is not None
+        deck = col.decks.all()[0]
+        deck_id = deck["id"]
+
+        note_ids = []
+        # Add 2 Basic notes
+        for i in range(2):
+            note = col.new_note(model)
+            note["Front"] = f"Front {i}"
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
+
+        window = TransformerManMainWindow(
+            parent=parent_widget,
+            is_dark_mode=is_dark_mode,
+            col=col,
+            note_ids=note_ids,
+            lm_client=dummy_lm_client,
+            addon_config=addon_config,
+            user_files_dir=user_files_dir,
+        )
+        qtbot.addWidget(window)
+
+        # Set up combo box with Basic note type and trigger change
+        window.note_type_combo.addItem("Basic")
+        window.note_type_combo.setCurrentText("Basic")
+        window.note_type_combo.currentTextChanged.emit("Basic")
+        qtbot.waitUntil(lambda: len(window.field_widgets) > 0)
+
+        # Initially, discard button should be disabled (no preview results)
+        assert not window.discard_button.isEnabled()
+
+        # Create mock preview results
+        mock_field_updates = FieldUpdates({note_ids[0]: {"Front": "New Front Content"}})
+        window.preview_results = mock_field_updates
+
+        # Update button state - discard button should now be enabled with styling
+        window.update_buttons_state()
+        assert window.discard_button.isEnabled()
+
+        # Click discard button
+        qtbot.mouseClick(window.discard_button, Qt.MouseButton.LeftButton)
+
+        # Preview results should be cleared
+        assert window.preview_results is None
+
+        # Discard button should be disabled again
+        assert not window.discard_button.isEnabled()

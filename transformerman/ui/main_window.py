@@ -292,12 +292,19 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Button layout
         button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(0, 6, 0, 2)
 
         # Preview button
         self.preview_button = QPushButton("Preview")
         self.preview_button.setToolTip("Preview transformation")
         self.preview_button.clicked.connect(self._on_preview_clicked)
         button_layout.addWidget(self.preview_button)
+
+        # Discard button
+        self.discard_button = QPushButton("Discard")
+        self.discard_button.setToolTip("Discard transformation results")
+        self.discard_button.clicked.connect(self._on_discard_clicked)
+        button_layout.addWidget(self.discard_button)
 
         # Apply button
         self.apply_button = QPushButton("Apply")
@@ -540,10 +547,24 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             )
 
         apply_enabled = self.preview_results is not None and len(self.preview_results) > 0 and not self.preview_results.is_applied
+        discard_enabled = apply_enabled
 
         # Update buttons
         self.preview_button.setEnabled(preview_enabled)
         self.apply_button.setEnabled(apply_enabled)
+        self.discard_button.setEnabled(discard_enabled)
+
+        # Update button styles based on enabled state and dark mode
+        if self.is_dark_mode:
+            apply_style = "background-color: #2e7d32;" if apply_enabled else ""
+            discard_style = "background-color: #893f3f;" if discard_enabled else ""
+        else:
+            apply_style = "background-color: #81c784; border-color:#419245" if apply_enabled else ""
+            discard_style = "background-color: #e8b1b1; border-color:#ac5e5e" if discard_enabled else ""
+
+
+        self.apply_button.setStyleSheet(apply_style)
+        self.discard_button.setStyleSheet(discard_style)
 
     def _on_preview_clicked(self) -> None:
         """Handle preview button click."""
@@ -710,6 +731,14 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             field_updates=self.preview_results,
             on_success=on_success,
             on_failure=on_failure,
+        )
+
+    def _on_discard_clicked(self) -> None:
+        """Handle discard button click."""
+        # Clear preview results and refresh UI state
+        self._update_state(
+            clear_preview_results=True,
+            update_preview_table=True,
         )
 
     def _update_preview_table_with_results(
