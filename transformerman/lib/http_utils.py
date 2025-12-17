@@ -330,7 +330,7 @@ def make_api_request_json(
     read_timeout: int = 110,
     progress_callback: Optional[Callable[[LmProgressData], None]] = None,
     chunk_size: int = 8192,
-) -> dict[str, Any]:
+) -> dict[str, JSON_TYPE]:
     """
     Make an HTTP request and parse the response as JSON.
 

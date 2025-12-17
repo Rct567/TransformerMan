@@ -223,12 +223,16 @@ class OpenAILMClient(LMClient):
                 if not choices or not isinstance(choices, list) or len(choices) == 0:
                     raise KeyError("Missing or empty 'choices' in result")
                 choice = choices[0]
+                if not isinstance(choice, dict):
+                    raise TypeError("Invalid 'choice' type in result")
                 message = choice.get("message")
                 if not message or not isinstance(message, dict):
                     raise KeyError("Missing or invalid 'message' in choice")
                 text = message.get("content")
                 if text is None:
                     raise KeyError("Missing 'content' in message")
+                if not isinstance(text, str):
+                    raise TypeError("Invalid 'content' type in message")
                 return LmResponse(text)
             except (KeyError, IndexError, TypeError) as e:
                 self.logger.error(f"Error parsing OpenAI response: {e}")
@@ -387,9 +391,13 @@ class ClaudeLMClient(LMClient):
                 if not content or not isinstance(content, list) or len(content) == 0:
                     raise KeyError("Missing or empty 'content' in result")
                 first_content = content[0]
+                if not isinstance(first_content, dict):
+                    raise TypeError("Invalid 'content' item type in result")
                 text = first_content.get("text")
                 if text is None:
                     raise KeyError("Missing 'text' in content")
+                if not isinstance(text, str):
+                    raise TypeError("Invalid 'text' type in content")
                 return LmResponse(text)
             except (KeyError, IndexError, TypeError) as e:
                 self.logger.error(f"Error parsing Claude response: {e}")
@@ -455,6 +463,8 @@ class GeminiLMClient(LMClient):
                 if not candidates or not isinstance(candidates, list) or len(candidates) == 0:
                     raise KeyError("Missing or empty 'candidates' in result")
                 candidate = candidates[0]
+                if not isinstance(candidate, dict):
+                    raise TypeError("Invalid 'candidate' type in result")
                 content = candidate.get("content")
                 if not content or not isinstance(content, dict):
                     raise KeyError("Missing or invalid 'content' in candidate")
@@ -462,9 +472,13 @@ class GeminiLMClient(LMClient):
                 if not parts or not isinstance(parts, list) or len(parts) == 0:
                     raise KeyError("Missing or empty 'parts' in content")
                 part = parts[0]
+                if not isinstance(part, dict):
+                    raise TypeError("Invalid 'part' type in content")
                 text = part.get("text")
                 if text is None:
                     raise KeyError("Missing 'text' in part")
+                if not isinstance(text, str):
+                    raise TypeError("Invalid 'text' type in part")
                 return LmResponse(text)
             except (KeyError, IndexError, TypeError) as e:
                 self.logger.error(f"Error parsing Gemini response: {e}")
@@ -537,12 +551,16 @@ class DeepSeekLMClient(LMClient):
                 if not choices or not isinstance(choices, list) or len(choices) == 0:
                     raise KeyError("Missing or empty 'choices' in result")
                 choice = choices[0]
+                if not isinstance(choice, dict):
+                    raise TypeError("Invalid 'choice' type in result")
                 message = choice.get("message")
                 if not message or not isinstance(message, dict):
                     raise KeyError("Missing or invalid 'message' in choice")
                 text = message.get("content")
                 if text is None:
                     raise KeyError("Missing 'content' in message")
+                if not isinstance(text, str):
+                    raise TypeError("Invalid 'content' type in message")
                 return LmResponse(text)
             except (KeyError, IndexError, TypeError) as e:
                 self.logger.error(f"Error parsing DeepSeek response: {e}")
