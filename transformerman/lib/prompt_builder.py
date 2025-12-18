@@ -167,10 +167,10 @@ class PromptBuilder:
             "Instructions:",
         ]
 
-        # Add field-specific instructions
+        # Add field-specific instructions (only for fields to be filled)
         if self.field_instructions:
             for field_name, instruction in self.field_instructions.items():
-                if field_name in selected_fields:
+                if field_name in selected_fields and field_name in fields_to_fill:
                     prompt_parts.append(f"- For field '{field_name}': {instruction}")
         else:
             # Adjust instruction based on whether examples are available

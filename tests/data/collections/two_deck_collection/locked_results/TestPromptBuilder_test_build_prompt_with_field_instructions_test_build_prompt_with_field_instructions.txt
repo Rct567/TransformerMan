@@ -2,7 +2,6 @@ You are an Anki note assistant. Your task is to fill empty fields in notes based
 
 Instructions:
 - For field 'Front': Provide a concise question
-- For field 'Back': Provide detailed answer
 
 Here are some example notes from the collection:
 

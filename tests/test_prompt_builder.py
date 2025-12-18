@@ -104,7 +104,7 @@ class TestPromptBuilder:
 
         # Strategic assertions
         assert prompt.count("For field 'Front': Provide a concise question") == 1
-        assert prompt.count("For field 'Back': Provide detailed answer") == 1
+        assert prompt.count("For field 'Back': Provide detailed answer") == 0 # Back is not writable
         # Examples should be present from test collection, so exactly 2 <notes> tags
         assert prompt.count('<notes model="Basic">') == 2
         # There should be at least one empty Front field (our target note)
