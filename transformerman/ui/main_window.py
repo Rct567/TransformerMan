@@ -653,8 +653,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             if askUserDialog(warning_message, buttons=["Continue", "Cancel"], parent=self).run() != "Continue":
                 return
 
-        def on_preview_success(results: TransformResults, field_updates: FieldUpdates) -> None:
-            """Handle successful preview."""
+        def on_transform_success(results: TransformResults, field_updates: FieldUpdates) -> None:
+            """Handle successful transformation (set preview)."""
 
             # Check for error in results
             if results['error']:
@@ -711,7 +711,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             writable_fields=writable_fields,
             overwritable_fields=overwritable_fields,
             note_type_name=self.current_note_type,
-            on_success=on_preview_success,
+            on_success=on_transform_success,
         )
 
     def _on_apply_clicked(self) -> None:
