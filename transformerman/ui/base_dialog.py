@@ -11,7 +11,7 @@ from aqt.qt import QDialog, QWidget
 from aqt.utils import saveGeom, restoreGeom
 
 from ..lib.utilities import override
-from .utilities import get_tm_icon
+from .ui_utilities import get_tm_icon
 
 if TYPE_CHECKING:
     from aqt.qt import QCloseEvent

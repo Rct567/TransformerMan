@@ -31,7 +31,8 @@ from .preview_table import PreviewTable
 
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes
-from ..lib.utilities import debounce, override, create_slug
+from ..lib.utilities import override, create_slug
+from ..ui.ui_utilities import debounce
 
 import logging
 
