@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .xml_parser import escape_xml_content
-from .selected_notes import SelectedNotes
+from .selected_notes import SelectedNotes, NoteModel
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -257,8 +257,8 @@ class PromptBuilder:
         target_note_ids = set(target_notes.get_ids())
 
         # Find the note type
-        notetype = self.col.models.by_name(note_type_name)
-        if not notetype:
+        model = NoteModel.by_name(self.col, note_type_name)
+        if not model:
             return []
 
         def find_candidate_notes(query: str) -> list[NoteId]:

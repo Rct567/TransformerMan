@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import Note, NoteId
+    from anki.models import NotetypeId, NotetypeDict
     from anki.cards import CardId
     from .prompt_builder import PromptBuilder
 
@@ -25,6 +26,41 @@ class BatchingStats(NamedTuple):
     num_batches: int
     num_notes_selected: int  # noqa: vulture
     max_prompt_size: int
+
+
+class NoteModel:
+    """Wrapper for Anki's note type (model)."""
+
+    def __init__(self, col: Collection, data: NotetypeDict):
+        self.col = col
+        self.data = data
+
+    @classmethod
+    def by_name(cls, col: Collection, name: str) -> NoteModel | None:
+        data = col.models.by_name(name)
+        if data:
+            return cls(col, data)
+        return None
+
+    @classmethod
+    def by_id(cls, col: Collection, mid: NotetypeId) -> NoteModel | None:
+        data = col.models.get(mid)
+        if data:
+            return cls(col, data)
+        return None
+
+    def get_fields(self) -> list[str]:
+        """Return the names of the fields in this note model."""
+        return [field["name"] for field in self.data["flds"]]
+
+    @property
+    def id(self) -> NotetypeId:
+        return self.data["id"]
+
+    @property
+    def name(self) -> str:
+        return self.data["name"]
+
 
 class SelectedNotes:
     """Manages selected notes for transformation."""
@@ -105,12 +141,15 @@ class SelectedNotes:
         Returns:
             List of note IDs matching the note type.
         """
+        model = NoteModel.by_name(self.col, note_type_name)
+        if not model:
+            return []
+
         filtered_note_ids: list[NoteId] = []
 
         for nid in self._note_ids:
             note = self.get_note(nid)
-            notetype = self.col.models.get(note.mid)
-            if notetype and notetype['name'] == note_type_name:
+            if note.mid == model.id:
                 filtered_note_ids.append(nid)
 
         return filtered_note_ids
@@ -126,9 +165,9 @@ class SelectedNotes:
 
         for nid in self._note_ids:
             note = self.get_note(nid)
-            notetype = self.col.models.get(note.mid)
-            if notetype:
-                name = notetype['name']
+            model = NoteModel.by_id(self.col, note.mid)
+            if model:
+                name = model.name
                 counts[name] = counts.get(name, 0) + 1
 
         # Sort by count descending
@@ -514,22 +553,6 @@ class SelectedNotes:
                         card_ids.append(card_id)
 
         return SelectedNotes(self.col, note_ids, card_ids, note_cache=self._note_cache, deck_cache=self._deck_cache)
-
-    def get_field_names(self, note_type_name: str) -> list[str]:
-        """
-        Get field names for a note type.
-
-        Args:
-            note_type_name: Name of the note type.
-
-        Returns:
-            List of field names.
-        """
-        for notetype in self.col.models.all():
-            if notetype['name'] == note_type_name:
-                return [field['name'] for field in notetype['flds']]
-
-        return []
 
     @staticmethod
     def has_empty_field(note: Note, selected_fields: Sequence[str]) -> bool:

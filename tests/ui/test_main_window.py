@@ -188,7 +188,8 @@ class TestTransformerManMainWindow:
 
         # First (most common) note type should be selected
         assert window.note_type_combo.currentText() == "Basic"
-        assert window.current_note_type == "Basic"
+        assert window.current_note_model is not None
+        assert window.current_note_model.name == "Basic"
 
     @with_test_collection("two_deck_collection")
     def test_field_checkboxes_created(
@@ -488,7 +489,8 @@ class TestTransformerManMainWindow:
         window.note_type_combo.currentTextChanged.emit("Basic")
         qtbot.waitUntil(lambda: len(window.field_widgets) > 0)
 
-        assert window.current_note_type == "Basic"
+        assert window.current_note_model is not None
+        assert window.current_note_model.name == "Basic"
         assert "Front" in window.field_widgets
         assert "Back" in window.field_widgets
 
@@ -497,7 +499,8 @@ class TestTransformerManMainWindow:
         window.note_type_combo.currentTextChanged.emit("Cloze")
         qtbot.waitUntil(lambda: "Text" in window.field_widgets)
 
-        assert window.current_note_type == "Cloze"
+        assert window.current_note_model is not None
+        assert window.current_note_model.name == "Cloze"
         assert "Text" in window.field_widgets
         assert "Back Extra" in window.field_widgets
         assert "Front" not in window.field_widgets  # Old fields cleared

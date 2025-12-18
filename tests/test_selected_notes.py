@@ -10,7 +10,9 @@ if TYPE_CHECKING:
     from anki.notes import NoteId
     from anki.cards import CardId
 
-from transformerman.lib.selected_notes import SelectedNotes
+from anki.models import NotetypeId
+
+from transformerman.lib.selected_notes import SelectedNotes, NoteModel
 from transformerman.lib.prompt_builder import PromptBuilder
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
@@ -493,21 +495,27 @@ class TestSelectedNotes:
         assert note_from_child2.id == note_from_parent2.id
 
     @with_test_collection("two_deck_collection")
-    def test_get_field_names(
+    def test_note_model(
         self,
         col: TestCollection,
     ) -> None:
-        """Test get_field_names returns correct field names for note type."""
-        selected_notes = SelectedNotes(col, [])
+        """Test NoteModel class."""
+        # Test by_name
+        model = NoteModel.by_name(col, "Basic")
+        assert model is not None
+        assert model.name == "Basic"
+        assert "Front" in model.get_fields()
+        assert "Back" in model.get_fields()
 
-        # Get field names for Basic note type
-        field_names = selected_notes.get_field_names("Basic")
-        assert "Front" in field_names
-        assert "Back" in field_names
+        # Test by_id
+        model_by_id = NoteModel.by_id(col, model.id)
+        assert model_by_id is not None
+        assert model_by_id.id == model.id
+        assert model_by_id.name == "Basic"
 
-        # Get field names for non-existent note type
-        non_existent_fields = selected_notes.get_field_names("NonExistentType")
-        assert non_existent_fields == []
+        # Test non-existent
+        assert NoteModel.by_name(col, "NonExistent") is None
+        assert NoteModel.by_id(col, NotetypeId(999999)) is None
 
     @with_test_collection("two_deck_collection")
     def test_note_cache_sharing(
