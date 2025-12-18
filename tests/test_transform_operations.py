@@ -129,10 +129,10 @@ class TestNoteTransformer:
         results, field_updates = transformer.get_field_updates()
 
         # Verify results
-        assert results["num_notes_updated"] == 4  # All 4 notes should have updates
-        assert results["num_notes_failed"] == 0
-        assert results["num_batches_processed"] == 2  # Batch size produces 2 batches
-        assert results["error"] is None
+        assert results.num_notes_updated == 4  # All 4 notes should have updates
+        assert results.num_notes_failed == 0
+        assert results.num_batches_processed == 2  # Batch size produces 2 batches
+        assert results.error is None
 
         # Verify field updates contain expected content
         assert len(field_updates) == 4
@@ -265,7 +265,7 @@ class TestNoteTransformer:
         results, field_updates = transformer.get_field_updates(should_cancel=should_cancel)
 
         # Verify no batches were processed due to immediate cancellation
-        assert results["num_batches_processed"] == 0
+        assert results.num_batches_processed == 0
         # No notes should have updates due to cancellation
         assert len(field_updates) == 0
 
@@ -337,10 +337,10 @@ class TestNoteTransformer:
             results, field_updates = transformer.get_field_updates()
 
         # Verify results show failures for all notes (all in one batch that failed)
-        assert results["num_notes_failed"] == 4  # All 4 notes in the single batch
-        assert results["num_notes_updated"] == 0  # No notes updated due to batch failure
-        assert results["num_batches_processed"] == 1  # Only one batch attempted
-        assert results["error"] and "4 field updates appear to be missing" in  results["error"]
+        assert results.num_notes_failed == 4  # All 4 notes in the single batch
+        assert results.num_notes_updated == 0  # No notes updated due to batch failure
+        assert results.num_batches_processed == 1  # Only one batch attempted
+        assert results.error and "4 field updates appear to be missing" in  results.error
 
         # Verify that no notes have updates (batch failed)
         assert len(field_updates) == 0
@@ -401,10 +401,10 @@ class TestNoteTransformer:
         results, field_updates = transformer.get_field_updates()
 
         # Verify only empty fields have updates
-        assert results["num_notes_updated"] == 2  # Only first 2 notes (empty fields)
-        assert results["num_notes_failed"] == 0
+        assert results.num_notes_updated == 2  # Only first 2 notes (empty fields)
+        assert results.num_notes_failed == 0
         # Only one batch (notes with empty fields) - notes with non-empty fields are filtered out
-        assert results["num_batches_processed"] == 1
+        assert results.num_batches_processed == 1
 
         # Verify that only empty fields have updates
         assert len(field_updates) == 2

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, TypedDict, Any, NamedTuple
+from typing import TYPE_CHECKING, Callable, Any, NamedTuple
 
 from aqt import mw
 from aqt.operations import CollectionOp, QueryOp
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from .http_utils import LmProgressData
 
 
-class TransformResults(TypedDict):
+class TransformResults(NamedTuple):
     """Type definition for transformation results."""
     num_notes_updated: int
     num_notes_failed: int
@@ -307,13 +307,13 @@ class NoteTransformer:
         if progress_callback:
             progress_callback(self.num_batches, self.num_batches, None)
 
-        results: TransformResults = {
-            "num_notes_updated": total_updated,
-            "num_notes_failed": total_failed,
-            "num_batches_requested": self.num_batches,
-            "num_batches_processed": batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
-            "error": error,
-        }
+        results: TransformResults = TransformResults(
+            num_notes_updated=total_updated,
+            num_notes_failed=total_failed,
+            num_batches_requested=self.num_batches,
+            num_batches_processed=batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
+            error=error,
+        )
 
         return results, all_field_updates
 

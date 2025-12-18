@@ -657,12 +657,12 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             """Handle successful transformation (set preview)."""
 
             # Check for error in results
-            if results['error']:
+            if results.error:
                 # Show error, ask user if they want to use results
-                showWarning(f"An error occurred:\n\n{results['error']}", parent=self)
+                showWarning(f"An error occurred:\n\n{results.error}", parent=self)
                 disregard_result = True
 
-                if results['num_notes_updated'] > 0 and field_updates:
+                if results.num_notes_updated > 0 and field_updates:
                     disregard_result = askUserDialog("Preview results anyway?", buttons=["Yes", "No"], parent=self).run() == "No"
 
                 if disregard_result:
@@ -688,10 +688,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                 return
 
             # Show summary of results used for preview
-            num_updated = results['num_notes_updated']
-            num_notes_failed = results['num_notes_failed']
-            num_batches_requested = results['num_batches_requested']
-            num_batches_processed = results['num_batches_processed']
+            num_updated = results.num_notes_updated
+            num_notes_failed = results.num_notes_failed
+            num_batches_requested = results.num_batches_requested
+            num_batches_processed = results.num_batches_processed
 
             result_info_text = f"Preview complete:\n\n{num_updated} notes would be updated."
 
