@@ -234,7 +234,7 @@ class TestTransformerManMainWindow:
         assert isinstance(front_widget, FieldWidget)
 
         # First two fields should be checked by default
-        assert front_widget.is_context_selected()
+        assert front_widget.is_read_selected()
 
         # Should have corresponding instruction inputs
         front_input = front_widget.instruction_input
@@ -276,7 +276,7 @@ class TestTransformerManMainWindow:
         qtbot.waitUntil(lambda: len(window.field_widgets) > 0)
 
         front_widget = window.field_widgets["Front"]
-        front_checkbox = front_widget.context_checkbox
+        front_checkbox = front_widget.read_checkbox
         front_input = front_widget.instruction_input
 
         # Initially should be enabled (checked by default)

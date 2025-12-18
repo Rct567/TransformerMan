@@ -197,7 +197,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         return [
             field_name
             for field_name, widget in self.field_widgets.items()
-            if widget.is_context_selected()
+            if widget.is_read_selected()
         ]
 
     def _get_writable_fields(self) -> list[str]:
@@ -377,7 +377,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                 widget.set_instruction_enabled(True)
             self.field_widgets[field_name] = widget
             # Add child widgets to grid columns
-            self.fields_layout.addWidget(widget.context_checkbox, row, 0)
+            self.fields_layout.addWidget(widget.read_checkbox, row, 0)
             self.fields_layout.addWidget(widget.writable_checkbox, row, 1)
             self.fields_layout.addWidget(widget.field_label, row, 2)
             self.fields_layout.addWidget(widget.instruction_input, row, 3)

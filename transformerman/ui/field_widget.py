@@ -46,9 +46,9 @@ class FieldWidget(QWidget):
         self.is_overwritable = False
 
         # Create widgets
-        self.context_checkbox = QCheckBox()
-        self.context_checkbox.setToolTip("Allow read (include field content in the prompt)")
-        self.context_checkbox.stateChanged.connect(self._on_context_changed)
+        self.read_checkbox = QCheckBox()
+        self.read_checkbox.setToolTip("Allow read (include field content in the prompt)")
+        self.read_checkbox.stateChanged.connect(self._on_read_changed)
 
         self.writable_checkbox = QCheckBox()
         self.writable_checkbox.setToolTip("Allow write (allow this field to be filled). Click with CTRL to make overwritable (red).")
@@ -96,22 +96,24 @@ class FieldWidget(QWidget):
         # Let the parent class handle other events
         return super().eventFilter(a0, a1)
 
-    def _on_context_changed(self) -> None:
-        """Handle context checkbox state change."""
-        if not self.context_checkbox.isChecked():
+    def _on_read_changed(self) -> None:
+        """Handle read checkbox state change."""
+        if not self.read_checkbox.isChecked():
             # If context unchecked, uncheck writable
             self.writable_checkbox.setChecked(False)
-        self.instruction_input.setEnabled(self.context_checkbox.isChecked())
+        self.instruction_input.setEnabled(self.read_checkbox.isChecked())
+        self._update_instruction_styling()
         self.main_window._on_field_selection_changed()  # type: ignore[reportPrivateUsage]
 
     def _on_writable_changed(self) -> None:
         """Handle writable checkbox state change."""
         if self.writable_checkbox.isChecked():
             # If writable checked, check context
-            self.context_checkbox.setChecked(True)
+            self.read_checkbox.setChecked(True)
         else:
             # If writable unchecked, clear overwritable state
             self.set_overwritable(False)
+        self._update_instruction_styling()
         self.main_window._on_field_selection_changed()  # type: ignore[reportPrivateUsage]
 
     @debounce(500)
@@ -129,10 +131,11 @@ class FieldWidget(QWidget):
         else:
             self.field_label.setStyleSheet("")
             self.writable_checkbox.setToolTip("Allow write (allow this field to be filled). Click with CTRL to make overwritable (red).")
+        self._update_instruction_styling()
 
-    def is_context_selected(self) -> bool:
+    def is_read_selected(self) -> bool:
         """Return True if context checkbox is checked."""
-        return self.context_checkbox.isChecked()
+        return self.read_checkbox.isChecked()
 
     def is_writable(self) -> bool:
         """Return True if writable checkbox is checked and not overwritable."""
@@ -141,6 +144,15 @@ class FieldWidget(QWidget):
     def is_overwritable_selected(self) -> bool:
         """Return True if field is in overwritable state."""
         return self.writable_checkbox.isChecked() and self.is_overwritable
+
+    def _update_instruction_styling(self) -> None:
+        """Update instruction input text color based on field state."""
+        if self.read_checkbox.isChecked() and not self.writable_checkbox.isChecked():
+            # Read mode: context checked but not writable -> gray out text
+            self.instruction_input.setStyleSheet("color: gray;")
+        else:
+            # Either disabled (context unchecked) or writable/overwritable -> normal styling
+            self.instruction_input.setStyleSheet("")
 
     def get_instruction(self) -> str:
         """Get instruction text."""
@@ -152,7 +164,7 @@ class FieldWidget(QWidget):
 
     def set_context_checked(self, checked: bool) -> None:
         """Set context checkbox state."""
-        self.context_checkbox.setChecked(checked)
+        self.read_checkbox.setChecked(checked)
 
     def _get_config_key(self) -> str:
         """Get the config key for this field's instruction."""
