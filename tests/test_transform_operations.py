@@ -206,9 +206,10 @@ class TestNoteTransformer:
         transformer.get_field_updates(progress_callback=progress_callback)
 
         # Verify progress was reported (only 1 batch with 500k limit)
-        assert len(progress_calls) == 2  # 1 batch + completion
+        # With streaming, we expect multiple calls: first batch, multiple streaming updates, and completion
+        assert len(progress_calls) >= 2
         assert progress_calls[0] == (0, 1)  # First batch
-        assert progress_calls[1] == (1, 1)  # Completion
+        assert progress_calls[-1] == (1, 1)  # Completion
 
     @with_test_collection("two_deck_collection")
     def test_get_field_updates_with_cancellation(

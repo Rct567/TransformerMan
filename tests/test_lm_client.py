@@ -4,7 +4,16 @@ Tests for LM client.
 
 from __future__ import annotations
 
-from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
+from unittest.mock import patch
+
+from transformerman.lib.lm_clients import (
+    ApiKey,
+    DeepSeekLMClient,
+    DummyLMClient,
+    GeminiLMClient,
+    GrokLMClient,
+    ModelName,
+)
 
 
 class TestLmClient:
@@ -73,3 +82,47 @@ class TestLmClient:
         response = client.transform("")
 
         assert response.text_response == '<notes></notes>'
+
+    def test_gemini_client_request_construction(self) -> None:
+        """Test GeminiLMClient request construction."""
+        model = GeminiLMClient.get_available_models()[0]
+        client = GeminiLMClient(ApiKey("test-key"), ModelName(model))
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.transform("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse"
+            assert kwargs["headers"]["x-goog-api-key"] == "test-key"
+            assert kwargs["json_data"] == {"contents": [{"parts": [{"text": "test prompt"}]}]}
+
+    def test_deepseek_client_request_construction(self) -> None:
+        """Test DeepSeekLMClient request construction."""
+        model = DeepSeekLMClient.get_available_models()[0]
+        client = DeepSeekLMClient(ApiKey("test-key"), ModelName(model))
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.transform("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://api.deepseek.com/chat/completions"
+            assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+    def test_grok_client_request_construction(self) -> None:
+        """Test GrokLMClient request construction."""
+        model = GrokLMClient.get_available_models()[0]
+        client = GrokLMClient(ApiKey("test-key"), ModelName(model))
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.transform("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://api.x.ai/v1/chat/completions"
+            assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"

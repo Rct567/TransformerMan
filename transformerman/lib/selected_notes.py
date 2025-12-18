@@ -24,7 +24,7 @@ class BatchingStats(NamedTuple):
     num_prompts_tried: int
     avg_batch_size: int | None
     num_batches: int
-    num_notes_selected: int  # noqa: vulture
+    num_notes_selected: int  # noqa: F841
     max_prompt_size: int
 
 

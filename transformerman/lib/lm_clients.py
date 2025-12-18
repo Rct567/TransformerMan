@@ -5,24 +5,21 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NewType, Callable, Optional
-from abc import ABC, abstractmethod
-
+import logging
 import re
+import time
+from abc import ABC, abstractmethod
+from typing import Any, Callable, NewType, Optional
+
 import requests
 
+from .field_updates import FieldUpdates
+from .http_utils import LmProgressData, LmRequestStage, make_api_request_json
 from .utilities import override
 from .xml_parser import notes_from_xml
-from .http_utils import make_api_request_json, LmProgressData
-from .field_updates import FieldUpdates
-
-import logging
 
 ApiKey = NewType("ApiKey", str)
 ModelName = NewType("ModelName", str)
-
-if TYPE_CHECKING:
-    from typing import Optional
 
 
 class LmResponse:
@@ -50,8 +47,14 @@ class LMClient(ABC):
     _read_timeout: int
     _custom_settings: dict[str, str]
 
-    def __init__(self, api_key: ApiKey, model: ModelName, timeout: int = 120, connect_timeout: int = 10, custom_settings: dict[str, str] | None = None) -> None:
-
+    def __init__(
+        self,
+        api_key: ApiKey,
+        model: ModelName,
+        timeout: int = 120,
+        connect_timeout: int = 10,
+        custom_settings: dict[str, str] | None = None,
+    ) -> None:
         if self.get_available_models() and model not in self.get_available_models():
             raise ValueError(f"Model {model} is not available for {self.id} LMClient")
 
@@ -82,8 +85,73 @@ class LMClient(ABC):
     def api_key_required() -> bool:
         return True
 
-    @abstractmethod
     def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
+        """Generic transform implementation for network-based clients."""
+        if self.api_key_required() and (not self._api_key or not self._api_key.strip()):
+            raise ValueError(f"API key is required for {self.id} LMClient")
+
+        url = self._get_url()
+        headers = self._get_headers()
+        data = self._get_request_data(prompt)
+
+        try:
+            result = make_api_request_json(
+                url=url,
+                method="POST",
+                headers=headers,
+                json_data=data,
+                connect_timeout=self._connect_timeout,
+                read_timeout=self._read_timeout,
+                progress_callback=progress_callback,
+                stream_chunk_parser=self._get_stream_chunk_parser(),
+            )
+
+            text_val = result.get("content")
+            if text_val is not None and isinstance(text_val, str):
+                return LmResponse(text_val)
+
+            # Fallback for non-streaming or different response format
+            text = self._extract_text_from_non_stream_json(result)
+            if not text:
+                raise KeyError(f"Missing 'content' or vendor-specific fields in {self.id} response")
+
+            return LmResponse(text)
+
+        except requests.exceptions.HTTPError as e:
+            error_body = e.response.text if e.response else str(e)
+            self.logger.error(f"{self.id} HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
+            status_code = e.response.status_code if e.response else "unknown"
+            return LmResponse("", f"API Error {status_code}: {error_body}", e)
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"{self.id} Network Error: {e}")
+            return LmResponse("", f"Network Error: {e}", e)
+        except Exception as e:
+            self.logger.error(f"{self.id} Unexpected error: {e}")
+            return LmResponse("", f"Error: {e!s}", e)
+
+    @abstractmethod
+    def _get_url(self) -> str:
+        """Return the URL for the API request."""
+        pass
+
+    @abstractmethod
+    def _get_headers(self) -> dict[str, str]:
+        """Return the headers for the API request."""
+        pass
+
+    @abstractmethod
+    def _get_request_data(self, prompt: str) -> dict[str, Any]:
+        """Return the JSON data for the API request."""
+        pass
+
+    @abstractmethod
+    def _extract_text_from_non_stream_json(self, result: dict[str, Any]) -> str:
+        """Extract text from a non-streaming JSON response."""
+        pass
+
+    @abstractmethod
+    def _get_stream_chunk_parser(self) -> Callable[[dict[str, Any]], Optional[str]]:
+        """Return a function that extracts text from a stream chunk JSON."""
         pass
 
     @staticmethod
@@ -125,7 +193,7 @@ class DummyLMClient(LMClient):
         notes = re.findall(note_pattern, prompt, re.DOTALL)
 
         if not notes:
-            return LmResponse('<notes></notes>')
+            return LmResponse("<notes></notes>")
 
         # Extract model name
         model_match = re.search(r'<notes model="([^"]+)">', prompt)
@@ -154,101 +222,117 @@ class DummyLMClient(LMClient):
                     mock_content = f"Mock content for {field_name}"
                     response_parts.append(f'    <field name="{field_name}">{mock_content}</field>')
 
-            response_parts.append('  </note>')
+            response_parts.append("  </note>")
 
-        response_parts.append('</notes>')
+        response_parts.append("</notes>")
 
-        return LmResponse('\n'.join(response_parts))
+        full_text = "\n".join(response_parts)
+
+        # Simulate streaming if progress_callback is provided
+        if progress_callback:
+            start_time = time.time()
+            # Split into small chunks to simulate real streaming
+            chunk_size = 200
+            for i in range(0, len(full_text), chunk_size):
+                chunk = full_text[i : i + chunk_size]
+                elapsed = time.time() - start_time
+                progress_callback(
+                    LmProgressData(
+                        stage=LmRequestStage.RECEIVING,
+                        text_chunk=chunk,
+                        total_chars=i + len(chunk),
+                        total_bytes=i + len(chunk),  # Mock bytes same as chars
+                        elapsed=elapsed,
+                    )
+                )
+                time.sleep(0.01)  # Small delay to simulate network
+
+        return LmResponse(full_text)
+
+    @override
+    def _get_url(self) -> str:
+        return ""
+
+    @override
+    def _get_headers(self) -> dict[str, str]:
+        return {}
+
+    @override
+    def _get_request_data(self, prompt: str) -> dict[str, Any]:
+        return {}
+
+    @override
+    def _extract_text_from_non_stream_json(self, result: dict[str, Any]) -> str:
+        return ""
+
+    @override
+    def _get_stream_chunk_parser(self) -> Callable[[dict[str, Any]], Optional[str]]:
+        return lambda data: ""
 
     @staticmethod
     @override
     def get_available_models() -> list[str]:
-        return [
-            "mock_content_generator"
-        ]
+        return ["mock_content_generator"]
 
 
-class OpenAILMClient(LMClient):
+class OpenAiCompatibleLMClient(LMClient):
+    """Base class for OpenAI-compatible API clients."""
 
+    @override
+    def _extract_text_from_non_stream_json(self, result: dict[str, Any]) -> str:
+        choices = result.get("choices")
+        if isinstance(choices, list) and len(choices) > 0:
+            choice = choices[0]
+            if isinstance(choice, dict):
+                message = choice.get("message")
+                if isinstance(message, dict):
+                    return str(message.get("content", ""))
+        return ""
+
+    @override
+    def _get_stream_chunk_parser(self) -> Callable[[dict[str, Any]], Optional[str]]:
+        def parser(data: dict[str, Any]) -> Optional[str]:
+            if "choices" in data and len(data["choices"]) > 0:
+                delta = data["choices"][0].get("delta", {})
+                return delta.get("content")
+            return None
+
+        return parser
+
+
+class OpenAILMClient(OpenAiCompatibleLMClient):
     @property
     @override
     def id(self) -> str:
         return "openai"
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
-        """Transform notes using OpenAI API."""
-        if not self._api_key or not self._api_key.strip():
-            raise ValueError("API key is required for OpenAILMClient")
-
-        # Use custom end_point if provided, otherwise use default
+    def _get_url(self) -> str:
         url = self._custom_settings.get("end_point", "https://api.openai.com/v1/chat/completions")
-
         if url.endswith("/v1"):
             url += "/chat/completions"
+        return url
 
+    @override
+    def _get_headers(self) -> dict[str, str]:
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
         }
-
-        # Add organization ID if provided
         organization_id = self._custom_settings.get("organization_id")
         if organization_id:
             headers["OpenAI-Organization"] = organization_id.strip()
+        return headers
 
+    @override
+    def _get_request_data(self, prompt: str) -> dict[str, Any]:
         model = self._custom_settings.get("model", self._model)
-
-        data = {
-            "model":model,
+        return {
+            "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.7,
             "stream": True,
         }
-
-        try:
-            result = make_api_request_json(
-                url=url,
-                method="POST",
-                headers=headers,
-                json_data=data,
-                connect_timeout=self._connect_timeout,
-                read_timeout=self._read_timeout,
-                progress_callback=progress_callback,
-            )
-
-            # Extract text from response
-            try:
-                choices = result.get("choices")
-                if not choices or not isinstance(choices, list) or len(choices) == 0:
-                    raise KeyError("Missing or empty 'choices' in result")
-                choice = choices[0]
-                if not isinstance(choice, dict):
-                    raise TypeError("Invalid 'choice' type in result")
-                message = choice.get("message")
-                if not message or not isinstance(message, dict):
-                    raise KeyError("Missing or invalid 'message' in choice")
-                text = message.get("content")
-                if text is None:
-                    raise KeyError("Missing 'content' in message")
-                if not isinstance(text, str):
-                    raise TypeError("Invalid 'content' type in message")
-                return LmResponse(text)
-            except (KeyError, IndexError, TypeError) as e:
-                self.logger.error(f"Error parsing OpenAI response: {e}")
-                return LmResponse("", f"Error parsing AI response: {e}", e)
-
-        except requests.exceptions.HTTPError as e:
-            error_body = e.response.text if e.response else str(e)
-            self.logger.error(f"OpenAI HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
-            status_code = e.response.status_code if e.response else 'unknown'
-            return LmResponse("", f"API Error {status_code}: {error_body}", e)
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"OpenAI Network Error: {e}")
-            return LmResponse("", f"Network Error: {e}", e)
-        except Exception as e:
-            self.logger.error(f"OpenAI Unexpected error: {e}")
-            return LmResponse("", f"Error: {e!s}", e)
 
     @staticmethod
     @override
@@ -303,7 +387,6 @@ class OpenAILMClient(LMClient):
 
 
 class OpenAiCustom(OpenAILMClient):
-
     @property
     @override
     def id(self) -> str:
@@ -322,14 +405,20 @@ class OpenAiCustom(OpenAILMClient):
 
 
 class Groq(OpenAILMClient):
-
     @property
     @override
     def id(self) -> str:
         return "groq"
 
     @override
-    def __init__(self, api_key: ApiKey, model: ModelName, timeout: int = 120, connect_timeout: int = 10, custom_settings: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        api_key: ApiKey,
+        model: ModelName,
+        timeout: int = 120,
+        connect_timeout: int = 10,
+        custom_settings: dict[str, str] | None = None,
+    ) -> None:
         if not custom_settings:
             custom_settings = {}
         custom_settings["end_point"] = "https://api.groq.com/openai/v1/chat/completions"
@@ -348,243 +437,184 @@ class Groq(OpenAILMClient):
 
 
 class ClaudeLMClient(LMClient):
-
     @property
     @override
     def id(self) -> str:
         return "claude"
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
-        """Transform notes using Claude API."""
-        if not self._api_key or not self._api_key.strip():
-            raise ValueError("API key is required for ClaudeLMClient")
+    def _get_url(self) -> str:
+        return "https://api.anthropic.com/v1/messages"
 
-        url = "https://api.anthropic.com/v1/messages"
-
-        data = {
-            "model": self._model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": True,
-        }
-
-        headers = {
+    @override
+    def _get_headers(self) -> dict[str, str]:
+        return {
             "Content-Type": "application/json",
             "x-api-key": self._api_key,
             "anthropic-version": "2023-06-01",
         }
 
-        try:
-            result = make_api_request_json(
-                url=url,
-                method="POST",
-                headers=headers,
-                json_data=data,
-                connect_timeout=self._connect_timeout,
-                read_timeout=self._read_timeout,
-                progress_callback=progress_callback,
-            )
+    @override
+    def _get_request_data(self, prompt: str) -> dict[str, Any]:
+        return {
+            "model": self._model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+            "max_tokens": 4096,
+        }
 
-            # Extract text from response
-            try:
-                content = result.get("content")
-                if not content or not isinstance(content, list) or len(content) == 0:
-                    raise KeyError("Missing or empty 'content' in result")
-                first_content = content[0]
-                if not isinstance(first_content, dict):
-                    raise TypeError("Invalid 'content' item type in result")
-                text = first_content.get("text")
-                if text is None:
-                    raise KeyError("Missing 'text' in content")
-                if not isinstance(text, str):
-                    raise TypeError("Invalid 'text' type in content")
-                return LmResponse(text)
-            except (KeyError, IndexError, TypeError) as e:
-                self.logger.error(f"Error parsing Claude response: {e}")
-                return LmResponse("", f"Error parsing AI response: {e}", e)
+    @override
+    def _extract_text_from_non_stream_json(self, result: dict[str, Any]) -> str:
+        content = result.get("content")
+        if isinstance(content, list) and len(content) > 0:
+            item = content[0]
+            if isinstance(item, dict):
+                return str(item.get("text", ""))
+        return ""
 
-        except requests.exceptions.HTTPError as e:
-            error_body = e.response.text if e.response else str(e)
-            self.logger.error(f"Claude HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
-            status_code = e.response.status_code if e.response else 'unknown'
-            return LmResponse("", f"API Error {status_code}: {error_body}", e)
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Claude Network Error: {e}")
-            return LmResponse("", f"Network Error: {e}", e)
-        except Exception as e:
-            self.logger.error(f"Claude Unexpected error: {e}")
-            return LmResponse("", f"Error: {e!s}", e)
+    @override
+    def _get_stream_chunk_parser(self) -> Callable[[dict[str, Any]], Optional[str]]:
+        def parser(data: dict[str, Any]) -> Optional[str]:
+            if "delta" in data:
+                return data["delta"].get("text")
+            return None
+
+        return parser
 
     @staticmethod
     @override
     def get_available_models() -> list[str]:
         return [
-            "claude-sonnet-4-5",          # Latest Sonnet 4.5 (balanced, recommended starting point)
-            "claude-opus-4-5",            # Latest Opus 4.5 (most capable)
-            "claude-haiku-4-5",           # Latest Haiku 4.5 (fastest/cheapest)
+            "claude-sonnet-4-5",  # Latest Sonnet 4.5 (balanced, recommended starting point)
+            "claude-opus-4-5",  # Latest Opus 4.5 (most capable)
+            "claude-haiku-4-5",  # Latest Haiku 4.5 (fastest/cheapest)
         ]
 
-class GeminiLMClient(LMClient):
 
+class GeminiLMClient(LMClient):
     @property
     @override
     def id(self) -> str:
         return "gemini"
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
-        """Transform notes using Gemini API."""
-        if not self._api_key or not self._api_key.strip():
-            raise ValueError("API key is required for GeminiLMClient")
+    def _get_url(self) -> str:
+        return f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:streamGenerateContent?alt=sse"
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:streamGenerateContent?alt=sse"
-
-        data = {"contents": [{"parts": [{"text": prompt}]}]}
-
-        headers = {
+    @override
+    def _get_headers(self) -> dict[str, str]:
+        return {
             "Content-Type": "application/json",
             "x-goog-api-key": self._api_key,
         }
 
-        try:
-            result = make_api_request_json(
-                url=url,
-                method="POST",
-                headers=headers,
-                json_data=data,
-                connect_timeout=self._connect_timeout,
-                read_timeout=self._read_timeout,
-                progress_callback=progress_callback,
-            )
+    @override
+    def _get_request_data(self, prompt: str) -> dict[str, Any]:
+        return {"contents": [{"parts": [{"text": prompt}]}]}
 
-            # Extract text from response
-            try:
-                candidates = result.get("candidates")
-                if not candidates or not isinstance(candidates, list) or len(candidates) == 0:
-                    raise KeyError("Missing or empty 'candidates' in result")
-                candidate = candidates[0]
-                if not isinstance(candidate, dict):
-                    raise TypeError("Invalid 'candidate' type in result")
+    @override
+    def _extract_text_from_non_stream_json(self, result: dict[str, Any]) -> str:
+        candidates = result.get("candidates")
+        if isinstance(candidates, list) and len(candidates) > 0:
+            candidate = candidates[0]
+            if isinstance(candidate, dict):
                 content = candidate.get("content")
-                if not content or not isinstance(content, dict):
-                    raise KeyError("Missing or invalid 'content' in candidate")
-                parts = content.get("parts")
-                if not parts or not isinstance(parts, list) or len(parts) == 0:
-                    raise KeyError("Missing or empty 'parts' in content")
-                part = parts[0]
-                if not isinstance(part, dict):
-                    raise TypeError("Invalid 'part' type in content")
-                text = part.get("text")
-                if text is None:
-                    raise KeyError("Missing 'text' in part")
-                if not isinstance(text, str):
-                    raise TypeError("Invalid 'text' type in part")
-                return LmResponse(text)
-            except (KeyError, IndexError, TypeError) as e:
-                self.logger.error(f"Error parsing Gemini response: {e}")
-                return LmResponse("", f"Error parsing AI response: {e}", e)
+                if isinstance(content, dict):
+                    parts = content.get("parts")
+                    if isinstance(parts, list) and parts:
+                        part = parts[0]
+                        if isinstance(part, dict):
+                            return str(part.get("text", ""))
+        return ""
 
-        except requests.exceptions.HTTPError as e:
-            error_body = e.response.text if e.response else str(e)
-            self.logger.error(f"Gemini HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
-            status_code = e.response.status_code if e.response else 'unknown'
-            return LmResponse("", f"API Error {status_code}: {error_body}", e)
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Gemini Network Error: {e}")
-            return LmResponse("", f"Network Error: {e}", e)
-        except Exception as e:
-            self.logger.error(f"Gemini Unexpected error: {e}")
-            return LmResponse("", f"Error: {e!s}", e)
+    @override
+    def _get_stream_chunk_parser(self) -> Callable[[dict[str, Any]], Optional[str]]:
+        def parser(data: dict[str, Any]) -> Optional[str]:
+            if "candidates" in data:
+                candidates = data["candidates"]
+                if candidates and isinstance(candidates, list):
+                    candidate = candidates[0]
+                    content = candidate.get("content", {})
+                    parts = content.get("parts", [])
+                    if parts and isinstance(parts, list):
+                        return parts[0].get("text")
+            return None
+
+        return parser
 
     @staticmethod
     @override
     def get_available_models() -> list[str]:
         return [
-            "gemini-2.5-flash",           # Stable Gemini 2.5 Flash (fast, balanced, recommended for most apps)
-            "gemini-2.5-pro",             # Stable Gemini 2.5 Pro (advanced reasoning, complex tasks)
-            "gemini-2.5-flash-lite",      # Stable lite variant (cheapest/fastest for high-volume)
-            "gemini-flash-latest",        # Alias for the absolute latest Flash experimental (auto-updates)
+            "gemini-2.5-flash",  # Stable Gemini 2.5 Flash (fast, balanced, recommended for most apps)
+            "gemini-2.5-pro",  # Stable Gemini 2.5 Pro (advanced reasoning, complex tasks)
+            "gemini-2.5-flash-lite",  # Stable lite variant (cheapest/fastest for high-volume)
+            "gemini-flash-latest",  # Alias for the absolute latest Flash experimental (auto-updates)
         ]
 
 
-class DeepSeekLMClient(LMClient):
+class DeepSeekLMClient(OpenAiCompatibleLMClient):
     @property
     @override
     def id(self) -> str:
         return "deepseek"
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
-        """Transform notes using DeepSeek API."""
-        if not self._api_key or not self._api_key.strip():
-            raise ValueError("API key is required for DeepSeekLMClient")
+    def _get_url(self) -> str:
+        return "https://api.deepseek.com/chat/completions"
 
-        url = "https://api.deepseek.com/chat/completions"
+    @override
+    def _get_headers(self) -> dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {self._api_key}",
+        }
 
-        data = {
+    @override
+    def _get_request_data(self, prompt: str) -> dict[str, Any]:
+        return {
             "messages": [{"role": "user", "content": prompt}],
             "model": self._model,
             "stream": True,
             "temperature": 1.0,
         }
 
-        headers = {
+    @staticmethod
+    @override
+    def get_available_models() -> list[str]:
+        return ["deepseek-chat", "deepseek-reasoner"]
+
+
+class GrokLMClient(OpenAiCompatibleLMClient):
+    @property
+    @override
+    def id(self) -> str:
+        return "grok"
+
+    @override
+    def _get_url(self) -> str:
+        return "https://api.x.ai/v1/chat/completions"
+
+    @override
+    def _get_headers(self) -> dict[str, str]:
+        return {
             "Content-Type": "application/json",
-            "Accept": "application/json",
             "Authorization": f"Bearer {self._api_key}",
         }
 
-        try:
-            result = make_api_request_json(
-                url=url,
-                method="POST",
-                headers=headers,
-                json_data=data,
-                connect_timeout=self._connect_timeout,
-                read_timeout=self._read_timeout,
-                progress_callback=progress_callback,
-            )
-
-            # Extract text from response
-            try:
-                choices = result.get("choices")
-                if not choices or not isinstance(choices, list) or len(choices) == 0:
-                    raise KeyError("Missing or empty 'choices' in result")
-                choice = choices[0]
-                if not isinstance(choice, dict):
-                    raise TypeError("Invalid 'choice' type in result")
-                message = choice.get("message")
-                if not message or not isinstance(message, dict):
-                    raise KeyError("Missing or invalid 'message' in choice")
-                text = message.get("content")
-                if text is None:
-                    raise KeyError("Missing 'content' in message")
-                if not isinstance(text, str):
-                    raise TypeError("Invalid 'content' type in message")
-                return LmResponse(text)
-            except (KeyError, IndexError, TypeError) as e:
-                self.logger.error(f"Error parsing DeepSeek response: {e}")
-                return LmResponse("", f"Error parsing AI response: {e}", e)
-
-        except requests.exceptions.HTTPError as e:
-            error_body = e.response.text if e.response else str(e)
-            self.logger.error(f"DeepSeek HTTP Error {e.response.status_code if e.response else 'unknown'}: {error_body}")
-            status_code = e.response.status_code if e.response else 'unknown'
-            return LmResponse("", f"API Error {status_code}: {error_body}", e)
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"DeepSeek Network Error: {e}")
-            return LmResponse("", f"Network Error: {e}", e)
-        except Exception as e:
-            self.logger.error(f"DeepSeek Unexpected error: {e}")
-            return LmResponse("", f"Error: {e!s}", e)
+    @override
+    def _get_request_data(self, prompt: str) -> dict[str, Any]:
+        return {
+            "model": self._model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+        }
 
     @staticmethod
     @override
     def get_available_models() -> list[str]:
-        return [
-            "deepseek-chat",
-        ]
-
+        return ["grok-4-1-fast", "grok-4-1-fast-reasoning", "grok-4", "grok-4-fast-non-reasoning", "grok-3"]
 
 
 LM_CLIENTS = {
@@ -594,13 +624,13 @@ LM_CLIENTS = {
     "gemini": GeminiLMClient,
     "deepseek": DeepSeekLMClient,
     "groq": Groq,
+    "grok": GrokLMClient,
     "openai_custom": OpenAiCustom,
 }
+
 
 def get_lm_client_class(name: str) -> Optional[type[LMClient]]:
     """Return the LM client class (type) for the given client name."""
     if name not in LM_CLIENTS:
         return None
-    cls_name = LM_CLIENTS[name].__name__
-    cls = globals().get(cls_name)
-    return cls
+    return LM_CLIENTS[name]

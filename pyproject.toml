@@ -46,6 +46,7 @@ ignore = [
     "RUF001",    # ambiguous-unicode-character-string - Checks for ambiguous unicode characters in strings.
     "RUF003",    # ambiguous-unicode-character-comment - Checks for ambiguous unicode characters in comments.
     "RUF005",    # collection-literal-concatenation - Checks for uses of the `+` operator to concatenate collections.
+    "RUF100",    # 
 ]
 
 

@@ -134,9 +134,7 @@ class NoteTransformer:
             raise ValueError("No notes with empty writable fields found and no overwritable fields selected")
 
         # Filter to notes with empty fields in writable_fields OR notes with fields in overwritable_fields
-        filtered_notes = notes_to_transform.filter_by_writable_or_overwritable(
-            self.writable_fields, self.overwritable_fields
-        )
+        filtered_notes = notes_to_transform.filter_by_writable_or_overwritable(self.writable_fields, self.overwritable_fields)
 
         # Update note_ids to filtered IDs
         self.note_ids = filtered_notes.get_ids()
@@ -574,20 +572,20 @@ class TransformNotesWithProgress:
                                 progress.setLabelText(f"Processing batch {current + 1} of {total}...\nSending request...")
                             elif detailed.stage == LmRequestStage.RECEIVING:
                                 # Format detailed progress
-                                if not detailed.text_chunk:  # Download phase
-                                    size_kb = detailed.total_chars / 1024
-                                    speed_kb_s = (detailed.total_chars / detailed.elapsed) / 1024 if detailed.elapsed > 0 else 0
+                                size_kb = detailed.total_bytes / 1024
+                                speed_kb_s = (detailed.total_bytes / detailed.elapsed) / 1024 if detailed.elapsed > 0 else 0
 
+                                if not detailed.text_chunk:  # Download phase (non-SSE or before first chunk)
                                     if detailed.content_length:
                                         total_kb = detailed.content_length / 1024
                                         msg = f"Receiving response... ({size_kb:.0f} KB / {total_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
                                     else:
                                         msg = f"Receiving response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
-
-                                    progress.setLabelText(f"Processing batch {current + 1} of {total}...\n{msg}")
                                 else:
-                                    # Parsing phase
-                                    progress.setLabelText(f"Processing batch {current + 1} of {total}...\nProcessing response... ({detailed.total_chars} chars)")
+                                    # Streaming phase
+                                    msg = f"Processing response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+
+                                progress.setLabelText(f"Processing batch {current + 1} of {total}...\n{msg}")
                         else:
                             progress.setLabelText(f"Processing batch {current + 1} of {total}...")
 
