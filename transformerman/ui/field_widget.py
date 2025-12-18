@@ -1,0 +1,179 @@
+"""
+TransformerMan by Rick Zuidhoek. Licensed under the GNU GPL-3.0.
+
+See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from aqt.qt import (
+    QLabel,
+    QCheckBox,
+    QLineEdit,
+    QWidget,
+    Qt,
+    QMouseEvent,
+    QObject,
+    QEvent
+)
+
+from ..lib.utilities import override, create_slug
+from ..ui.ui_utilities import debounce
+
+if TYPE_CHECKING:
+    from .main_window import TransformerManMainWindow
+    from ..lib.addon_config import AddonConfig
+
+
+class FieldWidget(QWidget):
+    """Widget containing all UI elements for a single field."""
+
+    def __init__(
+        self,
+        field_name: str,
+        note_model_id: int,
+        addon_config: AddonConfig,
+        main_window: TransformerManMainWindow,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.field_name = field_name
+        self.note_model_id = note_model_id
+        self.addon_config = addon_config
+        self.main_window = main_window
+        self.is_overwritable = False
+
+        # Create widgets
+        self.context_checkbox = QCheckBox()
+        self.context_checkbox.setToolTip("Allow read (include field content in the prompt)")
+        self.context_checkbox.stateChanged.connect(self._on_context_changed)
+
+        self.writable_checkbox = QCheckBox()
+        self.writable_checkbox.setToolTip("Allow write (allow this field to be filled). Click with CTRL to make overwritable (red).")
+        self.writable_checkbox.stateChanged.connect(self._on_writable_changed)
+
+        # Install event filter to capture CTRL+click
+        self.writable_checkbox.installEventFilter(self)
+
+        self.field_label = QLabel(field_name)
+
+        self.instruction_input = QLineEdit()
+        self.instruction_input.setPlaceholderText("Optional instructions for this field...")
+        self.instruction_input.textChanged.connect(self._on_instruction_changed)
+
+        # Initial state
+        self.instruction_input.setEnabled(False)
+
+        # Load saved instruction from config
+        self._load_instruction()
+
+    @override
+    def eventFilter(self, a0: QObject | None, a1: QEvent | None) -> bool:
+        """Filter events for the writable checkbox to detect CTRL+click (or shift or meta click on macOS)."""
+        if a0 == self.writable_checkbox and a1 is not None and a1.type() == a1.Type.MouseButtonPress:
+            if not isinstance(a1, QMouseEvent):
+                return super().eventFilter(a0, a1)
+            modifiers = a1.modifiers()
+            if (modifiers & Qt.KeyboardModifier.ControlModifier) or (modifiers & Qt.KeyboardModifier.MetaModifier) or (modifiers & Qt.KeyboardModifier.ShiftModifier):
+                # CTRL+click or meta+shift click: toggle overwritable state
+                if self.writable_checkbox.isChecked():
+                    # Currently checked: toggle between writable and overwritable
+                    if self.is_overwritable:
+                        # Currently overwritable (red) -> uncheck
+                        self.set_overwritable(False)
+                        self.writable_checkbox.setChecked(False)
+                    else:
+                        # Currently writable (normal) -> make overwritable (red)
+                        self.set_overwritable(True)
+                else:
+                    # Currently unchecked -> check as overwritable (red) directly
+                    self.set_overwritable(True)
+                    self.writable_checkbox.setChecked(True)
+                # Return True to indicate we've handled the event
+                return True
+        # Let the parent class handle other events
+        return super().eventFilter(a0, a1)
+
+    def _on_context_changed(self) -> None:
+        """Handle context checkbox state change."""
+        if not self.context_checkbox.isChecked():
+            # If context unchecked, uncheck writable
+            self.writable_checkbox.setChecked(False)
+        self.instruction_input.setEnabled(self.context_checkbox.isChecked())
+        self.main_window._on_field_selection_changed()  # type: ignore[reportPrivateUsage]
+
+    def _on_writable_changed(self) -> None:
+        """Handle writable checkbox state change."""
+        if self.writable_checkbox.isChecked():
+            # If writable checked, check context
+            self.context_checkbox.setChecked(True)
+        else:
+            # If writable unchecked, clear overwritable state
+            self.set_overwritable(False)
+        self.main_window._on_field_selection_changed()  # type: ignore[reportPrivateUsage]
+
+    @debounce(500)
+    def _on_instruction_changed(self) -> None:
+        """Handle instruction input text change."""
+        self._save_instruction()
+        self.main_window._on_instruction_changed()  # type: ignore[reportPrivateUsage]
+
+    def set_overwritable(self, overwritable: bool) -> None:
+        """Set overwritable state and update visual appearance."""
+        self.is_overwritable = overwritable
+        if overwritable:
+            self.field_label.setStyleSheet("color: red; font-weight: bold;")
+            self.writable_checkbox.setToolTip("Overwritable (field will be filled even if already has content).")
+        else:
+            self.field_label.setStyleSheet("")
+            self.writable_checkbox.setToolTip("Allow write (allow this field to be filled). Click with CTRL to make overwritable (red).")
+
+    def is_context_selected(self) -> bool:
+        """Return True if context checkbox is checked."""
+        return self.context_checkbox.isChecked()
+
+    def is_writable(self) -> bool:
+        """Return True if writable checkbox is checked and not overwritable."""
+        return self.writable_checkbox.isChecked() and not self.is_overwritable
+
+    def is_overwritable_selected(self) -> bool:
+        """Return True if field is in overwritable state."""
+        return self.writable_checkbox.isChecked() and self.is_overwritable
+
+    def get_instruction(self) -> str:
+        """Get instruction text."""
+        return self.instruction_input.text().strip()
+
+    def set_instruction_enabled(self, enabled: bool) -> None:
+        """Enable or disable instruction input."""
+        self.instruction_input.setEnabled(enabled)
+
+    def set_context_checked(self, checked: bool) -> None:
+        """Set context checkbox state."""
+        self.context_checkbox.setChecked(checked)
+
+    def _get_config_key(self) -> str:
+        """Get the config key for this field's instruction."""
+        field_slug = create_slug(self.field_name)
+        return f"field_instructions_{self.note_model_id}_{field_slug}"
+
+    def _save_instruction(self) -> None:
+        """Save field instruction to config."""
+        if self.note_model_id == 0:
+            return
+        instruction = self.get_instruction()
+        config_key = self._get_config_key()
+        self.addon_config.update_setting(config_key, instruction)
+
+    def _load_instruction(self) -> None:
+        """Load field instruction from config."""
+        if self.note_model_id == 0:
+            return
+        config_key = self._get_config_key()
+        instruction = self.addon_config.get(config_key, "")
+        if isinstance(instruction, str) and instruction:
+            self.instruction_input.setText(instruction)
+
+
