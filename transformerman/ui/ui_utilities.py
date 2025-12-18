@@ -6,11 +6,10 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Callable, TypeVar
 
 from aqt.qt import QIcon
 
-from typing import Callable
 from typing_extensions import ParamSpec, Any
 
 from functools import wraps
@@ -20,7 +19,6 @@ import inspect
 
 if TYPE_CHECKING:
     from aqt.qt import QAction, QMenu
-
 
 
 def get_tm_icon(dark_mode: bool) -> QIcon:
@@ -152,3 +150,30 @@ def debounce(wait_ms: int) -> Callable[[Callable[P, Any]], Callable[P, None]]:
 
         return wrapper
     return decorator
+
+
+
+
+# Base event class
+class Event:
+    pass
+
+# Type variable for events
+E = TypeVar('E', bound=Event)
+
+# EventManager class with more precise type annotations
+class EventManager:
+    def __init__(self) -> None:
+        self._listeners: dict[type[Event], list[Callable[[Event], None]]] = {}
+
+    def subscribe(self, event_type: type[E], listener: Callable[[E], None]) -> None:
+        if event_type not in self._listeners:
+            self._listeners[event_type] = []
+        self._listeners[event_type].append(listener)  # type: ignore
+
+
+    def dispatch(self, event: Event) -> None:
+        event_type = type(event)
+        if event_type in self._listeners:
+            for listener in self._listeners[event_type]:
+                listener(event)  # type: ignore

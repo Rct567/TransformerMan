@@ -22,7 +22,7 @@ from aqt.utils import showInfo, showWarning, askUserDialog
 
 from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
-from .field_widget import FieldWidget
+from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent, FieldInstructionChangedEvent
 
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes
@@ -84,6 +84,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.user_files_dir = user_files_dir
 
         self.selected_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
+        self.field_widgets = FieldWidgets()
+        self._setup_event_listeners()
 
         # Initialize transformer
         self.transformer = TransformNotesWithProgress(
@@ -98,13 +100,23 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # State
         self.note_type_counts: dict[str, int] = {}
         self.current_note_type: str = ""
-        self.field_widgets: dict[str, FieldWidget] = {}
 
         # Preview state
         self.preview_results = None  # note_id -> field_name -> new_value
 
         self._setup_ui()
         self._load_note_types()
+
+    def _setup_event_listeners(self) -> None:
+        """Setup event listeners for the event manager."""
+        self.field_widgets.event_manager.subscribe(
+            FieldSelectionChangedEvent,
+            lambda _: self._update_state(clear_preview_results=True),
+        )
+        self.field_widgets.event_manager.subscribe(
+            FieldInstructionChangedEvent,
+            lambda _: self._update_state(clear_preview_results=True),
+        )
 
     def _setup_ui(self) -> None:
         """Setup the UI components."""
@@ -192,62 +204,15 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
-    def _get_selected_fields(self) -> list[str]:
-        """Get the currently selected field names."""
-        return [
-            field_name
-            for field_name, widget in self.field_widgets.items()
-            if widget.is_read_selected()
-        ]
-
-    def _get_writable_fields(self) -> list[str]:
-        """Get the currently selected writable field names (excluding overwritable fields)."""
-        return [
-            field_name
-            for field_name, widget in self.field_widgets.items()
-            if widget.is_writable()
-        ]
-
-    def _get_overwritable_fields(self) -> list[str]:
-        """Get the currently selected overwritable field names."""
-        return [
-            field_name
-            for field_name, widget in self.field_widgets.items()
-            if widget.is_overwritable_selected()
-        ]
-
-    def _get_fillable_fields(self) -> list[str]:
-        """Get all fields that can be filled (writable or overwritable)."""
-        return [
-            field_name
-            for field_name, widget in self.field_widgets.items()
-            if widget.is_writable() or widget.is_overwritable_selected()
-        ]
-
-    def _has_fillable_fields(self) -> bool:
-        """Return True if any fillable fields are selected."""
-        return len(self._get_fillable_fields()) > 0
-
     def _has_notes_with_fillable_fields(self) -> bool:
         """Return True if there are notes that can be filled (empty writable fields or overwritable fields)."""
-        writable_fields = self._get_writable_fields()
-        overwritable_fields = self._get_overwritable_fields()
+        writable_fields = self.field_widgets.get_writable_fields()
+        overwritable_fields = self.field_widgets.get_overwritable_fields()
         if not writable_fields and not overwritable_fields:
             return False
         # Use the existing method that checks both conditions
-        filtered = self.selected_notes.filter_by_writable_or_overwritable(
-            writable_fields, overwritable_fields
-        )
+        filtered = self.selected_notes.filter_by_writable_or_overwritable(writable_fields, overwritable_fields)
         return len(filtered) > 0
-
-    def _get_current_field_instructions(self) -> dict[str, str]:
-        """Get current field instructions for the selected fields."""
-        selected_fields = self._get_selected_fields()
-        return {
-            field_name: widget.get_instruction()
-            for field_name, widget in self.field_widgets.items()
-            if widget.get_instruction() and field_name in selected_fields
-        }
 
     def _update_state(
         self,
@@ -265,7 +230,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         if clear_preview_results:
             self.preview_results = None
 
-        field_instructions = self._get_current_field_instructions()
+        field_instructions = self.field_widgets.get_current_field_instructions()
         self.transformer.update_field_instructions(field_instructions)
 
         self._update_notes_count_label()
@@ -287,20 +252,18 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         total_count = len(filtered_note_ids)
 
         # Get selected fields
-        selected_fields = self._get_selected_fields()
-        writable_fields = self._get_writable_fields()
+        selected_fields = self.field_widgets.get_selected_fields()
+        writable_fields = self.field_widgets.get_writable_fields()
 
         # Calculate notes with empty fields among writable fields
         if writable_fields:
             num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(writable_fields))
         else:
-            num_notes_empty_field = 0   # No writable fields selected
+            num_notes_empty_field = 0  # No writable fields selected
 
         # Calculate API calls needed using transformer method
-        overwritable_fields = self._get_overwritable_fields()
-        num_api_calls_needed = self.transformer.get_num_api_calls_needed(
-            self.current_note_type, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
-        )
+        overwritable_fields = self.field_widgets.get_overwritable_fields()
+        num_api_calls_needed = self.transformer.get_num_api_calls_needed(self.current_note_type, selected_fields, writable_fields, overwritable_fields, filtered_note_ids)
         api_text = "API call" if num_api_calls_needed == 1 else "API calls"
 
         # Note count description
@@ -311,10 +274,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         note_text = "note" if total_count == 1 else "notes"
 
         # Update label with bold HTML
-        label_text = (
-            f"<b>{total_count} {note_text} selected, "
-            f"{appendix_text} ({num_api_calls_needed} {self.lm_client.id} {api_text}).</b>"
-        )
+        label_text = f"<b>{total_count} {note_text} selected, {appendix_text} ({num_api_calls_needed} {self.lm_client.id} {api_text}).</b>"
         self.notes_count_label.setText(label_text)
 
     def _load_note_types(self) -> None:
@@ -370,12 +330,12 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Create FieldWidget for each field
         for row, field_name in enumerate(field_names):
-            widget = FieldWidget(field_name, self.current_note_model_id, self.addon_config, self)
+            widget = FieldWidget(field_name, self.current_note_model_id, self.addon_config, self.field_widgets.event_manager)
             # Select first two fields by default
             if row < 2:
                 widget.set_context_checked(True)
                 widget.set_instruction_enabled(True)
-            self.field_widgets[field_name] = widget
+            self.field_widgets.add(field_name, widget)
             # Add child widgets to grid columns
             self.fields_layout.addWidget(widget.read_checkbox, row, 0)
             self.fields_layout.addWidget(widget.writable_checkbox, row, 1)
@@ -388,22 +348,12 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Update state (clears preview results, updates transformer, notes count, preview table, and buttons)
         self._update_state(clear_preview_results=True)
 
-    def _on_field_selection_changed(self) -> None:
-        """Handle field checkbox state changes."""
-        # Update state (clears preview results, updates transformer, notes count, preview table, and buttons)
-        self._update_state(clear_preview_results=True)
-
-    def _on_instruction_changed(self) -> None:
-        """Handle instruction input text changes."""
-        # Update state (clears preview results, updates transformer, notes count, preview table, and buttons)
-        self._update_state(clear_preview_results=True)
-
     def _update_preview_table(self) -> None:
         """Update the preview table with data from selected notes."""
         if self.preview_table.selected_notes:
             self.preview_table.selected_notes.clear_cache()
         # Get selected fields
-        selected_fields = self._get_selected_fields()
+        selected_fields = self.field_widgets.get_selected_fields()
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
         # Update the preview table
@@ -417,7 +367,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
 
             # Use helper methods for cleaner logic
-            has_fillable_fields = self._has_fillable_fields()
+            has_fillable_fields = self.field_widgets.has_fillable_fields()
             has_notes_with_fillable_fields = self._has_notes_with_fillable_fields()
 
             preview_enabled = (
@@ -443,20 +393,19 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             apply_style = "background-color: #81c784; border-color:#419245" if apply_enabled else ""
             discard_style = "background-color: #e8b1b1; border-color:#ac5e5e" if discard_enabled else ""
 
-
         self.apply_button.setStyleSheet(apply_style)
         self.discard_button.setStyleSheet(discard_style)
 
     def _on_preview_clicked(self) -> None:
         """Handle preview button click."""
         # Get selected fields
-        selected_fields = self._get_selected_fields()
+        selected_fields = self.field_widgets.get_selected_fields()
 
         if not selected_fields:
             showInfo("Please select at least one field to include.", parent=self)
             return
 
-        if not self._has_fillable_fields():
+        if not self.field_widgets.has_fillable_fields():
             showInfo("Please select at least one field to write to.", parent=self)
             return
 
@@ -473,8 +422,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Calculate API calls needed using transformer method
         # Note: transformer should already have latest field instructions from _update_state calls
-        writable_fields = self._get_writable_fields()
-        overwritable_fields = self._get_overwritable_fields()
+        writable_fields = self.field_widgets.get_writable_fields()
+        overwritable_fields = self.field_widgets.get_overwritable_fields()
         api_calls_needed = self.transformer.get_num_api_calls_needed(
             self.current_note_type, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
         )
@@ -629,7 +578,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
     ) -> None:
         """Update the preview table with preview results and green highlighting."""
         # Get selected fields
-        selected_fields = self._get_selected_fields()
+        selected_fields = self.field_widgets.get_selected_fields()
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_type)
         # Update the preview table with field updates for highlighting
