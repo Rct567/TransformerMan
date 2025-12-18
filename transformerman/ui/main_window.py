@@ -31,7 +31,7 @@ from .preview_table import PreviewTable
 
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes
-from ..lib.utilities import debounce, override
+from ..lib.utilities import debounce, override, create_slug
 
 import logging
 
@@ -57,11 +57,15 @@ class FieldWidget(QWidget):
     def __init__(
         self,
         field_name: str,
+        note_model_id: int,
+        addon_config: AddonConfig,
         main_window: TransformerManMainWindow,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.field_name = field_name
+        self.note_model_id = note_model_id
+        self.addon_config = addon_config
         self.main_window = main_window
         self.is_overwritable = False
 
@@ -85,6 +89,9 @@ class FieldWidget(QWidget):
 
         # Initial state
         self.instruction_input.setEnabled(False)
+
+        # Load saved instruction from config
+        self._load_instruction()
 
     @override
     def eventFilter(self, a0: QObject | None, a1: QEvent | None) -> bool:
@@ -134,6 +141,7 @@ class FieldWidget(QWidget):
     @debounce(500)
     def _on_instruction_changed(self) -> None:
         """Handle instruction input text change."""
+        self._save_instruction()
         self.main_window._on_instruction_changed()  # type: ignore[reportPrivateUsage]
 
     def set_overwritable(self, overwritable: bool) -> None:
@@ -169,6 +177,28 @@ class FieldWidget(QWidget):
     def set_context_checked(self, checked: bool) -> None:
         """Set context checkbox state."""
         self.context_checkbox.setChecked(checked)
+
+    def _get_config_key(self) -> str:
+        """Get the config key for this field's instruction."""
+        field_slug = create_slug(self.field_name)
+        return f"field_instructions_{self.note_model_id}_{field_slug}"
+
+    def _save_instruction(self) -> None:
+        """Save field instruction to config."""
+        if self.note_model_id == 0:
+            return
+        instruction = self.get_instruction()
+        config_key = self._get_config_key()
+        self.addon_config.update_setting(config_key, instruction)
+
+    def _load_instruction(self) -> None:
+        """Load field instruction from config."""
+        if self.note_model_id == 0:
+            return
+        config_key = self._get_config_key()
+        instruction = self.addon_config.get(config_key, "")
+        if isinstance(instruction, str) and instruction:
+            self.instruction_input.setText(instruction)
 
 
 
@@ -488,9 +518,16 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Get field names for this note type
         field_names = self.selected_notes.get_field_names(note_type_name)
+
+        # Get note type model ID
+        self.current_note_model = self.col.models.by_name(note_type_name)
+        assert isinstance(self.current_note_model, dict)
+        self.current_note_model_id = self.current_note_model.get("id", None)
+        assert isinstance(self.current_note_model_id, int)
+
         # Create FieldWidget for each field
         for row, field_name in enumerate(field_names):
-            widget = FieldWidget(field_name, self)
+            widget = FieldWidget(field_name, self.current_note_model_id, self.addon_config, self)
             # Select first two fields by default
             if row < 2:
                 widget.set_context_checked(True)

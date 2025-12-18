@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import re
 import sys
 from typing import TYPE_CHECKING, Any
 
@@ -132,3 +133,33 @@ def debounce(wait_ms: int) -> Callable[[Callable[P, Any]], Callable[P, None]]:
 
         return wrapper
     return decorator
+
+
+def create_slug(text: str) -> str:
+    """
+    Create a URL-safe slug from a text string.
+    
+    Converts text to lowercase, replaces spaces and special characters with underscores,
+    and removes consecutive underscores.
+    
+    Args:
+        text: The text to convert to a slug
+        
+    Returns:
+        A URL-safe slug string
+        
+    Example:
+        >>> create_slug("My Field Name!")
+        'my_field_name'
+        >>> create_slug("Field  With   Spaces")
+        'field_with_spaces'
+    """
+    # Convert to lowercase
+    slug = text.lower()
+    # Replace spaces and non-alphanumeric characters with underscores
+    slug = re.sub(r'[^a-z0-9]+', '_', slug)
+    # Remove leading/trailing underscores
+    slug = slug.strip('_')
+    # Replace multiple consecutive underscores with a single one
+    slug = re.sub(r'_+', '_', slug)
+    return slug
