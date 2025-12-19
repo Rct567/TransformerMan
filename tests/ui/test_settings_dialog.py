@@ -88,12 +88,13 @@ class TestSettingsDialog:
         qtbot.addWidget(dialog)
 
         # Check that settings were loaded into UI
-        assert dialog.client_combo.currentText() == "dummy"
+        assert dialog.client_combo.currentText() == "Dummy"
+        assert dialog.client_combo.currentData() == "dummy"
         assert dialog.model_combo.currentText() == "mock_content_generator"
         assert dialog.api_key_input.text() == "test-api-key"
         assert dialog.max_prompt_size_spin.value() == 500000
 
-    @patch('transformerman.ui.settings_dialog.LM_CLIENTS', {**LM_CLIENTS, 'openai': OpenAILMClient})
+    @patch("transformerman.ui.settings_dialog.LM_CLIENTS", {**LM_CLIENTS, "openai": OpenAILMClient})
     def test_client_change_updates_api_key(
         self,
         qtbot: QtBot,
@@ -108,8 +109,9 @@ class TestSettingsDialog:
         qtbot.addWidget(dialog)
 
         # Change client selection by triggering the combo box signal
-        dialog.client_combo.setCurrentText("openai")
-        dialog.client_combo.currentTextChanged.emit("openai")
+        idx = dialog.client_combo.findData("openai")
+        dialog.client_combo.setCurrentIndex(idx)
+        dialog.client_combo.currentIndexChanged.emit(idx)
 
         # API key should be updated to the one from config
         assert dialog.api_key_input.text() == "api-key-for-openai"
@@ -153,8 +155,9 @@ class TestSettingsDialog:
         qtbot.addWidget(dialog)
 
         # Change settings - trigger UI signals
-        dialog.client_combo.setCurrentText("openai")
-        dialog.client_combo.currentTextChanged.emit("openai")
+        idx = dialog.client_combo.findData("openai")
+        dialog.client_combo.setCurrentIndex(idx)
+        dialog.client_combo.currentIndexChanged.emit(idx)
         dialog.model_combo.setCurrentText("gpt-4o")
         dialog.api_key_input.setText("new-api-key")
         dialog.api_key_input.textChanged.emit("new-api-key")

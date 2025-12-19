@@ -40,6 +40,9 @@ class LmResponse:
 class LMClient(ABC):
     """Abstract base class for language model clients."""
 
+    id: str
+    name: str
+
     logger: logging.Logger
     _api_key: ApiKey
     _model: ModelName
@@ -74,12 +77,6 @@ class LMClient(ABC):
         self._read_timeout = timeout - connect_timeout
         self._custom_settings = custom_settings or {}
         self.logger = logging.getLogger(__name__)
-
-    @property
-    @abstractmethod
-    def id(self) -> str:
-        """Return the unique identifier for this LM client."""
-        pass
 
     @staticmethod
     def api_key_required() -> bool:
@@ -173,10 +170,8 @@ class LMClient(ABC):
 class DummyLMClient(LMClient):
     """Dummy LM client that returns mock responses for testing."""
 
-    @property
-    @override
-    def id(self) -> str:
-        return "dummy"
+    id = "dummy"
+    name = "Dummy"
 
     @staticmethod
     @override
@@ -301,10 +296,8 @@ class OpenAiCompatibleLMClient(LMClient):
 
 
 class OpenAILMClient(OpenAiCompatibleLMClient):
-    @property
-    @override
-    def id(self) -> str:
-        return "openai"
+    id = "openai"
+    name = "OpenAI"
 
     @override
     def _get_url(self) -> str:
@@ -387,10 +380,8 @@ class OpenAILMClient(OpenAiCompatibleLMClient):
 
 
 class OpenAiCustom(OpenAILMClient):
-    @property
-    @override
-    def id(self) -> str:
-        return "custom-openai-endpoint"
+    id = "custom-openai-endpoint"
+    name = "OpenAI Custom"
 
     @staticmethod
     @override
@@ -405,10 +396,8 @@ class OpenAiCustom(OpenAILMClient):
 
 
 class Groq(OpenAILMClient):
-    @property
-    @override
-    def id(self) -> str:
-        return "groq"
+    id = "groq"
+    name = "Groq"
 
     @override
     def __init__(
@@ -437,10 +426,8 @@ class Groq(OpenAILMClient):
 
 
 class ClaudeLMClient(LMClient):
-    @property
-    @override
-    def id(self) -> str:
-        return "claude"
+    id = "claude"
+    name = "Claude"
 
     @override
     def _get_url(self) -> str:
@@ -492,10 +479,8 @@ class ClaudeLMClient(LMClient):
 
 
 class GeminiLMClient(LMClient):
-    @property
-    @override
-    def id(self) -> str:
-        return "gemini"
+    id = "gemini"
+    name = "Gemini"
 
     @override
     def _get_url(self) -> str:
@@ -554,10 +539,8 @@ class GeminiLMClient(LMClient):
 
 
 class DeepSeekLMClient(OpenAiCompatibleLMClient):
-    @property
-    @override
-    def id(self) -> str:
-        return "deepseek"
+    id = "deepseek"
+    name = "DeepSeek"
 
     @override
     def _get_url(self) -> str:
@@ -587,10 +570,8 @@ class DeepSeekLMClient(OpenAiCompatibleLMClient):
 
 
 class GrokLMClient(OpenAiCompatibleLMClient):
-    @property
-    @override
-    def id(self) -> str:
-        return "grok"
+    id = "grok"
+    name = "Grok"
 
     @override
     def _get_url(self) -> str:

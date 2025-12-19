@@ -78,7 +78,7 @@ class SettingsDialog(TransformerManBaseDialog):
 
         # LM Client Selection
         self.client_combo = QComboBox()
-        self.client_combo.currentTextChanged.connect(self._on_client_changed)
+        self.client_combo.currentIndexChanged.connect(self._on_client_changed)
         form_layout.addRow("LM Client:", self.client_combo)
 
         # Model Selection
@@ -184,11 +184,11 @@ class SettingsDialog(TransformerManBaseDialog):
         self.api_key_input.setText(str(api_key))
 
         # Load LM clients
-        clients = list(LM_CLIENTS.keys())
         self.client_combo.clear()
-        self.client_combo.addItems(clients)
+        for client_id, client_class in LM_CLIENTS.items():
+            self.client_combo.addItem(client_class.name, client_id)
 
-        idx_client = self.client_combo.findText(current_client)
+        idx_client = self.client_combo.findData(current_client)
         if idx_client >= 0:
             self.client_combo.setCurrentIndex(idx_client)
         self._populate_models_for_client(current_client)
@@ -207,29 +207,29 @@ class SettingsDialog(TransformerManBaseDialog):
     def _on_save_clicked(self) -> None:
         """Handle save button click."""
         # Get current client
-        client_name = self.client_combo.currentText()
+        client_id = self.client_combo.currentData()
 
-        lm_client = get_lm_client_class(client_name)
+        lm_client = get_lm_client_class(client_id)
 
         if not lm_client:
-            showWarning(f"Cannot save settings: Unknown LM client '{client_name}'.", parent=self)
+            showWarning(f"Cannot save settings: Unknown LM client ID '{client_id}'.", parent=self)
             return
 
         # Save API key
         api_key = self.api_key_input.text().strip()
 
         if not api_key and lm_client.api_key_required():
-            showWarning(f"API key is required for LM client '{client_name}'.", parent=self)
+            showWarning(f"API key is required for LM client '{lm_client.name}'.", parent=self)
             return
 
-        self.addon_config.set_api_key(client_name, api_key)
+        self.addon_config.set_api_key(client_id, api_key)
 
         # Save selected LM client
-        self.addon_config.update_setting("lm_client", client_name)
+        self.addon_config.update_setting("lm_client", client_id)
 
         # Save selected model
         model = self.model_combo.currentText()
-        self.addon_config.set_model(client_name, model)
+        self.addon_config.set_model(client_id, model)
 
         # Save max prompt size
         max_prompt_size = self.max_prompt_size_spin.value()
@@ -250,67 +250,70 @@ class SettingsDialog(TransformerManBaseDialog):
         self.addon_config.update_setting("max_examples", max_examples)
 
         # Save custom settings
-        self._save_custom_settings(client_name)
+        self._save_custom_settings(client_id)
 
         # Update UI state after saving
         self._update_state()
 
-    def _on_client_changed(self, client_name: str) -> None:
+    def _on_client_changed(self, index: int) -> None:
+        client_id = self.client_combo.itemData(index)
+        if not client_id:
+            return
         # Update API key field for the selected client
-        api_key = self.addon_config.get_api_key(client_name)
+        api_key = self.addon_config.get_api_key(client_id)
         self.api_key_input.setText(str(api_key))
-        self._populate_models_for_client(client_name)
-        self._populate_custom_settings_for_client(client_name)
+        self._populate_models_for_client(client_id)
+        self._populate_custom_settings_for_client(client_id)
 
     def _update_state(self) -> None:
         """Update the state of UI buttons based on current conditions."""
         if self._is_loading_settings:
             return
-            
+
         # Check if there are unsaved changes
         has_unsaved_changes = self._has_unsaved_changes()
-        
+
         self.save_button.setEnabled(has_unsaved_changes)
         self.reset_button.setEnabled(has_unsaved_changes)
 
     def _has_unsaved_changes(self) -> bool:
         """Check if there are unsaved changes in the dialog."""
         # Get current client
-        current_client = self.client_combo.currentText()
-        
+        current_client_id = self.client_combo.currentData()
+
         # Check if client has changed from what was originally saved
         saved_client = str(self.addon_config.get("lm_client", "dummy"))
-        if current_client != saved_client:
+        if current_client_id != saved_client:
             return True
-        
+
         # Check if API key has changed
         current_api_key = self.api_key_input.text().strip()
-        saved_api_key = str(self.addon_config.get_api_key(current_client))
+        saved_api_key = str(self.addon_config.get_api_key(current_client_id))
         if current_api_key != saved_api_key:
             return True
-            
+
         # Check if model has changed
         current_model = self.model_combo.currentText()
-        saved_model = self.addon_config.get_model(current_client)
+        saved_model = self.addon_config.get_model(current_client_id)
         if current_model != saved_model:
             return True
-            
+
         # Check if max prompt size has changed
         if self.max_prompt_size_spin.value() != self.addon_config.get_max_prompt_size():
             return True
-            
+
         # Check if timeout has changed
         if self.timeout_spin.value() != self.addon_config.get_timeout():
             return True
-            
+
         # Check if max examples has changed
         if self.max_examples_spin.value() != self.addon_config.get_max_examples():
             return True
-            
+
         # Check if custom settings have changed
-        if self._custom_settings_have_changed(current_client):
+        if self._custom_settings_have_changed(current_client_id):
             return True
-            
+
         return False
 
     def _custom_settings_have_changed(self, client_name: str) -> bool:
@@ -318,20 +321,20 @@ class SettingsDialog(TransformerManBaseDialog):
         client_class = get_lm_client_class(client_name)
         if client_class is None:
             return False
-            
+
         custom_setting_names = client_class.custom_settings()
         if not custom_setting_names:
             return False
-            
+
         current_settings = self.addon_config.get_custom_client_settings(client_name)
-        
+
         for setting_name in custom_setting_names:
             if setting_name in self.custom_settings_widgets:
                 current_value = self.custom_settings_widgets[setting_name].text().strip()
                 saved_value = current_settings.get(setting_name, "")
                 if current_value != saved_value:
                     return True
-                    
+
         return False
 
     def _on_setting_changed(self) -> None:

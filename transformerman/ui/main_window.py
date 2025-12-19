@@ -263,19 +263,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         note_text = "note" if total_count == 1 else "notes"
         empty_text = "note" if num_notes_empty_field == 1 else "notes"
 
-        # Format client name
-        client_name = self.lm_client.id
-        if client_name == "openai":
-            client_name = "OpenAI"
-        elif client_name == "claude":
-            client_name = "Claude"
-        else:
-            client_name = client_name.capitalize()
-
         self.stats_widget.update_stats({
             "Selected": f"{total_count} {note_text}",
             "Empty writable fields": f"{num_notes_empty_field} {empty_text}",
-            "Api client": client_name,
+            "Api client": self.lm_client.name,
             "Api calls": str(num_api_calls_needed)
         })
 
