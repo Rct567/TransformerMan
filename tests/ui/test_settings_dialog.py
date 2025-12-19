@@ -53,26 +53,26 @@ class TestSettingsDialog:
         qtbot.addWidget(dialog)
 
         # Check key UI components exist
-        assert hasattr(dialog, 'client_combo')
+        assert hasattr(dialog, "client_combo")
         assert isinstance(dialog.client_combo, QComboBox)
 
-        assert hasattr(dialog, 'model_combo')
+        assert hasattr(dialog, "model_combo")
         assert isinstance(dialog.model_combo, QComboBox)
 
-        assert hasattr(dialog, 'api_key_input')
+        assert hasattr(dialog, "api_key_input")
         assert isinstance(dialog.api_key_input, QLineEdit)
         assert dialog.api_key_input.echoMode() == QLineEdit.EchoMode.Password
 
-        assert hasattr(dialog, 'max_prompt_size_spin')
+        assert hasattr(dialog, "max_prompt_size_spin")
         assert isinstance(dialog.max_prompt_size_spin, QSpinBox)
         assert dialog.max_prompt_size_spin.minimum() == 10000
         assert dialog.max_prompt_size_spin.maximum() == 1000000
 
-        assert hasattr(dialog, 'save_button')
+        assert hasattr(dialog, "save_button")
         assert isinstance(dialog.save_button, QPushButton)
         assert dialog.save_button.text() == "Save"
 
-        assert hasattr(dialog, 'reset_button')
+        assert hasattr(dialog, "reset_button")
         assert isinstance(dialog.reset_button, QPushButton)
         assert dialog.reset_button.text() == "Restore"
 
@@ -143,7 +143,7 @@ class TestSettingsDialog:
         assert dialog.save_button.isEnabled()
         assert dialog.reset_button.isEnabled()
 
-    @patch('transformerman.ui.settings_dialog.LM_CLIENTS', {**LM_CLIENTS, 'openai': OpenAILMClient})
+    @patch("transformerman.ui.settings_dialog.LM_CLIENTS", {**LM_CLIENTS, "openai": OpenAILMClient})
     def test_save_button_functionality(
         self,
         qtbot: QtBot,
@@ -209,7 +209,7 @@ class TestSettingsDialog:
         assert not dialog.save_button.isEnabled()
         assert not dialog.reset_button.isEnabled()
 
-    @patch('transformerman.ui.settings_dialog.QMessageBox.question')
+    @patch("transformerman.ui.settings_dialog.QMessageBox.question")
     def test_close_with_unsaved_changes_save(
         self,
         mock_question: Mock,
@@ -237,7 +237,7 @@ class TestSettingsDialog:
         # Config should be saved
         assert addon_config.get("max_prompt_size", 0) == 250000
 
-    @patch('transformerman.ui.settings_dialog.QMessageBox.question')
+    @patch("transformerman.ui.settings_dialog.QMessageBox.question")
     def test_close_with_unsaved_changes_discard(
         self,
         mock_question: Mock,
@@ -268,7 +268,7 @@ class TestSettingsDialog:
         # Config should NOT be saved (should remain original)
         assert addon_config.get("max_prompt_size", 0) == original_max_size
 
-    @patch('transformerman.ui.settings_dialog.QMessageBox.question')
+    @patch("transformerman.ui.settings_dialog.QMessageBox.question")
     def test_close_with_unsaved_changes_cancel(
         self,
         mock_question: Mock,

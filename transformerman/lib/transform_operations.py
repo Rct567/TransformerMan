@@ -61,16 +61,16 @@ def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[C
 
     def log_request(prompt: str) -> None:
         if log_requests_enabled:
-            requests_file = logs_dir / 'lm_requests.log'
+            requests_file = logs_dir / "lm_requests.log"
             timestamp = datetime.now().isoformat()
-            with requests_file.open('a', encoding='utf-8') as f:
+            with requests_file.open("a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {prompt}\n\n")
 
     def log_response(response: LmResponse) -> None:
         if log_responses_enabled:
-            responses_file = logs_dir / 'lm_responses.log'
+            responses_file = logs_dir / "lm_responses.log"
             timestamp = datetime.now().isoformat()
-            with responses_file.open('a', encoding='utf-8') as f:
+            with responses_file.open("a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {response.text_response}\n\n")
 
     return log_request, log_response

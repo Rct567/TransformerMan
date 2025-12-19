@@ -23,12 +23,12 @@ class TestLmClient:
         """Test that DummyLMClient returns valid XML response."""
         client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
-        prompt = '''<notes model="Basic">
+        prompt = """<notes model="Basic">
   <note nid="123" deck="Test Deck">
     <field name="Front">Hello</field>
     <field name="Back"></field>
   </note>
-</notes>'''
+</notes>"""
 
         response = client.transform(prompt)
 
@@ -41,7 +41,7 @@ class TestLmClient:
         """Test DummyLMClient with multiple notes."""
         client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
-        prompt = '''<notes model="Basic">
+        prompt = """<notes model="Basic">
   <note nid="123" deck="Test">
     <field name="Front">Q1</field>
     <field name="Back"></field>
@@ -50,30 +50,30 @@ class TestLmClient:
     <field name="Front">Q2</field>
     <field name="Back"></field>
   </note>
-</notes>'''
+</notes>"""
 
         response = client.transform(prompt)
 
         assert 'nid="123"' in response.text_response
         assert 'nid="456"' in response.text_response
-        assert response.text_response.count('Mock content for Back') == 2
+        assert response.text_response.count("Mock content for Back") == 2
 
     def test_dummy_client_preserves_existing_content(self) -> None:
         """Test that DummyLMClient preserves existing field content."""
         client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
 
-        prompt = '''<notes model="Basic">
+        prompt = """<notes model="Basic">
   <note nid="123" deck="Test">
     <field name="Front">Existing Front</field>
     <field name="Back">Existing Back</field>
   </note>
-</notes>'''
+</notes>"""
 
         response = client.transform(prompt)
 
         assert '<field name="Front">Existing Front</field>' in response.text_response
         assert '<field name="Back">Existing Back</field>' in response.text_response
-        assert 'Mock content' not in response.text_response
+        assert "Mock content" not in response.text_response
 
     def test_dummy_client_empty_prompt(self) -> None:
         """Test DummyLMClient with empty prompt."""
@@ -81,7 +81,7 @@ class TestLmClient:
 
         response = client.transform("")
 
-        assert response.text_response == '<notes></notes>'
+        assert response.text_response == "<notes></notes>"
 
     def test_gemini_client_request_construction(self) -> None:
         """Test GeminiLMClient request construction."""

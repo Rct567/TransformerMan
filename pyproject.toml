@@ -11,6 +11,7 @@ line-length = 220
 src = ["transformerman", "tests"]
 
 [tool.ruff.lint]
+select = ["E", "W", "Q"]
 extend-select = [
     "PL",       # Category selector for all Pylint rules (prefix PL).
     "E501",     # Line too long - Checks for lines that exceed the configured line length.
@@ -46,7 +47,7 @@ ignore = [
     "RUF001",    # ambiguous-unicode-character-string - Checks for ambiguous unicode characters in strings.
     "RUF003",    # ambiguous-unicode-character-comment - Checks for ambiguous unicode characters in comments.
     "RUF005",    # collection-literal-concatenation - Checks for uses of the `+` operator to concatenate collections.
-    "RUF100",    # 
+    "RUF100",    #
 ]
 
 

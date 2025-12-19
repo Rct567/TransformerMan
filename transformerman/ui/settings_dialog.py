@@ -145,7 +145,7 @@ class SettingsDialog(TransformerManBaseDialog):
 
         self.save_button = QPushButton("Save")
         self.save_button.clicked.connect(self._on_save_clicked)
-        configs_missing = 'lm_client' not in self.addon_config
+        configs_missing = "lm_client" not in self.addon_config
         self.save_button.setEnabled(configs_missing)
         self.save_button.setFixedWidth(80)
         self.save_button.setDefault(True)  # Make Save the default button
@@ -385,7 +385,7 @@ class SettingsDialog(TransformerManBaseDialog):
 
         for setting_name in custom_setting_names:
             # Create label and input field
-            label_text = setting_name.replace('_', ' ').title()
+            label_text = setting_name.replace("_", " ").title()
             input_field = QLineEdit()
             input_field.setText(current_settings.get(setting_name, ""))
             input_field.textChanged.connect(self._on_setting_changed)

@@ -15,12 +15,12 @@ class TestXmlParser:
 
     def test_parse_simple_response(self) -> None:
         """Test parsing a simple XML response."""
-        xml = '''<notes model="Basic">
+        xml = """<notes model="Basic">
   <note nid="123" deck="Test">
     <field name="Front">Hello</field>
     <field name="Back">World</field>
   </note>
-</notes>'''
+</notes>"""
 
         result = notes_from_xml(xml)
 
@@ -30,7 +30,7 @@ class TestXmlParser:
 
     def test_parse_multiple_notes(self) -> None:
         """Test parsing multiple notes."""
-        xml = '''<notes model="Basic">
+        xml = """<notes model="Basic">
   <note nid="123" deck="Test">
     <field name="Front">Q1</field>
     <field name="Back">A1</field>
@@ -39,7 +39,7 @@ class TestXmlParser:
     <field name="Front">Q2</field>
     <field name="Back">A2</field>
   </note>
-</notes>'''
+</notes>"""
 
         result = notes_from_xml(xml)
 
@@ -57,12 +57,12 @@ class TestXmlParser:
         escaped_front = escape_xml_content(front_content)
         escaped_back = escape_xml_content(back_content)
 
-        xml = f'''<notes model="Basic">
+        xml = f"""<notes model="Basic">
   <note nid="123" deck="Test">
     <field name="Front">{escaped_front}</field>
     <field name="Back">{escaped_back}</field>
   </note>
-</notes>'''
+</notes>"""
 
         result = notes_from_xml(xml)
 
@@ -72,7 +72,7 @@ class TestXmlParser:
 
     def test_parse_empty_response(self) -> None:
         """Test parsing empty XML response."""
-        xml = '<notes></notes>'
+        xml = "<notes></notes>"
 
         result = notes_from_xml(xml)
 
@@ -93,11 +93,11 @@ class TestXmlParser:
         content = '<tag>Hello & "World"</tag>'
         escaped = escape_xml_content(content)
 
-        assert escaped == '&lt;tag&gt;Hello &amp; &quot;World&quot;&lt;/tag&gt;'
+        assert escaped == "&lt;tag&gt;Hello &amp; &quot;World&quot;&lt;/tag&gt;"
 
     def test_unescape_xml_content(self) -> None:
         """Test XML content unescaping."""
-        content = '&lt;tag&gt;Hello &amp; &quot;World&quot;&lt;/tag&gt;'
+        content = "&lt;tag&gt;Hello &amp; &quot;World&quot;&lt;/tag&gt;"
         unescaped = unescape_xml_content(content)
 
         assert unescaped == '<tag>Hello & "World"</tag>'

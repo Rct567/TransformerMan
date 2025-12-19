@@ -30,7 +30,7 @@ def get_mw():
 mw = get_mw()
 
 TM_ROOT_DIR = Path(__file__).parent
-TM_USER_FILES_DIR = TM_ROOT_DIR / 'user_files'
+TM_USER_FILES_DIR = TM_ROOT_DIR / "user_files"
 
 if not TM_USER_FILES_DIR.is_dir():
     TM_USER_FILES_DIR.mkdir()
@@ -66,7 +66,7 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
 
     addon_config.reload()
 
-    if 'lm_client' not in addon_config:
+    if "lm_client" not in addon_config:
         open_settings(browser, addon_config)
 
     lm_client, error = addon_config.get_client()

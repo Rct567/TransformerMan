@@ -83,7 +83,7 @@ def insert_action_after(
 
 # debounce decorator for Qt6 functions
 
-P = ParamSpec('P')
+P = ParamSpec("P")
 
 
 def debounce(wait_ms: int) -> Callable[[Callable[P, Any]], Callable[P, None]]:
@@ -159,7 +159,7 @@ class Event:
     pass
 
 # Type variable for events
-E = TypeVar('E', bound=Event)
+E = TypeVar("E", bound=Event)
 
 # EventManager class with more precise type annotations
 class EventManager:

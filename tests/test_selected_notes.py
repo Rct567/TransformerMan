@@ -69,7 +69,7 @@ class TestSelectedNotes:
             note = selected_notes.get_note(nid)
             notetype = col.models.get(note.mid)
             assert notetype is not None
-            assert notetype['name'] == "Basic"
+            assert notetype["name"] == "Basic"
 
         # Filter by non-existent note type
         non_existent_note_ids = selected_notes.filter_by_note_type("NonExistentType")

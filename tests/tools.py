@@ -22,13 +22,13 @@ from unittest.mock import Mock, patch
 
 
 CURRENT_PID = os.getpid()
-TEST_DATA_DIR = Path(__file__).parent / 'data'
-TEST_COLLECTIONS_DIR = TEST_DATA_DIR / 'collections'
+TEST_DATA_DIR = Path(__file__).parent / "data"
+TEST_COLLECTIONS_DIR = TEST_DATA_DIR / "collections"
 
 
 
 
-T = TypeVar('T', bound=Callable[..., Any])
+T = TypeVar("T", bound=Callable[..., Any])
 
 
 def with_test_collection(name: str) -> Callable[[T], T]:
@@ -100,22 +100,22 @@ class TestCollection(Collection):
         """
         # Strategy 1: Explicitly provided in context (highest priority)
         if context.test_instance is not None and context.test_function_name is not None:
-            if context.test_function_name.startswith('test_') and context.test_instance.__class__.__name__.startswith('Test'):
+            if context.test_function_name.startswith("test_") and context.test_instance.__class__.__name__.startswith("Test"):
                 return (context.test_instance.__class__.__name__, context.test_function_name)
 
         # Strategy 2: Provided frame (backward compatibility)
         if context.caller_frame is not None:
-            if (context.caller_frame.function.startswith('test_') and
-                'self' in context.caller_frame.frame.f_locals and
-                context.caller_frame.frame.f_locals['self'].__class__.__name__.startswith('Test')):
-                return (context.caller_frame.frame.f_locals['self'].__class__.__name__, context.caller_frame.function)
+            if (context.caller_frame.function.startswith("test_") and
+                "self" in context.caller_frame.frame.f_locals and
+                context.caller_frame.frame.f_locals["self"].__class__.__name__.startswith("Test")):
+                return (context.caller_frame.frame.f_locals["self"].__class__.__name__, context.caller_frame.function)
 
         # Strategy 3: Stack inspection (fallback)
         for frame_info in inspect.stack():
-            if (frame_info.function.startswith('test_') and
-                'self' in frame_info.frame.f_locals):
-                self_obj = frame_info.frame.f_locals['self']
-                if self_obj.__class__.__name__.startswith('Test'):
+            if (frame_info.function.startswith("test_") and
+                "self" in frame_info.frame.f_locals):
+                self_obj = frame_info.frame.f_locals["self"]
+                if self_obj.__class__.__name__.startswith("Test"):
                     return (self_obj.__class__.__name__, frame_info.function)
 
         # Failed to find test caller
@@ -136,8 +136,8 @@ class TestCollection(Collection):
 
         self.caller_class_name, caller_fn_name = self._find_test_caller_info(caller_context)
         self.caller_full_name = f"{self.caller_class_name}_{caller_fn_name}"
-        assert self.caller_class_name.startswith('Test')
-        assert caller_fn_name.startswith('test_')
+        assert self.caller_class_name.startswith("Test")
+        assert caller_fn_name.startswith("test_")
 
         # create temporary collection
         collection_src_path = collection_dir / (collection_name+".anki2")
@@ -151,15 +151,15 @@ class TestCollection(Collection):
         super().__init__(str(temp_collection_path))
 
     def __get_lock_file_path(self, lock_name: str, lock_dir: str) -> Path:
-        assert lock_name != ''
+        assert lock_name != ""
         order_file_dir = self.collection_dir / lock_dir
         if not order_file_dir.exists():
             order_file_dir.mkdir(parents=True)
-        return order_file_dir / '{}_{}.txt'.format(self.caller_full_name, lock_name)
+        return order_file_dir / "{}_{}.txt".format(self.caller_full_name, lock_name)
 
     # helper function used to lock-in and assert result
     def lock_and_assert_result(self, lock_name: str,  result_data: Any):
-        result_file_path = self.__get_lock_file_path(lock_name, 'locked_results')
+        result_file_path = self.__get_lock_file_path(lock_name, "locked_results")
 
         if isinstance(result_data, str):
             result_data_str = result_data
@@ -167,7 +167,7 @@ class TestCollection(Collection):
             result_data_str = pprint.pformat(result_data, width=10000)
 
         if result_file_path.exists():
-            with result_file_path.open('r', encoding="utf-8") as file:
+            with result_file_path.open("r", encoding="utf-8") as file:
                 expected_result = file.read().splitlines()
             result_lines = result_data_str.splitlines()
             assert len(expected_result) == len(result_lines)
@@ -177,7 +177,7 @@ class TestCollection(Collection):
                     .format(result_file_path, self.collection_name, line_num, result_line, expected_line)
                 )
         else:
-            with result_file_path.open('w', encoding="utf-8") as file:
+            with result_file_path.open("w", encoding="utf-8") as file:
                 file.write(result_data_str)
             print("WARNING: Result file '{}' for '{}' didn't exist yet!".format(result_file_path, self.collection_name))
 
@@ -185,10 +185,10 @@ class TestCollection(Collection):
 
     def lock_and_assert_order(self, lock_name: str, sorted_items: Sequence[Any]):
 
-        order_file_path = self.__get_lock_file_path(lock_name, 'locked_orders')
+        order_file_path = self.__get_lock_file_path(lock_name, "locked_orders")
 
         if order_file_path.exists():
-            with order_file_path.open('r', encoding="utf-8") as file:
+            with order_file_path.open("r", encoding="utf-8") as file:
                 expected_order = [line.rstrip() for line in file]
             for line_num, expected_line in enumerate(expected_order):
                 result_item = str(sorted_items[line_num]).rstrip()
@@ -197,8 +197,8 @@ class TestCollection(Collection):
                     .format(order_file_path, self.collection_name, line_num, result_item, expected_line)
                 )
         else:
-            with order_file_path.open('w', encoding="utf-8") as file:
-                file.write('\n'.join(map(str, sorted_items)))
+            with order_file_path.open("w", encoding="utf-8") as file:
+                file.write("\n".join(map(str, sorted_items)))
             print("WARNING: Order file '{}' for '{}' didn't exist yet!".format(order_file_path, self.collection_name))
 
 
@@ -320,7 +320,7 @@ def mock_collection_op(col: Collection) -> Generator[Mock, None, None]:
 
     def mock_collection_op_call(parent: Mock, **kwargs: Any) -> Mock:
         # Execute the operation function synchronously
-        op_func = kwargs.get('op')
+        op_func = kwargs.get("op")
         if op_func is None:
             raise ValueError("Missing 'op' argument")
         changes = op_func(col)
@@ -335,8 +335,8 @@ def mock_collection_op(col: Collection) -> Generator[Mock, None, None]:
         mock_op.run_in_background = Mock()
         return mock_op
 
-    with patch('transformerman.lib.transform_operations.CollectionOp') as MockCollectionOp:
+    with patch("transformerman.lib.transform_operations.CollectionOp") as MockCollectionOp:
         MockCollectionOp.side_effect = mock_collection_op_call
-        with patch('aqt.mw') as mock_mw:
+        with patch("aqt.mw") as mock_mw:
             mock_mw.taskman = Mock()
             yield MockCollectionOp

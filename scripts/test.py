@@ -37,8 +37,8 @@ def get_staged_python_files() -> list[str]:
             text=True,
             check=True
         )
-        staged_files = result.stdout.strip().split('\n')
-        python_files = [f for f in staged_files if f.endswith('.py')]
+        staged_files = result.stdout.strip().split("\n")
+        python_files = [f for f in staged_files if f.endswith(".py")]
         return python_files
     except subprocess.CalledProcessError:
         # If git command fails (e.g., not in a git repo), return empty list
@@ -184,7 +184,7 @@ def run_tox() -> None:
 def things_to_type_check() -> list[str]:
 
     root_dirs = [relative_path(dir) for dir in TEST_TARGET_FOLDER]
-    root_files_to_run = [relative_path(py_file) for py_file in PROJECT_ROOT.glob('*.py')]
+    root_files_to_run = [relative_path(py_file) for py_file in PROJECT_ROOT.glob("*.py")]
     return root_dirs + root_files_to_run
 
 

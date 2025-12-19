@@ -39,7 +39,7 @@ class TestTransformerManBaseDialog:
         dialog = TransformerManBaseDialog(parent_widget, True)
         qtbot.addWidget(dialog)
 
-        with patch('transformerman.ui.base_dialog.saveGeom') as mock_save:
+        with patch("transformerman.ui.base_dialog.saveGeom") as mock_save:
             # Create a real QCloseEvent
             close_event = QCloseEvent()
 

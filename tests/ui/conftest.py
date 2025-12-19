@@ -29,10 +29,10 @@ if TYPE_CHECKING:
 @pytest.fixture(autouse=True)
 def mock_anki_utils():
     """Mock Anki utility functions that require main window."""
-    with patch('transformerman.ui.base_dialog.restoreGeom') as mock_restore, \
-         patch('transformerman.ui.base_dialog.saveGeom') as mock_save, \
-         patch('transformerman.ui.settings_dialog.QMessageBox.question') as mock_qmessagebox, \
-         patch('transformerman.ui.preview_table.QueryOp') as mock_query_op:
+    with patch("transformerman.ui.base_dialog.restoreGeom") as mock_restore, \
+         patch("transformerman.ui.base_dialog.saveGeom") as mock_save, \
+         patch("transformerman.ui.settings_dialog.QMessageBox.question") as mock_qmessagebox, \
+         patch("transformerman.ui.preview_table.QueryOp") as mock_query_op:
         # Configure mocks to do nothing (successful no-op)
         mock_restore.return_value = None
         mock_save.return_value = None
@@ -65,7 +65,7 @@ def parent_widget(qtbot: QtBot) -> QWidget:
 @pytest.fixture
 def test_note_ids() -> list[NoteId]:
     """Test note IDs for testing."""
-    return [cast('NoteId', 123), cast('NoteId', 456), cast('NoteId', 789)]
+    return [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
 
 
 
@@ -92,8 +92,8 @@ def user_files_dir(tmp_path: Path) -> Path:
 def test_field_updates() -> FieldUpdates:
     """Test field updates for preview highlighting."""
     return FieldUpdates({
-        cast('NoteId', 123): {"Front": "Updated Front 1", "Back": "Updated Back 1"},
-        cast('NoteId', 456): {"Front": "Updated Front 2", "Back": "Updated Back 2"},
+        cast("NoteId", 123): {"Front": "Updated Front 1", "Back": "Updated Back 1"},
+        cast("NoteId", 456): {"Front": "Updated Front 2", "Back": "Updated Back 2"},
     })
 
 

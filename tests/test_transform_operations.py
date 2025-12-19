@@ -317,7 +317,7 @@ class TestNoteTransformer:
         mock_response.error = None  # Add error attribute
 
         # Make first batch fail, second batch succeed
-        with patch.object(dummy_client, 'transform', side_effect=[Exception("Batch failed"), mock_response]):
+        with patch.object(dummy_client, "transform", side_effect=[Exception("Batch failed"), mock_response]):
             # Create NoteTransformer with max prompt size
             transformer = NoteTransformer(
                 col=col,
@@ -637,7 +637,7 @@ class TestCreateLmLogger:
         log_response(MagicMock(spec=LmResponse, text_response="test response"))
 
         # Verify no files were created (since logging is disabled)
-        logs_dir = mock_user_files_dir / 'logs'
+        logs_dir = mock_user_files_dir / "logs"
         assert not logs_dir.exists()
 
     def test_create_lm_logger_enabled_logging(
@@ -660,19 +660,19 @@ class TestCreateLmLogger:
         log_response(test_response)
 
         # Verify files were created and contain expected content
-        logs_dir = mock_user_files_dir / 'logs'
+        logs_dir = mock_user_files_dir / "logs"
         assert logs_dir.exists()
 
         # Check request log
-        requests_file = logs_dir / 'lm_requests.log'
+        requests_file = logs_dir / "lm_requests.log"
         assert requests_file.exists()
-        with requests_file.open('r', encoding='utf-8') as f:
+        with requests_file.open("r", encoding="utf-8") as f:
             content = f.read()
             assert test_prompt in content
 
         # Check response log
-        responses_file = logs_dir / 'lm_responses.log'
+        responses_file = logs_dir / "lm_responses.log"
         assert responses_file.exists()
-        with responses_file.open('r', encoding='utf-8') as f:
+        with responses_file.open("r", encoding="utf-8") as f:
             content = f.read()
             assert test_response.text_response in content

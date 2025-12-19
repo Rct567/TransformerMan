@@ -87,7 +87,7 @@ class TestPreviewTable:
         assert table.columnCount() == 0
 
     @with_test_collection("empty_collection")
-    @patch('transformerman.ui.preview_table.QueryOp')
+    @patch("transformerman.ui.preview_table.QueryOp")
     def test_table_headers_set(
         self,
         mock_query_op: Mock,
@@ -129,7 +129,7 @@ class TestPreviewTable:
 
 
     @with_test_collection("empty_collection")
-    @patch('transformerman.ui.preview_table.QueryOp')
+    @patch("transformerman.ui.preview_table.QueryOp")
     def test_highlighting_with_field_updates(
         self,
         mock_query_op: Mock,
@@ -275,7 +275,7 @@ class TestPreviewTable:
         assert table2.columnCount() == len(selected_fields_list)
 
     @with_test_collection("empty_collection")
-    @patch('transformerman.ui.preview_table.QueryOp')
+    @patch("transformerman.ui.preview_table.QueryOp")
     def test_background_loading_setup(
         self,
         mock_query_op: Mock,
@@ -317,7 +317,7 @@ class TestPreviewTable:
         mock_query_op.assert_called_once()
 
     @with_test_collection("empty_collection")
-    @patch('transformerman.ui.preview_table.QueryOp')
+    @patch("transformerman.ui.preview_table.QueryOp")
     def test_table_with_field_updates(
         self,
         mock_query_op: Mock,

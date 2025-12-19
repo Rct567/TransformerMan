@@ -46,16 +46,16 @@ def copy_directory(src: Path, dst: Path, ignore_patterns: list[str]) -> None:
 
 
 def ignore_patterns_from_gitignore_file(src: Path) -> list[str]:
-    gitignore_path = src / '.gitignore'
+    gitignore_path = src / ".gitignore"
     ignore_patterns = []
 
     if not gitignore_path.exists():
         raise Exception("File {} does not exist!".format(gitignore_path))
 
-    with gitignore_path.open('r') as f:
+    with gitignore_path.open("r") as f:
         for file_line in f:
             line = file_line.strip()
-            if line and not line.startswith('#'):
+            if line and not line.startswith("#"):
                 ignore_patterns.append(line)
 
     return ignore_patterns
@@ -71,7 +71,7 @@ def set_release_version(src_dir: Path) -> Optional[str]:
     if not is_valid_version(provided_version_number):
         return None
 
-    file_with_version = src_dir / 'transformerman' / 'version.py'
+    file_with_version = src_dir / "transformerman" / "version.py"
 
     if not file_with_version.exists():
         raise Exception("File {} does not exist!".format(file_with_version))
@@ -96,13 +96,13 @@ def commit_and_tag(version_number: str) -> None:
     git_tag = "v"+version_number
 
     # Commit changes with a message
-    subprocess.run(["git", "commit", "-a", f"-m \"upgraded version to {version_number}\""], check=True)
+    subprocess.run(["git", "commit", "-a", f'-m "upgraded version to {version_number}"'], check=True)
 
     # Push changes to remote repository
     subprocess.run(["git", "push"], check=True)
 
     # Create a new tag with a message
-    subprocess.run(["git", "tag", "-a", git_tag, f"-m \"version {git_tag}\""], check=True)
+    subprocess.run(["git", "tag", "-a", git_tag, f'-m "version {git_tag}"'], check=True)
 
     # Push the new tag to remote repository
     subprocess.run(["git", "push", "origin", git_tag], check=True)
@@ -133,7 +133,7 @@ def run_all_tests_with_success() -> bool:
 
 def create_zip(directory: Path, zip_file: Path) -> None:
 
-    with zipfile.ZipFile(zip_file, 'w') as zf:
+    with zipfile.ZipFile(zip_file, "w") as zf:
         for root, _, files in os.walk(directory):
             root_path = Path(root)
             for file in files:
@@ -163,7 +163,7 @@ def create_new_release() -> str:
 
     # create release
 
-    releases_dir = PROJECT_ROOT / 'releases'
+    releases_dir = PROJECT_ROOT / "releases"
     new_release_src_dir = PROJECT_ROOT
 
     assert releases_dir.is_dir() and new_release_src_dir.is_dir()
@@ -173,7 +173,7 @@ def create_new_release() -> str:
     if not new_release_version:
         print_and_exit_error("Failed to set new release version!")
 
-    new_release_obj_name = 'release-v'+new_release_version.replace('.', '_')
+    new_release_obj_name = "release-v"+new_release_version.replace(".", "_")
     new_release_dst_dir = releases_dir / new_release_obj_name
 
     if new_release_dst_dir.exists():
@@ -182,23 +182,23 @@ def create_new_release() -> str:
     ignore_patterns = ignore_patterns_from_gitignore_file(new_release_src_dir)
 
     ignore_patterns.extend([
-        'tests/',
-        'typings/',
-        'scripts/',
-        'pytest.ini',
-        'create_release.py',
-        'create_default_wf_lists.py',
-        'pyproject.toml',
-        'requirements-dev.txt',
-        'run_pytest_benchmark.py',
-        'noxfile.py',
-        'test.py',
-        'AGENTS.md',
+        "tests/",
+        "typings/",
+        "scripts/",
+        "pytest.ini",
+        "create_release.py",
+        "create_default_wf_lists.py",
+        "pyproject.toml",
+        "requirements-dev.txt",
+        "run_pytest_benchmark.py",
+        "noxfile.py",
+        "test.py",
+        "AGENTS.md",
     ])
 
     copy_directory(new_release_src_dir, new_release_dst_dir, ignore_patterns)
 
-    release_zip_file = releases_dir / (new_release_obj_name + '.ankiaddon')
+    release_zip_file = releases_dir / (new_release_obj_name + ".ankiaddon")
     create_zip(new_release_dst_dir, release_zip_file)
 
     print("Done!")

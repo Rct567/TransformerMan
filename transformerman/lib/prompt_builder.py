@@ -95,10 +95,10 @@ class PromptBuilder:
                     escaped_value = escape_xml_content(field_value)
                 lines.append(f'    <field name="{escape_xml_content(field_name)}">{escaped_value}</field>')
 
-        lines.append('  </note>')
+        lines.append("  </note>")
 
         # Join lines and cache
-        result = '\n'.join(lines)
+        result = "\n".join(lines)
         self.note_xml_cache[cache_key] = result
         return result
 
@@ -181,7 +181,7 @@ class PromptBuilder:
 
             if fields_to_fill:
                 if len(fields_to_fill) == 1:
-                    prompt_parts.append(f"- Fill in only the following empty field: \"{fields_to_fill[0]}\".")
+                    prompt_parts.append(f'- Fill in only the following empty field: "{fields_to_fill[0]}".')
                 else:
                     fields_str = ", ".join(f"'{f}'" for f in fields_to_fill)
                     prompt_parts.append(f"- Fill in only the following empty fields: {fields_str}.")
@@ -216,7 +216,7 @@ class PromptBuilder:
 
         if fields_to_fill:
             if len(fields_to_fill) == 1:
-                prompt_parts.append("Please fill the specified empty field (\"{}\") in the following notes and return them in the same XML format:".format(fields_to_fill[0]))
+                prompt_parts.append('Please fill the specified empty field ("{}") in the following notes and return them in the same XML format:'.format(fields_to_fill[0]))
             else:
                 prompt_parts.append("Please fill the specified empty fields in the following notes and return them in the same XML format:")
         else:

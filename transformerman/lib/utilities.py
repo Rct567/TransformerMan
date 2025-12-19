@@ -18,7 +18,7 @@ else:
     JSON_TYPE = Any
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 # batched for Python < 3.12
@@ -84,9 +84,9 @@ def create_slug(text: str) -> str:
     # Convert to lowercase
     slug = text.lower()
     # Replace spaces and non-alphanumeric characters with underscores
-    slug = re.sub(r'[^a-z0-9]+', '_', slug)
+    slug = re.sub(r"[^a-z0-9]+", "_", slug)
     # Remove leading/trailing underscores
-    slug = slug.strip('_')
+    slug = slug.strip("_")
     # Replace multiple consecutive underscores with a single one
-    slug = re.sub(r'_+', '_', slug)
+    slug = re.sub(r"_+", "_", slug)
     return slug

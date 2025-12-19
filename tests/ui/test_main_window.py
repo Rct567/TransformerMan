@@ -99,7 +99,7 @@ class TestTransformerManMainWindow:
         qtbot.addWidget(window)
 
         # Check key UI components exist
-        assert hasattr(window, 'note_type_combo')
+        assert hasattr(window, "note_type_combo")
         assert isinstance(window.note_type_combo, QComboBox)
 
         assert hasattr(window, "stats_widget")
@@ -113,25 +113,25 @@ class TestTransformerManMainWindow:
         assert "Api calls" in labels
 
 
-        assert hasattr(window, 'preview_button')
+        assert hasattr(window, "preview_button")
         assert isinstance(window.preview_button, QPushButton)
         assert window.preview_button.text() == "Preview"
 
-        assert hasattr(window, 'apply_button')
+        assert hasattr(window, "apply_button")
         assert isinstance(window.apply_button, QPushButton)
         assert window.apply_button.text() == "Apply"
         # Initially apply button should be disabled with no styling
         assert not window.apply_button.isEnabled()
         assert window.apply_button.styleSheet() == ""
 
-        assert hasattr(window, 'discard_button')
+        assert hasattr(window, "discard_button")
         assert isinstance(window.discard_button, QPushButton)
         assert window.discard_button.text() == "Discard"
         # Initially discard button should be disabled with no styling
         assert not window.discard_button.isEnabled()
         assert window.discard_button.styleSheet() == ""
 
-        assert hasattr(window, 'preview_table')
+        assert hasattr(window, "preview_table")
         # preview_table is a PreviewTable widget
 
     @with_test_collection("empty_collection")
@@ -363,8 +363,8 @@ class TestTransformerManMainWindow:
         assert not window.apply_button.isEnabled()
 
     @with_test_collection("empty_collection")
-    @patch('transformerman.ui.main_window.TransformNotesWithProgress')
-    @patch('transformerman.ui.main_window.showInfo')
+    @patch("transformerman.ui.main_window.TransformNotesWithProgress")
+    @patch("transformerman.ui.main_window.showInfo")
     def test_preview_button_click_triggers_transformation(
         self,
         mock_show_info: Mock,
