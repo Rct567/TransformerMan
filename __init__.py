@@ -68,7 +68,6 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
 
     if 'lm_client' not in addon_config:
         open_settings(browser, addon_config)
-        return
 
     lm_client, error = addon_config.get_client()
 
