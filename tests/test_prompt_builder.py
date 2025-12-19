@@ -54,17 +54,16 @@ class TestPromptBuilder:
             assert "You are an Anki note assistant" in prompt
             assert "Please fill" in prompt
 
-            assert prompt.count('<notes model="Basic">') == 2 # example list + target list
+            assert prompt.count('<notes model="Basic">') == 2  # example list + target list
 
             # Check that our modified notes appear in the prompt
             for note_id in note_ids:
                 assert f'<note nid="{note_id}"' in prompt
 
-            assert prompt.count('<field name="Front"></field>') == 2 # 2 notes selected and targeted
-            assert prompt.count('<field name="Front"') == 5 # 3 example fields + 2 empty fields
-            assert prompt.count("</notes>") == 2 # examples + target list
+            assert prompt.count('<field name="Front"></field>') == 2  # 2 notes selected and targeted
+            assert prompt.count('<field name="Front"') == 5  # 3 example fields + 2 empty fields
+            assert prompt.count("</notes>") == 2  # examples + target list
             assert prompt.count("<") == prompt.count(">")  # Basic XML well-formedness
-
 
         check_prompt(prompt_with_writeable_fields)
         check_prompt(prompt_with_overwritable_fields)
@@ -104,7 +103,7 @@ class TestPromptBuilder:
 
         # Strategic assertions
         assert prompt.count("For field 'Front': Provide a concise question") == 1
-        assert prompt.count("For field 'Back': Provide detailed answer") == 0 # Back is not writable
+        assert prompt.count("For field 'Back': Provide detailed answer") == 0  # Back is not writable
         # Examples should be present from test collection, so exactly 2 <notes> tags
         assert prompt.count('<notes model="Basic">') == 2
         # There should be at least one empty Front field (our target note)
@@ -113,8 +112,6 @@ class TestPromptBuilder:
         assert f'<field name="Back">{note["Back"]}</field>' in prompt
 
         col.lock_and_assert_result("test_build_prompt_with_field_instructions", prompt)
-
-
 
     @with_test_collection("two_deck_collection")
     def test_build_prompt_includes_deck_name(

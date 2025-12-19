@@ -4,10 +4,11 @@ version = "0.0.1"
 requires-python = ">=3.9"
 
 [tool.autopep8]
-max_line_length = 200
+max_line_length = 140
 
 [tool.ruff]
-line-length = 220
+preview = true
+line-length = 140
 src = ["transformerman", "tests"]
 
 [tool.ruff.lint]
@@ -47,7 +48,10 @@ ignore = [
     "RUF001",    # ambiguous-unicode-character-string - Checks for ambiguous unicode characters in strings.
     "RUF003",    # ambiguous-unicode-character-comment - Checks for ambiguous unicode characters in comments.
     "RUF005",    # collection-literal-concatenation - Checks for uses of the `+` operator to concatenate collections.
-    "RUF100",    #
+    "RUF100",    # unused-noqa
+    "E226",      # Missing whitespace around arithmetic operator
+    "PLW0108",   # Lambda may be not necessary
+    "PLR0904",   # To many public methods
 ]
 
 
@@ -60,6 +64,8 @@ max-branches = 120
 max-statements = 135
 max-returns = 70
 max-args = 9
+max-nested-blocks = 7
+max-positional-args = 12
 
 [tool.pyright]
 pythonVersion = "3.9"

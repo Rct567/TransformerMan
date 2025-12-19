@@ -38,7 +38,6 @@ class FieldUpdates:
         self._selected_notes = selected_notes
         self.is_applied = False
 
-
     def __len__(self) -> int:
         """Return the number of notes with field updates."""
         return len(self._updates)

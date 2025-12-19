@@ -112,7 +112,7 @@ class TestAddonConfig:
             pass
 
         addon_config = AddonConfig(loader, saver)
-        client, error  = addon_config.get_client()
+        client, error = addon_config.get_client()
         assert client is None
         assert error is not None
 

@@ -112,7 +112,6 @@ class TestTransformerManMainWindow:
         assert "Api client" in labels
         assert "Api calls" in labels
 
-
         assert hasattr(window, "preview_button")
         assert isinstance(window.preview_button, QPushButton)
         assert window.preview_button.text() == "Preview"

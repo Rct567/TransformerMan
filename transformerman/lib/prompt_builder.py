@@ -67,7 +67,6 @@ class PromptBuilder:
         card = self._get_card(card_ids[0])
         return self._get_deck_name(card.did)
 
-
     def _format_note_as_xml(self, note: Note, fields_included: Sequence[str], leave_empty: Sequence[str] | None) -> str:
         """Format a single note as XML with caching."""
         # Create cache key
@@ -216,7 +215,10 @@ class PromptBuilder:
 
         if fields_to_fill:
             if len(fields_to_fill) == 1:
-                prompt_parts.append('Please fill the specified empty field ("{}") in the following notes and return them in the same XML format:'.format(fields_to_fill[0]))
+                prompt_parts.append(
+                    'Please fill the specified empty field ("{}") in the following '.format(fields_to_fill[0])
+                    + "notes and return them in the same XML format:"
+                )
             else:
                 prompt_parts.append("Please fill the specified empty fields in the following notes and return them in the same XML format:")
         else:
@@ -268,7 +270,7 @@ class PromptBuilder:
 
         refined_query_parts = [f'"note:{note_type_name}"']
         for field in selected_fields:
-            refined_query_parts.append(f'-"{field}:"') # filter out notes with empty selected fields
+            refined_query_parts.append(f'-"{field}:"')  # filter out notes with empty selected fields
         refined_query = " ".join(refined_query_parts)
 
         candidate_note_ids = []

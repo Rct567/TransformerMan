@@ -68,8 +68,6 @@ def test_note_ids() -> list[NoteId]:
     return [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
 
 
-
-
 @pytest.fixture
 def dummy_lm_client() -> DummyLMClient:
     """Real DummyLMClient instance for testing."""

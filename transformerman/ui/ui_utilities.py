@@ -152,14 +152,14 @@ def debounce(wait_ms: int) -> Callable[[Callable[P, Any]], Callable[P, None]]:
     return decorator
 
 
-
-
 # Base event class
 class Event:
     pass
 
+
 # Type variable for events
 E = TypeVar("E", bound=Event)
+
 
 # EventManager class with more precise type annotations
 class EventManager:
@@ -170,7 +170,6 @@ class EventManager:
         if event_type not in self._listeners:
             self._listeners[event_type] = []
         self._listeners[event_type].append(listener)  # type: ignore
-
 
     def dispatch(self, event: Event) -> None:
         event_type = type(event)

@@ -59,7 +59,6 @@ else:
         return func
 
 
-
 # create_slug function
 
 def create_slug(text: str) -> str:

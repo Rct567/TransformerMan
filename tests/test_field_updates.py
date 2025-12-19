@@ -13,9 +13,7 @@ from tests.tools import with_test_collection, TestCollection, test_collection as
 col = test_collection_fixture
 
 
-
 class TestFieldUpdates:
-
 
     def test_add_overwritable_field(self) -> None:
         """Test adding overwritable fields."""

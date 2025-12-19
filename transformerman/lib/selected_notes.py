@@ -125,11 +125,9 @@ class SelectedNotes:
         self._note_cache[nid] = note
         return note
 
-
     def get_ids(self) -> Sequence[NoteId]:
         """Return the note IDs in the selection."""
         return self._note_ids
-
 
     def filter_by_note_type(self, note_type_name: str) -> Sequence[NoteId]:
         """
@@ -172,7 +170,6 @@ class SelectedNotes:
 
         # Sort by count descending
         return dict(sorted(counts.items(), key=lambda x: x[1], reverse=True))
-
 
     @classmethod
     def _compute_start_size(cls, max_chars: int, total_notes: int | None = None) -> int:
@@ -512,7 +509,6 @@ class SelectedNotes:
 
         return batches
 
-
     def get_notes(self, note_ids: Sequence[NoteId] | None = None) -> Sequence[Note]:
         """
         Get Note objects from note IDs.
@@ -602,7 +598,6 @@ class SelectedNotes:
                 filtered_note_ids.append(nid)
         return self.new_selected_notes(filtered_note_ids)
 
-
     def _get_deck_name_for_card_id(self, card_id: CardId) -> str:
         """
         Get deck name for a card ID, with caching.
@@ -625,7 +620,6 @@ class SelectedNotes:
         name = deck["name"] if deck else ""
         self._deck_cache[card_id] = name
         return name
-
 
     def _get_all_card_ids(self) -> Sequence[CardId]:
         """Get all card IDs for the selected notes."""
@@ -676,7 +670,6 @@ class SelectedNotes:
         """Clear the note cache."""
         self._note_cache.clear()
         self._deck_cache.clear()
-
 
     def __len__(self) -> int:
         """Return the number of notes in the selection."""

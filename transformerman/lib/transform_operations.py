@@ -283,7 +283,9 @@ class NoteTransformer:
                     progress_callback(current_batch_idx, self.num_batches, data)
 
             # Get field updates for batch (preview mode)
-            num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(batch_selected_notes, log_request, log_response, progress_callback=batch_progress_callback)
+            num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
+                batch_selected_notes, log_request, log_response, progress_callback=batch_progress_callback
+            )
 
             # Check for error in batch
             if batch_error is not None:
@@ -298,7 +300,10 @@ class NoteTransformer:
             if len(batch_field_updates) < len(batch_selected_notes):
                 num_fields_updates_missing = len(batch_selected_notes) - len(batch_field_updates)
                 if not error:
-                    error = f"{num_fields_updates_missing} field updates appear to be missing from the response (expected {len(batch_selected_notes)}, but got {len(batch_field_updates)})."
+                    error = (
+                        f"{num_fields_updates_missing} field updates appear to be missing from the response "
+                        f"(expected {len(batch_selected_notes)}, but got {len(batch_field_updates)})."
+                    )
                     break
 
         # Report completion
@@ -412,7 +417,9 @@ class TransformNotesWithProgress:
         Returns:
             True if results are cached, False otherwise.
         """
-        cache_key = self._get_cache_key(note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids, self.max_prompt_size)
+        cache_key = self._get_cache_key(
+            note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids, self.max_prompt_size
+        )
         return cache_key in self._cache
 
     def get_num_api_calls_needed(
@@ -499,7 +506,9 @@ class TransformNotesWithProgress:
                 Called with (results, field_updates) when transformation completes successfully.
         """
         # Check cache first
-        cache_key = self._get_cache_key(note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids, self.max_prompt_size)
+        cache_key = self._get_cache_key(
+            note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids, self.max_prompt_size
+        )
         if cache_key in self._cache:
             results, field_updates = self._cache[cache_key]
             on_success(results, field_updates)
@@ -540,7 +549,7 @@ class TransformNotesWithProgress:
         def on_cancel() -> None:
             nonlocal cancel_requested
             cancel_requested = True
-            #progress.setLabelText("Canceling... please wait for current batch to finish.")
+            # progress.setLabelText("Canceling... please wait for current batch to finish.")
             progress.setCancelButtonText(None)  # Hide cancel button
 
         # Disconnect default canceled slot to prevent immediate closing

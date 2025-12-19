@@ -29,13 +29,10 @@ if TYPE_CHECKING:
     from transformerman.lib.http_utils import LmProgressData
 
 
-
-
 @pytest.fixture
 def mock_user_files_dir(tmp_path: Path) -> Path:
     """Create a temporary directory for user files."""
     return tmp_path
-
 
 
 class TestNoteTransformer:
@@ -341,7 +338,7 @@ class TestNoteTransformer:
         assert results.num_notes_failed == 4  # All 4 notes in the single batch
         assert results.num_notes_updated == 0  # No notes updated due to batch failure
         assert results.num_batches_processed == 1  # Only one batch attempted
-        assert results.error and "4 field updates appear to be missing" in  results.error
+        assert results.error and "4 field updates appear to be missing" in results.error
 
         # Verify that no notes have updates (batch failed)
         assert len(field_updates) == 0
@@ -455,6 +452,7 @@ class TestApplyFieldUpdatesWithOperation:
 
         # Track success callback
         success_results = []
+
         def on_success(results: dict[str, int]) -> None:
             success_results.append(results)
 
@@ -519,6 +517,7 @@ class TestApplyFieldUpdatesWithOperation:
 
         # Track success callback
         success_results = []
+
         def on_success(results: dict[str, int]) -> None:
             success_results.append(results)
 
@@ -562,6 +561,7 @@ class TestApplyFieldUpdatesWithOperation:
 
         # Track success callback
         success_results = []
+
         def on_success(results: dict[str, int]) -> None:
             success_results.append(results)
 
@@ -599,6 +599,7 @@ class TestApplyFieldUpdatesWithOperation:
 
         # Track success callback
         success_results = []
+
         def on_success(results: dict[str, int]) -> None:
             success_results.append(results)
 

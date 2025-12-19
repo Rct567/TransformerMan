@@ -90,14 +90,15 @@ def make_api_request(  # noqa: PLR0913
 
     # Make the request with parameters based on what's provided
     # We use stream=True if we have a progress callback OR if we expect SSE
+    timeout = (connect_timeout, read_timeout)
     is_streaming = progress_callback is not None or (json_data is not None and json_data.get("stream") is True)
 
     if json_data is not None:
-        response = requests.request(method, url, headers=headers, json=json_data, timeout=(connect_timeout, read_timeout), stream=is_streaming)
+        response = requests.request(method, url, headers=headers, json=json_data, timeout=timeout, stream=is_streaming)
     elif data is not None:
-        response = requests.request(method, url, headers=headers, data=data, timeout=(connect_timeout, read_timeout), stream=is_streaming)
+        response = requests.request(method, url, headers=headers, data=data, timeout=timeout, stream=is_streaming)
     else:
-        response = requests.request(method, url, headers=headers, timeout=(connect_timeout, read_timeout), stream=is_streaming)
+        response = requests.request(method, url, headers=headers, timeout=timeout, stream=is_streaming)
 
     response.raise_for_status()
 
@@ -116,7 +117,11 @@ def make_api_request(  # noqa: PLR0913
     return _handle_byte_stream(response, progress_callback, chunk_size)
 
 
-def _handle_sse_stream(response: requests.Response, progress_callback: Optional[Callable[[LmProgressData], None]], stream_chunk_parser: Optional[Callable[[dict[str, Any]], Optional[str]]] = None) -> bytes:
+def _handle_sse_stream(
+    response: requests.Response,
+    progress_callback: Optional[Callable[[LmProgressData], None]],
+    stream_chunk_parser: Optional[Callable[[dict[str, Any]], Optional[str]]] = None
+) -> bytes:
     """
     Handle Server-Sent Events (SSE) streaming for LLM APIs in real-time.
     """
@@ -213,7 +218,10 @@ def _handle_sse_stream(response: requests.Response, progress_callback: Optional[
     return json.dumps({"content": full_text}).encode("utf-8")
 
 
-def _handle_byte_stream(response: requests.Response, progress_callback: Optional[Callable[[LmProgressData], None]], chunk_size: int) -> bytes:
+def _handle_byte_stream(
+    response: requests.Response,
+    progress_callback: Optional[Callable[[LmProgressData], None]], chunk_size: int
+) -> bytes:
     """
     Handle regular byte streaming (for non-LLM requests or backward compatibility).
 

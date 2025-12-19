@@ -127,7 +127,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         else:
             self.setWindowTitle("TransformerMan")
 
-
         self.setMinimumWidth(500)
         self.setMinimumHeight(400)
 
@@ -161,7 +160,9 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         self.fields_widget = QWidget()
         fields_container_layout = QVBoxLayout()
-        fields_container_layout.addWidget(QLabel("<span style='color: rgba(128, 128, 128, 0.5);'>Read, Write & Optional instructions</span>"))
+        fields_container_layout.addWidget(QLabel(
+            "<span style='color: rgba(128, 128, 128, 0.5);'>Read, Write & Optional instructions</span>"
+        ))
         self.fields_widget.setLayout(fields_container_layout)
 
         self.fields_layout = QGridLayout()

@@ -201,7 +201,6 @@ class AddonConfig:
 
         return connect_timeout
 
-
     def get_max_examples(self) -> int:
         """Get the maximum number of examples from configuration with validation."""
         assert self.__config is not None

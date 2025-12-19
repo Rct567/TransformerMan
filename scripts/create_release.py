@@ -112,6 +112,7 @@ def has_unstaged_changes() -> bool:
     result = subprocess.run(["git", "diff", "--exit-code"], capture_output=True, check=False)
     return result.returncode != 0
 
+
 def has_staged_changes() -> bool:
     result = subprocess.run(["git", "diff", "--cached", "--exit-code"], capture_output=False, check=False)
     return result.returncode != 0

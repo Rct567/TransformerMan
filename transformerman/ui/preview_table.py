@@ -89,11 +89,9 @@ class PreviewTable(QTableWidget):
         self.selected_notes = None
         self.is_highlighted = False
 
-
     def set_selected_notes(self, selected_notes: SelectedNotes) -> None:
         """Set the selected notes instance for loading notes."""
         self.selected_notes = selected_notes
-
 
     def show_notes(
         self,
@@ -125,7 +123,6 @@ class PreviewTable(QTableWidget):
         # Load notes in background
         self._load_notes_in_background(list(note_ids), selected_fields, field_updates)
 
-
     def _create_table_item(self, full_content: str, is_highlighted: bool) -> QTableWidgetItem:
         """
         Create a table widget item with truncated content and appropriate styling.
@@ -150,7 +147,6 @@ class PreviewTable(QTableWidget):
             item.setBackground(self.highlight_color)
 
         return item
-
 
     def _load_notes_in_background(
         self,

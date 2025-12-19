@@ -59,7 +59,6 @@ class TestPreviewTable:
         assert table.rowCount() == 0
         assert table.columnCount() == 0
 
-
     @with_test_collection("empty_collection")
     def test_set_note_fields_update_with_empty_data(
         self,
@@ -126,8 +125,6 @@ class TestPreviewTable:
             assert header_item is not None
             assert header_item.text() == field
 
-
-
     @with_test_collection("empty_collection")
     @patch("transformerman.ui.preview_table.QueryOp")
     def test_highlighting_with_field_updates(
@@ -151,6 +148,7 @@ class TestPreviewTable:
 
         # We'll capture the success callback to simulate note loading
         success_callback = None
+
         def mock_query_op_constructor(
             parent: QWidget,
             op: Any,  # Callable[[Collection], Any]
@@ -206,6 +204,7 @@ class TestPreviewTable:
                 mock_note = Mock()
                 mock_note.id = note_id
                 # Set up field values - each field returns "Original [field_name]"
+
                 def make_getitem(field_note_id: int) -> Any:
                     return lambda key: f"Original {key} for note {field_note_id}"  # pyright: ignore
                 mock_note.__getitem__ = Mock(side_effect=make_getitem(note_id))
@@ -242,6 +241,7 @@ class TestPreviewTable:
 
         # Reset mock for second test
         success_callback2 = None
+
         def mock_query_op_constructor2(
             parent: QWidget,
             op: Any,

@@ -70,6 +70,7 @@ def install_dev_requirements() -> None:
         print(f" Failed to install requirements-dev.txt: {e}")
         sys.exit(1)
 
+
 def check_python_version() -> None:
     """Check if Python 3.9 or higher is installed."""
     if sys.version_info < (3, 9):
@@ -144,6 +145,7 @@ def check_staged_files(command_prefix: list[str], tool_name: str) -> bool:
         print(f"No staged Python files found, skipping {tool_name}")
         return False
 
+
 def run_pytest() -> None:
     """Run pytest with the current Python version."""
     print("=" * 60)
@@ -156,6 +158,7 @@ def run_pytest() -> None:
     elapsed_time = time.perf_counter() - start_time
     print(f"{GREEN}Pytest was successful! ({elapsed_time:.0f} seconds){RESET}")
 
+
 def run_nox() -> None:
     """Run tests across multiple Python versions using nox."""
     print("=" * 60)
@@ -167,6 +170,7 @@ def run_nox() -> None:
 
     elapsed_time = time.perf_counter() - start_time
     print(f"{GREEN}Nox was successful! ({elapsed_time:.0f} seconds){RESET}")
+
 
 def run_tox() -> None:
     """Run tests across multiple Python versions using nox."""
@@ -199,7 +203,7 @@ def run_mypy(options: Sequence[str]) -> None:
     if "staged" in options:
         check_staged_files(["mypy"], "mypy")
     else:
-        run_and_print_on_failure(["mypy"] + things_to_type_check(),  "Mypy")
+        run_and_print_on_failure(["mypy"] + things_to_type_check(), "Mypy")
 
     elapsed_time = time.perf_counter() - start_time
     print(f"{GREEN} Mypy was successful! ({elapsed_time:.0f} seconds){RESET}")
@@ -237,6 +241,7 @@ def run_pyright(options: Sequence[str]) -> None:
 
     elapsed_time = time.perf_counter() - start_time
     print(f"{GREEN} Pyright was successful! ({elapsed_time:.0f} seconds){RESET}")
+
 
 def run_vulture(options: Sequence[str]) -> None:
     """Run vulture."""
@@ -279,6 +284,7 @@ class MenuTestOption:
     def is_available(self) -> bool:
         return self.available() if self.available is not None else True
 
+
 def get_test_menu_options() -> list[MenuTestOption]:
     return [
         MenuTestOption(
@@ -300,6 +306,7 @@ def get_test_menu_options() -> list[MenuTestOption]:
             available=lambda: is_package_installed("tox") and is_package_installed("tox-uv"),
         ),
     ]
+
 
 def parse_cli_args() -> list[str]:
     """Parse CLI arguments and return (choice, options_set)."""
@@ -323,6 +330,7 @@ def parse_cli_args() -> list[str]:
                     break
 
     return selected_options
+
 
 def get_user_choice() -> MenuTestOption:
     print("="*60)
@@ -374,7 +382,7 @@ def main() -> NoReturn:
     else:
         selected = selected_menu_options[0]
 
-    selected.action() # run the selected menu option
+    selected.action()  # run the selected menu option
 
     elapsed_time = time.perf_counter() - start_time
 

@@ -74,7 +74,10 @@ class FieldWidget(QWidget):
             if not isinstance(a1, QMouseEvent):
                 return super().eventFilter(a0, a1)
             modifiers = a1.modifiers()
-            if (modifiers & Qt.KeyboardModifier.ControlModifier) or (modifiers & Qt.KeyboardModifier.MetaModifier) or (modifiers & Qt.KeyboardModifier.ShiftModifier):
+            key_ctrl = (modifiers & Qt.KeyboardModifier.ControlModifier)
+            key_meta = (modifiers & Qt.KeyboardModifier.MetaModifier)
+            key_shift = (modifiers & Qt.KeyboardModifier.ShiftModifier)
+            if key_ctrl or key_meta or key_shift:
                 # CTRL+click or meta+shift click: toggle overwritable state
                 if self.writable_checkbox.isChecked():
                     # Currently checked: toggle between writable and overwritable
@@ -221,19 +224,35 @@ class FieldWidgets:
 
     def get_selected_fields(self) -> list[str]:
         """Get the currently selected field names."""
-        return [field_name for field_name, widget in self._widgets.items() if widget.is_read_selected()]
+        return [
+            field_name
+            for field_name, widget in self._widgets.items()
+            if widget.is_read_selected()
+        ]
 
     def get_writable_fields(self) -> list[str]:
         """Get the currently selected writable field names (excluding overwritable fields)."""
-        return [field_name for field_name, widget in self._widgets.items() if widget.is_writable()]
+        return [
+            field_name
+            for field_name, widget in self._widgets.items()
+            if widget.is_writable()
+        ]
 
     def get_overwritable_fields(self) -> list[str]:
         """Get the currently selected overwritable field names."""
-        return [field_name for field_name, widget in self._widgets.items() if widget.is_overwritable_selected()]
+        return [
+            field_name
+            for field_name, widget in self._widgets.items()
+            if widget.is_overwritable_selected()
+        ]
 
     def get_fillable_fields(self) -> list[str]:
         """Get all fields that can be filled (writable or overwritable)."""
-        return [field_name for field_name, widget in self._widgets.items() if widget.is_writable() or widget.is_overwritable_selected()]
+        return [
+            field_name
+            for field_name, widget in self._widgets.items()
+            if widget.is_writable() or widget.is_overwritable_selected()
+        ]
 
     def has_fillable_fields(self) -> bool:
         """Return True if any fillable fields are selected."""
@@ -242,4 +261,8 @@ class FieldWidgets:
     def get_current_field_instructions(self) -> dict[str, str]:
         """Get current field instructions for the selected fields."""
         selected_fields = self.get_selected_fields()
-        return {field_name: widget.get_instruction() for field_name, widget in self._widgets.items() if widget.get_instruction() and field_name in selected_fields}
+        return {
+            field_name: widget.get_instruction()
+            for field_name, widget in self._widgets.items()
+            if widget.get_instruction() and field_name in selected_fields
+        }

@@ -58,8 +58,6 @@ class TestTransformerManBaseDialog:
             # The event should be accepted (default behavior)
             assert close_event.isAccepted()
 
-
-
     def test_multiple_dialogs_unique(self, qtbot: QtBot, parent_widget: QWidget) -> None:
         """Test that multiple dialogs can be created independently."""
         dialog1 = TransformerManBaseDialog(None, True)

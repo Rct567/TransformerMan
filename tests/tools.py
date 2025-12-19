@@ -20,12 +20,9 @@ from anki.media import media_paths_from_col_path
 from unittest.mock import Mock, patch
 
 
-
 CURRENT_PID = os.getpid()
 TEST_DATA_DIR = Path(__file__).parent / "data"
 TEST_COLLECTIONS_DIR = TEST_DATA_DIR / "collections"
-
-
 
 
 T = TypeVar("T", bound=Callable[..., Any])
@@ -40,7 +37,6 @@ def with_test_collection(name: str) -> Callable[[T], T]:
         setattr(func, "_test_collection_name", name)
         return func
     return decorator
-
 
 
 @pytest.fixture
@@ -158,7 +154,7 @@ class TestCollection(Collection):
         return order_file_dir / "{}_{}.txt".format(self.caller_full_name, lock_name)
 
     # helper function used to lock-in and assert result
-    def lock_and_assert_result(self, lock_name: str,  result_data: Any):
+    def lock_and_assert_result(self, lock_name: str, result_data: Any):
         result_file_path = self.__get_lock_file_path(lock_name, "locked_results")
 
         if isinstance(result_data, str):
@@ -201,11 +197,10 @@ class TestCollection(Collection):
                 file.write("\n".join(map(str, sorted_items)))
             print("WARNING: Order file '{}' for '{}' didn't exist yet!".format(order_file_path, self.collection_name))
 
-
     def remove(self):
 
         if self.db:
-           self.close()
+            self.close()
 
         (media_dir, media_db) = media_paths_from_col_path(self.path)
 
@@ -223,7 +218,6 @@ class TestCollection(Collection):
             Path(self.path).unlink()
         except OSError:
             pass
-
 
 
 class TestCollections:
@@ -244,7 +238,7 @@ class TestCollections:
         try:
             for file in all_temp_files:
                 name = file.name
-                name_match  = name.endswith("_temp.anki2") or name.endswith("_temp.anki2-wal") or name.endswith("_temp.sqlite")
+                name_match = name.endswith("_temp.anki2") or name.endswith("_temp.anki2-wal") or name.endswith("_temp.sqlite")
                 if not name_match:
                     raise Exception("Invalid file name '{}'".format(name))
                 try:
@@ -259,16 +253,16 @@ class TestCollections:
             if path.is_dir() and path.name.endswith("_temp.media"):
                 try:
                     if path.stat().st_mtime < cutoff:
-                        path.rmdir() # rmdir only succeeds if directory is empty
+                        path.rmdir()  # rmdir only succeeds if directory is empty
                 except OSError:
-                    pass # Not empty or cannot remove → ignore
+                    pass  # Not empty or cannot remove → ignore
 
     @staticmethod
     def get_new_test_collection(test_collection_name: str, caller_context: CallerContext) -> TestCollection:
 
         if TestCollections.last_initiated_test_collection:
             TestCollections.last_initiated_test_collection.remove()
-        else: # set up cleanup routine on exit only once
+        else:  # set up cleanup routine on exit only once
             atexit.register(TestCollections.run_cleanup_routine)
 
         collection_dir = TEST_COLLECTIONS_DIR / test_collection_name
@@ -327,6 +321,7 @@ def mock_collection_op(col: Collection) -> Generator[Mock, None, None]:
         # Create a mock operation
         mock_op = Mock()
         # When success is called, call the callback with changes
+
         def success(callback: Callable[[Any], None]) -> Mock:
             callback(changes)
             return mock_op

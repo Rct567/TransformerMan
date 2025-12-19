@@ -433,7 +433,6 @@ class TestSelectedNotes:
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
         )
 
-
         # Should be empty (note skipped with warning logged)
         assert batches == []
         assert len(batches_increased_max_chars) == 1  # Now should pass with max_chars=1000
@@ -663,4 +662,3 @@ class TestSelectedNotes:
         selected_notes_single = SelectedNotes(col, single_deck_note_ids, card_ids=single_deck_card_ids)
         deck_name = selected_notes_single.get_most_common_deck()
         assert deck_name == "Deck1"
-
