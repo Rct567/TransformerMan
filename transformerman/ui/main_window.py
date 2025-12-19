@@ -23,6 +23,7 @@ from aqt.utils import showInfo, showWarning, askUserDialog
 from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent, FieldInstructionChangedEvent
+from .stats_widget import StatsWidget
 
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes, NoteModel
@@ -146,9 +147,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         note_type_layout.addWidget(self.note_type_combo, 1)
         layout.addLayout(note_type_layout)
 
-        # Notes count label
-        self.notes_count_label = QLabel("<b>0 notes selected, 0 notes with empty fields (0 API calls)</b>")
-        layout.addWidget(self.notes_count_label)
+        # Stats section
+        keys = ["Selected", "Empty writable fields", "Api client", "Api calls"]
+        self.stats_widget = StatsWidget(self, self.is_dark_mode, keys)
+        layout.addWidget(self.stats_widget)
 
         # Fields section
         layout.addWidget(QLabel("Select fields:"))
@@ -233,56 +235,56 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         field_instructions = self.field_widgets.get_current_field_instructions()
         self.transformer.update_field_instructions(field_instructions)
 
-        self._update_notes_count_label()
+        self._update_stats_widget()
 
         if update_preview_table:
             self._update_preview_table()
 
         self.update_buttons_state()
 
-    def _update_notes_count_label(self) -> None:
-        """Update the notes count label with bold text and empty field count."""
+    def _update_stats_widget(self) -> None:
+        """Update the stats widget."""
         if not self.current_note_model:
-            # No note type selected yet
-            self.notes_count_label.setText("<b>0 notes selected, 0 notes with empty fields (0 API calls)</b>")
-            return
-
-        # Get filtered note IDs for current note type
-        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
-        total_count = len(filtered_note_ids)
-
-        # Get selected fields
-        selected_fields = self.field_widgets.get_selected_fields()
-        writable_fields = self.field_widgets.get_writable_fields()
-
-        # Calculate notes with empty fields among writable fields
-        if writable_fields:
-            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(writable_fields))
+            total_count = 0
+            num_notes_empty_field = 0
+            num_api_calls_needed = 0
         else:
-            num_notes_empty_field = 0  # No writable fields selected
+            filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
+            total_count = len(filtered_note_ids)
+            writable_fields = self.field_widgets.get_writable_fields()
+            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(writable_fields)) if writable_fields else 0
 
-        # Calculate API calls needed using transformer method
-        overwritable_fields = self.field_widgets.get_overwritable_fields()
-        num_api_calls_needed = self.transformer.get_num_api_calls_needed(self.current_note_model.name, selected_fields, writable_fields, overwritable_fields, filtered_note_ids)
-        api_text = "API call" if num_api_calls_needed == 1 else "API calls"
-
-        # Note count description
-        empty_text = "note" if num_notes_empty_field == 1 else "notes"
-        field_text = "field" if num_notes_empty_field == 1 else "fields"
-        appendix_text = f"{num_notes_empty_field} {empty_text} with empty writable {field_text}"
+            selected_fields = self.field_widgets.get_selected_fields()
+            overwritable_fields = self.field_widgets.get_overwritable_fields()
+            num_api_calls_needed = self.transformer.get_num_api_calls_needed(
+                self.current_note_model.name, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
+            )
 
         note_text = "note" if total_count == 1 else "notes"
+        empty_text = "note" if num_notes_empty_field == 1 else "notes"
 
-        # Update label with bold HTML
-        label_text = f"<b>{total_count} {note_text} selected, {appendix_text} ({num_api_calls_needed} {self.lm_client.id} {api_text}).</b>"
-        self.notes_count_label.setText(label_text)
+        # Format client name
+        client_name = self.lm_client.id
+        if client_name == "openai":
+            client_name = "OpenAI"
+        elif client_name == "claude":
+            client_name = "Claude"
+        else:
+            client_name = client_name.capitalize()
+
+        self.stats_widget.update_stats({
+            "Selected": f"{total_count} {note_text}",
+            "Empty writable fields": f"{num_notes_empty_field} {empty_text}",
+            "Api client": client_name,
+            "Api calls": str(num_api_calls_needed)
+        })
 
     def _load_note_types(self) -> None:
         """Load note types (from selected notes)."""
         self.note_type_counts = self.selected_notes.get_note_type_counts()
 
         if not self.note_type_counts:
-            self.notes_count_label.setText("<b>No valid notes selected</b>")
+            self._update_stats_widget()
             return
 
         # Block signals during population to avoid triggering _on_note_type_changed prematurely

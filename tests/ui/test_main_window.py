@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 from aqt.qt import QWidget, QLineEdit, QComboBox, QPushButton, Qt
 
 from transformerman.ui.main_window import TransformerManMainWindow, FieldWidget
+from transformerman.ui.stats_widget import StatsWidget
 from transformerman.lib.field_updates import FieldUpdates
 from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
 
@@ -101,15 +102,16 @@ class TestTransformerManMainWindow:
         assert hasattr(window, 'note_type_combo')
         assert isinstance(window.note_type_combo, QComboBox)
 
-        assert hasattr(window, 'notes_count_label')
-        # Label should have bold HTML text with empty field count
-        label_text = window.notes_count_label.text()
-        assert label_text != ""
-        assert label_text.startswith("<b>")
-        assert label_text.endswith("</b>")
-        assert "notes selected" in label_text
-        # May or may not have "notes with empty fields" depending on empty field count
-        # Accept either case
+        assert hasattr(window, "stats_widget")
+        assert isinstance(window.stats_widget, StatsWidget)
+
+        # Verify stat labels exist in the widget
+        labels = window.stats_widget.stat_labels
+        assert "Selected" in labels
+        assert "Empty writable fields" in labels
+        assert "Api client" in labels
+        assert "Api calls" in labels
+
 
         assert hasattr(window, 'preview_button')
         assert isinstance(window.preview_button, QPushButton)
