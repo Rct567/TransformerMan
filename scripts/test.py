@@ -214,9 +214,9 @@ def run_ruff(options: Sequence[str]) -> None:
     ensure_packages_installed(["ruff"])
 
     if "staged" in options:
-        check_staged_files(["ruff", "check"], "ruff")
+        check_staged_files(["ruff", "check", "--fix"], "ruff")
     else:
-        run_and_print_on_failure(["ruff", "check"] + things_to_type_check(), "Ruff")
+        run_and_print_on_failure(["ruff", "check", "--fix"] + things_to_type_check(), "Ruff")
 
     elapsed_time = time.perf_counter() - start_time
     print(f"{GREEN} Ruff was successful! ({elapsed_time:.0f} seconds){RESET}")
