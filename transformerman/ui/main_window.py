@@ -17,6 +17,7 @@ from aqt.qt import (
     QPushButton,
     QScrollArea,
     QWidget,
+    QApplication,
 )
 from aqt.utils import showInfo, showWarning, askUserDialog
 
@@ -155,8 +156,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         layout.addWidget(QLabel("Select fields:"))
 
         # Scrollable area for fields
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
+        self.scroll_area_of_fields = QScrollArea()
+        self.scroll_area_of_fields.setWidgetResizable(True)
 
         self.fields_widget = QWidget()
         fields_container_layout = QVBoxLayout()
@@ -169,9 +170,9 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         fields_container_layout.addLayout(self.fields_layout)
         fields_container_layout.addStretch()
 
-        scroll_area.setWidget(self.fields_widget)
+        self.scroll_area_of_fields.setWidget(self.fields_widget)
 
-        layout.addWidget(scroll_area)
+        layout.addWidget(self.scroll_area_of_fields)
 
         # Preview Table
         layout.addWidget(QLabel("Selected notes:"))
@@ -333,6 +334,18 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Set column stretch so that instruction column expands
         self.fields_layout.setColumnStretch(3, 1)
+
+        # Adjust scroll area height based on content
+        QApplication.processEvents()
+        content_height = self.fields_widget.sizeHint().height()
+        min_height = min(content_height + 10, 250)
+        max_height = (self.height() // 2) - 60
+
+        if min_height > max_height:
+            min_height = max_height
+
+        self.scroll_area_of_fields.setMinimumHeight(min_height)
+        self.scroll_area_of_fields.setMaximumHeight(max_height)
 
         # Update state (clears preview results, updates transformer, notes count, preview table, and buttons)
         self._update_state(clear_preview_results=True)
