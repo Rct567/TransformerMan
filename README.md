@@ -1,6 +1,6 @@
 # TransformerMan
 
-An Anki add-on that uses language models to intelligently fill empty fields in your notes based on context, examples, and custom instructions.
+An Anki add-on that uses language models to intelligently __fill empty fields__ in your notes based on context, examples, and custom instructions.
 
 ![TransformerMan](tranformerman_showcase_1.gif)
 
@@ -10,7 +10,6 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
 - 🤖 **AI-Powered Field Completion**: Fill empty fields in bulk using language models
 - 📝 **Context-Aware**: Uses example notes from your collection to guide the LM
 - 📋 **Custom Instructions**: Add field-specific instructions to guide the LM
-- ⚙️ **Configurable**: Customize API settings, model selection, and prompt size
 - 🔍 **Preview Before Applying**: See what changes will be made before applying them
 - ✅ **Multiple LM Support**: Gemini, DeepSeek, Claude, OpenAI, and a Dummy client for testing
 
@@ -27,6 +26,7 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
 
 1. **Configure Settings** (first time only):
    - Go to **Tools → TransformerMan Settings**
+   - Select a LM Client (e.g., Gemini, DeepSeek)
    - Enter your API key (if needed)
    - Select your preferred model
 
@@ -34,7 +34,7 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
    - Open the card browser
    - Select one or more notes
    - Right-click and select **TransformerMan**
-   - Select which fields to include via the "__Read__" checkbox 
+   - Select which fields to include via the "__Read__" checkbox
    - Click the "__Write__" checkbox to allow writing to the field
    - CTRL or shift click on the "__Write__" checkbox to allow overwriting existing content
    - (Optional) Add custom instructions for specific fields
@@ -42,7 +42,6 @@ An Anki add-on that uses language models to intelligently fill empty fields in y
    - Review the changes and click **Apply** to save changes
 
 ## Free Options
-
 
 - **Gemini**: Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 - **LM Studio**: Download [LM Studio](https://lmstudio.ai/), run local LLMs like gpt-oss, Qwen3, DeepSeek on your computer.
@@ -63,7 +62,6 @@ Access via **Tools → TransformerMan Settings**:
 - **Max Examples**: Maximum number of example notes to use for generated prompt
 - **Custom Settings**: Client-specific settings (e.g., Organization ID for OpenAI)
 
-
 ## How It Works
 
 1. **Note Selection**: Select notes in the Anki browser and open TransformerMan from the menu or right-click context menu
@@ -74,7 +72,7 @@ Access via **Tools → TransformerMan Settings**:
    - **Overwritable**: Hold Ctrl+click on writable fields to allow overwriting existing content
    - **Instructions**: Add field-specific instructions to guide the LM
 
-3. **Example Selection**: The plugin selects example notes from your collection (up to your configured "Max Examples" setting, default: 3) that:
+3. **Example Selection**: The plugin selects example notes from your collection (up to your configured "Max Examples" setting) that:
    - Have the same note type
    - Have the most filled fields (in the selected field set)
    - Have the highest word count in those fields
@@ -90,7 +88,7 @@ Access via **Tools → TransformerMan Settings**:
 
 7. **Preview Display**: Shows what changes will be made with green highlighting in a table format
 
-8. **Note Updates**: Updates only the writable fields after user confirmation
+8. **Note Updates**: Updates notes after user confirmation
 
 ## Contributing
 
@@ -103,14 +101,3 @@ GNU GPL-3.0 - See LICENSE file for details
 ## Support
 
 For issues, questions, or contributions, please visit the project repository.
-
-## Roadmap
-
-- [x] Preview before applying changes
-- [x] Settings dialog improvements (state management, first-open dialog)
-- [x] Shift-click option for overwrite field checkbox
-- [x] Configurable max examples setting
-- [x] Undo support integration
-- [x] Support for custom OpenAi endpoint
-- [ ] Cost and token usage tracking and optimization
-- [ ] Support for more LM providers
