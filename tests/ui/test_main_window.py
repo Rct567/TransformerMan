@@ -106,11 +106,11 @@ class TestTransformerManMainWindow:
         assert isinstance(window.stats_widget, StatsWidget)
 
         # Verify stat labels exist in the widget
-        labels = window.stats_widget.stat_labels
-        assert "Selected" in labels
-        assert "Empty writable fields" in labels
-        assert "Api client" in labels
-        assert "Api calls" in labels
+        labels = window.stats_widget.value_labels
+        assert "selected" in labels
+        assert "empty_fields" in labels
+        assert "api_client" in labels
+        assert "api_calls" in labels
 
         assert hasattr(window, "preview_button")
         assert isinstance(window.preview_button, QPushButton)

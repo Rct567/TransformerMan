@@ -24,7 +24,7 @@ from aqt.utils import showInfo, showWarning, askUserDialog
 from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent, FieldInstructionChangedEvent
-from .stats_widget import StatsWidget
+from .stats_widget import StatsWidget, StatKeyValue
 
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes, NoteModel
@@ -148,8 +148,13 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         layout.addLayout(note_type_layout)
 
         # Stats section
-        keys = ["Selected", "Empty writable fields", "Api client", "Api calls"]
-        self.stats_widget = StatsWidget(self, self.is_dark_mode, keys)
+        stat_config = {
+            "selected": StatKeyValue("Selected"),
+            "empty_fields": StatKeyValue("Empty writable fields"),
+            "api_client": StatKeyValue("Api client"),
+            "api_calls": StatKeyValue("Api calls"),
+        }
+        self.stats_widget = StatsWidget(self, self.is_dark_mode, stat_config)
         layout.addWidget(self.stats_widget)
 
         # Fields section
@@ -266,10 +271,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         empty_text = "note" if num_notes_empty_field == 1 else "notes"
 
         self.stats_widget.update_stats({
-            "Selected": f"{total_count} {note_text}",
-            "Empty writable fields": f"{num_notes_empty_field} {empty_text}",
-            "Api client": self.lm_client.name,
-            "Api calls": str(num_api_calls_needed)
+            "selected": StatKeyValue("Selected", f"{total_count} {note_text}"),
+            "empty_fields": StatKeyValue("Empty writable fields", f"{num_notes_empty_field} {empty_text}"),
+            "api_client": StatKeyValue("Api client", self.lm_client.name),
+            "api_calls": StatKeyValue("Api calls", str(num_api_calls_needed))
         })
 
     def _load_note_types(self) -> None:
