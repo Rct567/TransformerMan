@@ -46,6 +46,8 @@ DARK_MODE_HIGHLIGHT_COLOR = (50, 150, 50)  # Dark green
 LIGHT_MODE_HIGHLIGHT_COLOR = (200, 255, 200)  # Light green
 DARK_MODE_DIM_HIGHLIGHT_COLOR = (65, 100, 65)  # Dimmer dark green
 LIGHT_MODE_DIM_HIGHLIGHT_COLOR = (200, 240, 200)  # Dimmer light green
+DARK_MODE_DIM_TEXT_COLOR = (150, 180, 150)  # Dimmed text for dark mode
+LIGHT_MODE_DIM_TEXT_COLOR = (100, 140, 100)  # Dimmed text for light mode
 
 
 class TableNoteData(TypedDict):
@@ -60,6 +62,7 @@ class PreviewTable(QTableWidget):
     selected_notes: SelectedNotes | None
     highlight_color: QColor
     dim_highlight_color: QColor
+    dim_text_color: QColor
     is_highlighted: bool
 
     def __init__(
@@ -92,10 +95,12 @@ class PreviewTable(QTableWidget):
             # Dark mode - use darker greens
             self.highlight_color = QColor(*DARK_MODE_HIGHLIGHT_COLOR)
             self.dim_highlight_color = QColor(*DARK_MODE_DIM_HIGHLIGHT_COLOR)
+            self.dim_text_color = QColor(*DARK_MODE_DIM_TEXT_COLOR)
         else:
             # Light mode - use light greens
             self.highlight_color = QColor(*LIGHT_MODE_HIGHLIGHT_COLOR)
             self.dim_highlight_color = QColor(*LIGHT_MODE_DIM_HIGHLIGHT_COLOR)
+            self.dim_text_color = QColor(*LIGHT_MODE_DIM_TEXT_COLOR)
 
         # State
         self.selected_notes = None
@@ -161,6 +166,7 @@ class PreviewTable(QTableWidget):
         if is_highlighted and self.is_highlighted:
             if is_dim_highlight:
                 item.setBackground(self.dim_highlight_color)
+                item.setForeground(self.dim_text_color)
             else:
                 item.setBackground(self.highlight_color)
 
