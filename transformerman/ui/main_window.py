@@ -31,6 +31,8 @@ from ..lib.selected_notes import SelectedNotes, NoteModel
 
 import logging
 
+from aqt.main import AnkiQt
+
 if TYPE_CHECKING:
     from pathlib import Path
     from anki.collection import Collection
@@ -511,6 +513,12 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                     result_info_text += f"\n{num_batches_processed} batches processed."
 
             showInfo(result_info_text, parent=self)
+
+        # Create backup before preview (prevent anki backing up mid-operation)
+        if self.parent() is not None and hasattr(self.parent(), "mw"):
+            mw = getattr(self.parent(), "mw", None)
+            assert isinstance(mw, AnkiQt)
+            mw.create_backup_now()
 
         if not self.current_note_model:
             return
