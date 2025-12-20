@@ -44,6 +44,8 @@ BATCH_SIZE = 10
 # Color constants for highlighting
 DARK_MODE_HIGHLIGHT_COLOR = (50, 150, 50)  # Dark green
 LIGHT_MODE_HIGHLIGHT_COLOR = (200, 255, 200)  # Light green
+DARK_MODE_DIM_HIGHLIGHT_COLOR = (65, 100, 65)  # Dimmer dark green
+LIGHT_MODE_DIM_HIGHLIGHT_COLOR = (200, 240, 200)  # Dimmer light green
 
 
 class TableNoteData(TypedDict):
@@ -57,6 +59,7 @@ class PreviewTable(QTableWidget):
 
     selected_notes: SelectedNotes | None
     highlight_color: QColor
+    dim_highlight_color: QColor
     is_highlighted: bool
 
     def __init__(
@@ -84,13 +87,15 @@ class PreviewTable(QTableWidget):
 
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
-        # Set highlight color based on dark mode (always available)
+        # Set highlight colors based on dark mode (always available)
         if self.is_dark_mode:
-            # Dark mode - use a darker green
+            # Dark mode - use darker greens
             self.highlight_color = QColor(*DARK_MODE_HIGHLIGHT_COLOR)
+            self.dim_highlight_color = QColor(*DARK_MODE_DIM_HIGHLIGHT_COLOR)
         else:
-            # Light mode - use a light green
+            # Light mode - use light greens
             self.highlight_color = QColor(*LIGHT_MODE_HIGHLIGHT_COLOR)
+            self.dim_highlight_color = QColor(*LIGHT_MODE_DIM_HIGHLIGHT_COLOR)
 
         # State
         self.selected_notes = None
@@ -130,13 +135,16 @@ class PreviewTable(QTableWidget):
         # Load notes in background
         self._load_notes_in_background(list(note_ids), selected_fields, field_updates)
 
-    def _create_table_item(self, full_content: str, is_highlighted: bool) -> QTableWidgetItem:
+    def _create_table_item(
+        self, full_content: str, is_highlighted: bool, is_dim_highlight: bool = False
+    ) -> QTableWidgetItem:
         """
         Create a table widget item with truncated content and appropriate styling.
 
         Args:
             full_content: The complete content string.
             is_highlighted: Whether to apply highlight styling.
+            is_dim_highlight: Whether to use dim highlight (when update matches original).
 
         Returns:
             A QTableWidgetItem with truncated content, tooltip, and optional highlighting.
@@ -151,7 +159,10 @@ class PreviewTable(QTableWidget):
         item.setToolTip(full_content)
 
         if is_highlighted and self.is_highlighted:
-            item.setBackground(self.highlight_color)
+            if is_dim_highlight:
+                item.setBackground(self.dim_highlight_color)
+            else:
+                item.setBackground(self.highlight_color)
 
         return item
 
@@ -218,15 +229,18 @@ class PreviewTable(QTableWidget):
                             # Show preview value with green background
                             full_content = note_updates[field_name]
                             is_highlighted = True
+                            is_dim_highlight = full_content == note[field_name]
                         else:
                             # Show original value
                             full_content = note[field_name]
                             is_highlighted = False
+                            is_dim_highlight = False
 
                         # Create table item with truncated content if needed
                         item = self._create_table_item(
                             full_content=full_content,
                             is_highlighted=is_highlighted,
+                            is_dim_highlight=is_dim_highlight,
                         )
                         self.setItem(row_index, col, item)
                     except (KeyError, AttributeError):
