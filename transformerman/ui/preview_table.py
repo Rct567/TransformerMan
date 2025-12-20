@@ -16,10 +16,14 @@ from aqt.qt import (
     QColor,
     QWidget,
     QAbstractItemView,
+    QMenu,
+    QAction,
+    QApplication,
+    QContextMenuEvent,
 )
 from aqt.operations import QueryOp
 
-from ..lib.utilities import batched
+from ..lib.utilities import batched, override
 from ..lib.field_updates import FieldUpdates
 
 import logging
@@ -245,3 +249,63 @@ class PreviewTable(QTableWidget):
             op=lambda col: load_notes_batch(col),
             success=on_batch_loaded,
         ).failure(on_failure).run_in_background()
+
+    @override
+    def contextMenuEvent(self, a0: QContextMenuEvent | None) -> None:
+        """Handle right-click context menu event."""
+        if a0 is None:
+            return
+
+        selected_items = self.selectedItems()
+        if not selected_items:
+            return
+
+        menu = QMenu(self)
+        copy_action = QAction("Copy", self)
+        copy_action.triggered.connect(lambda: self._copy_selected_cells())
+        menu.addAction(copy_action)
+
+        menu.exec(a0.globalPos())
+
+    def _copy_selected_cells(self) -> None:
+        """Copy the text content of selected cells to clipboard."""
+        selected_items = self.selectedItems()
+        if not selected_items:
+            return
+
+        # Organize selected items by row and column to preserve table structure
+        selected_cells: dict[tuple[int, int], str] = {}
+        for item in selected_items:
+            row = item.row()
+            col = item.column()
+            # Try to get full content from tooltip first
+            tooltip = item.toolTip()
+            if tooltip:
+                selected_cells[row, col] = tooltip
+            else:
+                # Fall back to display text if no tooltip
+                display_text = item.text()
+                if display_text:
+                    selected_cells[row, col] = display_text
+
+        if not selected_cells:
+            return
+
+        # Get the range of rows and columns
+        rows = sorted(set(row for row, _ in selected_cells))
+        cols = sorted(set(col for _, col in selected_cells))
+
+        # Build clipboard text preserving table structure
+        # Use tab-separated columns and newline-separated rows
+        clipboard_lines: list[str] = []
+        for row in rows:
+            row_texts: list[str] = []
+            for col in cols:
+                cell_text = selected_cells.get((row, col), "")
+                row_texts.append(cell_text)
+            clipboard_lines.append("\t".join(row_texts))
+
+        clipboard_text = "\n".join(clipboard_lines)
+        clipboard = QApplication.clipboard()
+        if clipboard:
+            clipboard.setText(clipboard_text)
