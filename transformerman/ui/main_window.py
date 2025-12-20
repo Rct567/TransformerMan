@@ -151,6 +151,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         stat_config = {
             "selected": StatKeyValue("Selected"),
             "empty_fields": StatKeyValue("Empty writable fields"),
+            "overwrite_stats": StatKeyValue("Overwritable fields"),
             "api_client": StatKeyValue("Api client"),
             "api_calls": StatKeyValue("Api calls"),
         }
@@ -255,6 +256,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             total_count = 0
             num_notes_empty_field = 0
             num_api_calls_needed = 0
+            overwritable_fields = []
         else:
             filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
             total_count = len(filtered_note_ids)
@@ -273,6 +275,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.stats_widget.update_stats({
             "selected": StatKeyValue("Selected", f"{total_count} {note_text}"),
             "empty_fields": StatKeyValue("Empty writable fields", f"{num_notes_empty_field} {empty_text}"),
+            "overwrite_stats": StatKeyValue("Overwritable fields", f"{total_count} {note_text}", len(overwritable_fields) > 0),
             "api_client": StatKeyValue("Api client", self.lm_client.name),
             "api_calls": StatKeyValue("Api calls", str(num_api_calls_needed))
         })
