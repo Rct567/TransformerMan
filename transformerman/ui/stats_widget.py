@@ -5,15 +5,22 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
+from typing import Callable
+
 from aqt.qt import (
     QWidget,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
     Qt,
+    QMouseEvent,
+    QEnterEvent,
+    QEvent,
 )
 
 from dataclasses import dataclass
+
+from ..lib.utilities import override
 
 
 @dataclass
@@ -22,6 +29,106 @@ class StatKeyValue:
     key: str
     value: str = "-"
     visible: bool = True
+    click_callback: Callable[[], None] | None = None
+
+
+class StatContainer(QWidget):
+    """A container widget for a single stat badge with optional click support."""
+
+    def __init__(self, parent: QWidget | None, is_dark_mode: bool, stat: StatKeyValue) -> None:
+        """Initialize the stat container."""
+        super().__init__(parent)
+        self.is_dark_mode = is_dark_mode
+        self.stat = stat
+        self._is_clickable = stat.click_callback is not None
+        self._hover_style = ""
+        self._normal_style = ""
+
+        self.setFixedHeight(30)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+        # Ensure the widget shows its background from stylesheet
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAutoFillBackground(False)
+
+        # Apply style immediately (before adding widgets)
+        self._update_style()
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 0, 10, 0)
+        layout.setSpacing(8)
+
+        self.key_label = QLabel(f"<span style='color: #888888;'>{stat.key}:</span>")
+        self.value_label = QLabel(f"<b>{stat.value}</b>")
+
+        self.key_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.value_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+        # Make labels transparent so container background shows through
+        self.key_label.setStyleSheet("background-color: transparent;")
+        self.value_label.setStyleSheet("background-color: transparent;")
+
+        layout.addWidget(self.key_label)
+        layout.addWidget(self.value_label)
+
+        self.setVisible(stat.visible)
+
+    def _update_style(self) -> None:
+        """Update the style based on clickability and dark mode."""
+        bg_color = "#383838" if self.is_dark_mode else "#f0f0f0"
+        hover_bg = "#484848" if self.is_dark_mode else "#e0e0e0"
+
+        if self._is_clickable:
+            cursor = "pointer"
+            style = (
+                f"background-color: {bg_color}; "
+                f"border-radius: 6px; "
+                f"cursor: {cursor};"
+            )
+            hover_style = (
+                f"background-color: {hover_bg}; "
+                f"border-radius: 6px; "
+                f"cursor: {cursor};"
+            )
+            self.setStyleSheet(style)
+            self._hover_style = hover_style
+            self._normal_style = style
+        else:
+            self.setStyleSheet(f"background-color: {bg_color}; border-radius: 6px;")
+
+    @override
+    def enterEvent(self, event: QEnterEvent | None) -> None:
+        """Handle mouse enter event for hover effect."""
+        if self._is_clickable:
+            self.setStyleSheet(self._hover_style)
+        super().enterEvent(event)
+
+    @override
+    def leaveEvent(self, a0: QEvent | None) -> None:
+        """Handle mouse leave event to reset hover effect."""
+        if self._is_clickable:
+            self.setStyleSheet(self._normal_style)
+        super().leaveEvent(a0)
+
+    @override
+    def mousePressEvent(self, a0: QMouseEvent | None) -> None:
+        """Handle mouse press event."""
+        if a0 and self._is_clickable and a0.button() == Qt.MouseButton.LeftButton:
+            if self.stat.click_callback:
+                self.stat.click_callback()
+        super().mousePressEvent(a0)
+
+    def update_stat(self, stat: StatKeyValue) -> None:
+        """Update the stat display and properties."""
+        self.stat = stat
+        self.key_label.setText(f"<span style='color: #888888;'>{stat.key}:</span>")
+        self.value_label.setText(f"<b>{stat.value}</b>")
+        self.setVisible(stat.visible)
+
+        was_clickable = self._is_clickable
+        self._is_clickable = stat.click_callback is not None
+        if was_clickable != self._is_clickable:
+            self._update_style()
 
 
 class StatsWidget(QWidget):
@@ -31,9 +138,7 @@ class StatsWidget(QWidget):
         """Initialize the stats widget."""
         super().__init__(parent)
         self.is_dark_mode = is_dark_mode
-        self.value_labels: dict[str, QLabel] = {}
-        self.key_labels: dict[str, QLabel] = {}
-        self.containers: dict[str, QWidget] = {}
+        self.stat_containers: dict[str, StatContainer] = {}
         self._setup_ui(init_stats)
 
     def _setup_ui(self, init_stats: dict[str, StatKeyValue]) -> None:
@@ -53,44 +158,17 @@ class StatsWidget(QWidget):
 
     def set_stat(self, stat_id: str, stat: StatKeyValue) -> None:
         """Set up a single stat badge."""
-        if stat_id in self.key_labels:
+        if stat_id in self.stat_containers:
             raise KeyError(f"Stat ID '{stat_id}' already exists in StatsWidget.")
-        container = QWidget()
-        container.setFixedHeight(30)
-        bg_color = "#383838" if self.is_dark_mode else "#f0f0f0"
-        container.setStyleSheet(f"background-color: {bg_color}; border-radius: 6px;")
-
-        c_layout = QHBoxLayout(container)
-        c_layout.setContentsMargins(10, 0, 10, 0)
-        c_layout.setSpacing(8)
-
-        key_label = QLabel(f"<span style='color: #888888;'>{stat.key}:</span>")
-        val_label = QLabel(f"<b>{stat.value}</b>")
-
-        key_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        val_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-        c_layout.addWidget(key_label)
-        c_layout.addWidget(val_label)
-        container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-        self.key_labels[stat_id] = key_label
-        self.value_labels[stat_id] = val_label
-        self.containers[stat_id] = container
-        container.setVisible(stat.visible)
+        container = StatContainer(self, self.is_dark_mode, stat)
+        self.stat_containers[stat_id] = container
         self.main_layout.addWidget(container)
 
     def update_stat(self, stat_id: str, stat: StatKeyValue) -> None:
         """Update a single stat badge."""
-        if stat_id not in self.key_labels or stat_id not in self.value_labels:
+        if stat_id not in self.stat_containers:
             raise KeyError(f"Stat ID '{stat_id}' not found in StatsWidget.")
-        # Update the key label if display key changed
-        self.key_labels[stat_id].setText(f"<span style='color: #888888;'>{stat.key}:</span>")
-        # Update the value label
-        self.value_labels[stat_id].setText(f"<b>{stat.value}</b>")
-        # Update visibility
-        if stat_id in self.containers:
-            self.containers[stat_id].setVisible(stat.visible)
+        self.stat_containers[stat_id].update_stat(stat)
 
     def update_stats(self, stats: dict[str, StatKeyValue]) -> None:
         """Update the values displayed in the badges."""
