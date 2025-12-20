@@ -15,6 +15,7 @@ from aqt.qt import (
     QHeaderView,
     QColor,
     QWidget,
+    QAbstractItemView,
 )
 from aqt.operations import QueryOp
 
@@ -76,6 +77,8 @@ class PreviewTable(QTableWidget):
         if vertical_header:
             vertical_header.setVisible(False)
         self.setMinimumHeight(150)
+
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
         # Set highlight color based on dark mode (always available)
         if self.is_dark_mode:
