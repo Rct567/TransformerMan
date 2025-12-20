@@ -120,7 +120,7 @@ def make_api_request(  # noqa: PLR0913
 def _handle_sse_stream(
     response: requests.Response,
     progress_callback: Optional[Callable[[LmProgressData], None]],
-    stream_chunk_parser: Optional[Callable[[dict[str, Any]], Optional[str]]] = None
+    stream_chunk_parser: Optional[Callable[[dict[str, Any]], Optional[str]]] = None,
 ) -> bytes:
     """
     Handle Server-Sent Events (SSE) streaming for LLM APIs in real-time.
@@ -133,6 +133,15 @@ def _handle_sse_stream(
 
     buffer = ""
     downloaded_bytes = 0
+
+    # Force UTF-8 encoding if not specified in headers, as most LM APIs return UTF-8.
+    # Requests defaults to ISO-8859-1 for text/* types if charset is missing.
+    if response.encoding is None:
+        response.encoding = "utf-8"
+    elif response.encoding == "ISO-8859-1":
+        content_type = response.headers.get("Content-Type", "").lower()
+        if "charset" not in content_type:
+            response.encoding = "utf-8"
 
     for chunk in response.iter_content(chunk_size=None, decode_unicode=True):
         if not chunk:
@@ -215,12 +224,11 @@ def _handle_sse_stream(
             pass
 
     # Return a simple JSON containing the full text to maintain compatibility with make_api_request_json
-    return json.dumps({"content": full_text}).encode("utf-8")
+    return json.dumps({"content": full_text}, ensure_ascii=False).encode("utf-8")
 
 
 def _handle_byte_stream(
-    response: requests.Response,
-    progress_callback: Optional[Callable[[LmProgressData], None]], chunk_size: int
+    response: requests.Response, progress_callback: Optional[Callable[[LmProgressData], None]], chunk_size: int
 ) -> bytes:
     """
     Handle regular byte streaming (for non-LLM requests or backward compatibility).

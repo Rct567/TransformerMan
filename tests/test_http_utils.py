@@ -103,3 +103,66 @@ class TestHttpUtils:
 
             with pytest.raises(requests.exceptions.Timeout):
                 make_api_request("https://api.example.com/timeout")
+
+    def test_make_api_request_sse_utf8_encoding(self) -> None:
+        """Test that SSE streams default to UTF-8 if no charset is specified."""
+        # "El queso holandés" in UTF-8
+        utf8_chunk = b'data: {"content": "El queso holand\xc3\xa9s"}\n\n'
+
+        with patch("requests.request") as mock_request:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            # Default encoding for text/event-stream without charset is ISO-8859-1 in requests
+            mock_response.encoding = "ISO-8859-1"
+            mock_response.headers = {"Content-Type": "text/event-stream"}
+
+            def mock_iter_content(chunk_size: int | None = None, decode_unicode: bool = False) -> Any:
+                if decode_unicode:
+                    yield utf8_chunk.decode(mock_response.encoding)
+                else:
+                    yield utf8_chunk
+
+            mock_response.iter_content.side_effect = mock_iter_content
+            mock_request.return_value = mock_response
+
+            result = make_api_request_json(
+                "https://api.example.com/sse",
+                json_data={"stream": True},
+                stream_chunk_parser=lambda d: d.get("content"),
+            )
+
+            # Should have forced to utf-8
+            assert result["content"] == "El queso holandés"
+            assert mock_response.encoding == "utf-8"
+
+    def test_make_api_request_sse_explicit_charset(self) -> None:
+        """Test that explicit charsets in Content-Type are respected."""
+        # "El queso holandés" in ISO-8859-1 is b'El queso holand\xe9s'
+        # In a JSON context: {"content": "El queso holand\xe9s"}
+        iso_chunk = b'data: {"content": "El queso holand\xe9s"}\n\n'
+
+        with patch("requests.request") as mock_request:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.encoding = "ISO-8859-1"
+            # Explicit charset in header
+            mock_response.headers = {"Content-Type": "text/event-stream; charset=ISO-8859-1"}
+
+            def mock_iter_content(chunk_size: int | None = None, decode_unicode: bool = False) -> Any:
+                if decode_unicode:
+                    yield iso_chunk.decode(mock_response.encoding)
+                else:
+                    yield iso_chunk
+
+            mock_response.iter_content.side_effect = mock_iter_content
+            mock_request.return_value = mock_response
+
+            result = make_api_request_json(
+                "https://api.example.com/sse",
+                json_data={"stream": True},
+                stream_chunk_parser=lambda d: d.get("content"),
+            )
+
+            # Should have respected ISO-8859-1
+            assert result["content"] == "El queso holandés"
+            assert mock_response.encoding == "ISO-8859-1"
