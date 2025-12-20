@@ -33,8 +33,9 @@ class TransformResults(NamedTuple):
     """Type definition for transformation results."""
     num_notes_updated: int
     num_notes_failed: int
-    num_batches_processed: int
     num_batches_requested: int
+    num_batches_processed: int
+    num_batches_success: int
     error: str | None
 
 
@@ -256,8 +257,10 @@ class NoteTransformer:
             - results: Transformation results dictionary
             - field_updates: FieldUpdates instance mapping note_id -> dict of field_name -> new_value
         """
-        total_updated = 0
-        total_failed = 0
+        total_notes_updated = 0
+        total_notes_failed = 0
+        num_batches_processed = 0
+        num_batches_success = 0
         batch_idx = 0
         all_field_updates = FieldUpdates(selected_notes=self.selected_notes)
 
@@ -287,14 +290,16 @@ class NoteTransformer:
                 batch_selected_notes, log_request, log_response, progress_callback=batch_progress_callback
             )
 
+            num_batches_processed += 1
+
             # Check for error in batch
             if batch_error is not None:
                 error = batch_error
                 # Stop processing on first error
                 break
 
-            total_updated += num_notes_updated
-            total_failed += num_notes_failed
+            total_notes_updated += num_notes_updated
+            total_notes_failed += num_notes_failed
             all_field_updates.update(batch_field_updates)
 
             if len(batch_field_updates) < len(batch_selected_notes):
@@ -306,15 +311,20 @@ class NoteTransformer:
                     )
                     break
 
+            num_batches_success += 1
+
         # Report completion
         if progress_callback:
             progress_callback(self.num_batches, self.num_batches, None)
 
+        assert error is None or num_batches_success < self.num_batches
+
         results: TransformResults = TransformResults(
-            num_notes_updated=total_updated,
-            num_notes_failed=total_failed,
+            num_notes_updated=total_notes_updated,
+            num_notes_failed=total_notes_failed,
             num_batches_requested=self.num_batches,
-            num_batches_processed=batch_idx + 1 if not (should_cancel and should_cancel()) else batch_idx,
+            num_batches_processed=num_batches_processed,
+            num_batches_success=num_batches_success,
             error=error,
         )
 
@@ -332,6 +342,8 @@ class TransformNotesWithProgress:
     - API call estimation
     - Field update application
     """
+
+    _cache: dict[CacheKey, tuple[TransformResults, FieldUpdates]]
 
     def __init__(
         self,
@@ -364,12 +376,7 @@ class TransformNotesWithProgress:
         self.max_prompt_size = self.addon_config.get_max_prompt_size()
 
         # Cache for transformation results
-        # Key: CacheKey (note_type, selected fields, writable fields, note_ids, max_prompt_size)
-        # Value: (results, field_updates)
-        self._cache: dict[
-            CacheKey,
-            tuple[TransformResults, FieldUpdates],
-        ] = {}
+        self._cache = {}
 
     def _get_cache_key(
         self,
@@ -628,7 +635,10 @@ class TransformNotesWithProgress:
 
             results, field_updates = result_tuple
             # Cache the results
-            self._cache[cache_key] = (results, field_updates)
+            if results.error is None and (results.num_batches_success > 0 or len(field_updates) > 0):
+                self._cache[cache_key] = (results, field_updates)
+
+            # Call the success callback
             on_success(results, field_updates)
 
         def on_failure(exc: Exception) -> None:
