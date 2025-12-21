@@ -25,6 +25,7 @@ from .base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent, FieldInstructionChangedEvent
 from .stats_widget import StatsWidget, StatKeyValue
+from .settings_dialog import SettingsDialog
 
 from ..lib.transform_operations import TransformNotesWithProgress
 from ..lib.selected_notes import SelectedNotes, NoteModel
@@ -155,6 +156,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             "empty_fields": StatKeyValue("Empty writable fields"),
             "overwrite_stats": StatKeyValue("Overwritable fields"),
             "api_client": StatKeyValue("Api client"),
+            "client_model": StatKeyValue("Model"),
             "api_calls": StatKeyValue("Api calls"),
         }
         self.stats_widget = StatsWidget(self, self.is_dark_mode, stat_config)
@@ -274,11 +276,27 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         note_text = "note" if total_count == 1 else "notes"
         empty_text = "note" if num_notes_empty_field == 1 else "notes"
 
+        def open_config_dialog() -> None:
+            """Open the addon configuration dialog."""
+            SettingsDialog(parent=self, addon_config=self.addon_config).exec()
+
+            self.addon_config.reload()
+            new_lm_client, error = self.addon_config.get_client()
+            if error:
+                showWarning(f"{error}.\n\nPlease check your settings.", title="Configuration Error", parent=self)
+                self.close()
+                return
+            if new_lm_client:
+                self.lm_client = new_lm_client
+                self._update_state()
+
+        show_model = bool(self.lm_client.get_model())
         self.stats_widget.update_stats({
             "selected": StatKeyValue("Selected", f"{total_count} {note_text}"),
             "empty_fields": StatKeyValue("Empty writable fields", f"{num_notes_empty_field} {empty_text}"),
             "overwrite_stats": StatKeyValue("Overwritable fields", f"{total_count} {note_text}", len(overwritable_fields) > 0),
-            "api_client": StatKeyValue("Api client", self.lm_client.name),
+            "api_client": StatKeyValue("Api client", self.lm_client.name, click_callback=open_config_dialog),
+            "client_model": StatKeyValue("Model", self.lm_client.get_model(), visible=show_model, click_callback=open_config_dialog),
             "api_calls": StatKeyValue("Api calls", str(num_api_calls_needed))
         })
 

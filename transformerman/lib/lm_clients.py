@@ -126,6 +126,15 @@ class LMClient(ABC):
             self.logger.error(f"{self.id} Unexpected error: {e}")
             return LmResponse("", f"Error: {e!s}", e)
 
+    def get_model(self) -> str:
+        """Return the current model name."""
+        if "model" in self.custom_settings():
+            custom_setting_model = self._custom_settings.get("model", "").strip()
+            if custom_setting_model:
+                return custom_setting_model
+
+        return self._model
+
     @abstractmethod
     def _get_url(self) -> str:
         """Return the URL for the API request."""
@@ -319,9 +328,8 @@ class OpenAILMClient(OpenAiCompatibleLMClient):
 
     @override
     def _get_request_data(self, prompt: str) -> dict[str, Any]:
-        model = self._custom_settings.get("model", self._model)
         return {
-            "model": model,
+            "model": self.get_model(),
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.7,
             "stream": True,
