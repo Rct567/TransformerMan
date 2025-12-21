@@ -13,6 +13,16 @@ An Anki add-on that uses language models to intelligently __fill empty fields__ 
 - 🔍 **Preview Before Applying**: See what changes will be made before applying them
 - ✅ **Multiple LM Support**: Gemini, DeepSeek, Claude, OpenAI, and a Dummy client for testing
 
+## Use Cases
+
+- 🌍 **Translation**: Translate text from one field to another in any language
+- 🧠 **Mnemonics**: Create memory aids and associations to help retention
+- 🎨 **Visual Content**: Generate SVG images to visualize concepts
+- 📚 **Definitions & Examples**: Fill in explanations, examples, or clarifications
+- 🏷️ **Classification**: Tag and categorize learning material by topic or difficulty
+- 📦 **Deck Standardization**: Fill missing information in decks you've downloaded or imported
+- ❓ **Active Recall**: Generate cloze deletions or question-answer pairs from content
+
 ## Installation
 
 1. Download the latest release from the [GitHub repository](https://github.com/Rct567/TransformerMan/releases)
