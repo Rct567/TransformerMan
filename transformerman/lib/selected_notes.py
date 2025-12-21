@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Callable, NamedTuple
 
 from anki.utils import ids2str
 
@@ -269,6 +269,80 @@ class SelectedNotes:
 
         return self.new_selected_notes(filtered_note_ids)
 
+    def _test_batch_size(
+        self,
+        notes: Sequence[Note],
+        start_idx: int,
+        batch_size: int,
+        build_prompt: Callable[[SelectedNotes], str],
+        max_chars: int,
+    ) -> tuple[bool, int]:
+        """
+        Test if a batch of given size fits within max_chars.
+
+        Args:
+            notes: Sequence of notes to test.
+            start_idx: Starting index in notes sequence.
+            batch_size: Size of batch to test.
+            build_prompt: Function to build prompt for testing.
+            max_chars: Maximum allowed prompt size.
+
+        Returns:
+            Tuple of (fits: bool, actual_size: int).
+            actual_size is -1 if prompt building failed.
+        """
+        test_batch_note_ids = [note.id for note in notes[start_idx:start_idx+batch_size]]
+        test_selected_notes = self.new_selected_notes(test_batch_note_ids)
+
+        try:
+            test_prompt = build_prompt(test_selected_notes)
+            test_size = len(test_prompt)
+            return test_size <= max_chars, test_size
+        except Exception as e:
+            self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
+            return False, -1
+
+    def _perform_binary_search_for_batch_size(
+        self,
+        notes: Sequence[Note],
+        start_idx: int,
+        low: int,
+        high: int,
+        build_prompt: Callable[[SelectedNotes], str],
+        max_chars: int,
+    ) -> int:
+        """
+        Perform binary search to find maximum batch size that fits within max_chars.
+
+        Args:
+            notes: Sequence of notes to search in.
+            start_idx: Starting index in notes sequence.
+            low: Minimum batch size to consider.
+            high: Maximum batch size to consider.
+            build_prompt: Function to build prompt for testing.
+            max_chars: Maximum allowed prompt size.
+
+        Returns:
+            Maximum batch size that fits, or 0 if none found.
+        """
+        best_size = 0
+        iteration = 0
+
+        while low <= high and iteration < self.MAX_BINARY_SEARCH_ITERATIONS:
+            iteration += 1
+            mid = (low + high) // 2
+            fits, _ = self._test_batch_size(notes, start_idx, mid, build_prompt, max_chars)
+
+            if fits:
+                # Fits, try larger
+                best_size = mid
+                low = mid + 1
+            else:
+                # Too large, try smaller
+                high = mid - 1
+
+        return best_size
+
     def batched_by_prompt_size(
         self,
         prompt_builder: PromptBuilder,
@@ -340,17 +414,7 @@ class SelectedNotes:
             start_size = min(last_batch_size, remaining)
 
             # First check if start_size fits
-            test_batch_note_ids = [note.id for note in notes[i:i+start_size]]
-            test_selected_notes = self.new_selected_notes(test_batch_note_ids)
-
-            try:
-                test_prompt = build_prompt(test_selected_notes)
-                test_size = len(test_prompt)
-                start_fits = test_size <= max_chars
-            except Exception as e:
-                # If building fails, treat as too large
-                self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
-                start_fits = False
+            start_fits, _ = self._test_batch_size(notes, i, start_size, build_prompt, max_chars)
 
             if start_fits:
                 # start_size fits, try to find larger size that fits
@@ -364,24 +428,14 @@ class SelectedNotes:
                     if next_size <= high:  # Prevent infinite loop
                         break
 
-                    test_batch_note_ids = [note.id for note in notes[i:i+next_size]]
-                    test_selected_notes = self.new_selected_notes(test_batch_note_ids)
+                    fits, _ = self._test_batch_size(notes, i, next_size, build_prompt, max_chars)
 
-                    try:
-                        test_prompt = build_prompt(test_selected_notes)
-                        test_size = len(test_prompt)
-
-                        if test_size <= max_chars:
-                            # Still fits, continue exponential search
-                            low = next_size  # Update lower bound (last known fitting size)
-                            high = next_size
-                        else:
-                            # Doesn't fit, found upper bound
-                            high = next_size
-                            break
-                    except Exception as e:
-                        # If building fails, treat as too large
-                        self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
+                    if fits:
+                        # Still fits, continue exponential search
+                        low = next_size  # Update lower bound (last known fitting size)
+                        high = next_size
+                    else:
+                        # Doesn't fit, found upper bound
                         high = next_size
                         break
 
@@ -393,91 +447,37 @@ class SelectedNotes:
                 if high == low and high < remaining:
                     best_size = remaining
                 else:
-                    # Binary search between low and high with iteration limit
-                    iteration = 0
-                    while low + 1 < high and iteration < self.MAX_BINARY_SEARCH_ITERATIONS:
-                        iteration += 1
-                        mid = (low + high) // 2
-                        test_batch_note_ids = [note.id for note in notes[i:i+mid]]
-                        test_selected_notes = self.new_selected_notes(test_batch_note_ids)
-
-                        try:
-                            test_prompt = build_prompt(test_selected_notes)
-                            test_size = len(test_prompt)
-
-                            if test_size <= max_chars:
-                                # Fits, try larger
-                                best_size = mid
-                                low = mid
-                            else:
-                                # Too large, try smaller
-                                high = mid
-                        except Exception as e:
-                            # If building fails, treat as too large
-                            self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
-                            high = mid
+                    # Binary search between low and high to find max fitting size
+                    best_size = self._perform_binary_search_for_batch_size(
+                        notes, i, low, high, build_prompt, max_chars
+                    )
+                    if best_size == 0:
+                        best_size = low  # Fall back to last known good size
             else:
                 # start_size doesn't fit, binary search between 1 and start_size-1
-                low = 1
-                high = start_size - 1
-                best_size = 0
-                iteration = 0
-
-                while low <= high and iteration < self.MAX_BINARY_SEARCH_ITERATIONS:
-                    iteration += 1
-                    mid = (low + high) // 2
-                    test_batch_note_ids = [note.id for note in notes[i:i+mid]]
-                    test_selected_notes = self.new_selected_notes(test_batch_note_ids)
-
-                    try:
-                        test_prompt = build_prompt(test_selected_notes)
-                        test_size = len(test_prompt)
-
-                        if test_size <= max_chars:
-                            # Fits, try larger
-                            best_size = mid
-                            low = mid + 1
-                        else:
-                            # Too large, try smaller
-                            high = mid - 1
-                    except Exception as e:
-                        # If building fails, treat as too large
-                        self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
-                        high = mid - 1
+                best_size = self._perform_binary_search_for_batch_size(
+                    notes, i, 1, start_size - 1, build_prompt, max_chars
+                )
 
                 # If we still haven't found a fitting size, test the smallest size (1)
                 # This handles the case where binary search didn't test mid=1 due to iteration limit
                 if best_size == 0 and start_size > 1:
-                    # Test a single note
-                    test_batch_note_ids = [note.id for note in notes[i:i+1]]
-                    test_selected_notes = self.new_selected_notes(test_batch_note_ids)
-                    try:
-                        test_prompt = build_prompt(test_selected_notes)
-                        test_size = len(test_prompt)
-                        if test_size <= max_chars:
-                            best_size = 1
-                    except Exception as e:
-                        # If building fails, treat as too large
-                        self.logger.warning(f"Failed to build prompt for single note test: {e}")
+                    fits, _ = self._test_batch_size(notes, i, 1, build_prompt, max_chars)
+                    if fits:
+                        best_size = 1
 
             if best_size == 0:
-                # Even a single note doesn't fit
-                # Check if single note fits alone (for accurate warning)
-                single_note_selected_notes = self.new_selected_notes([notes[i].id])
-                try:
-                    single_prompt = build_prompt(single_note_selected_notes)
-                    single_size = len(single_prompt)
-                    if single_size > max_chars:
-                        self.logger.warning(
-                            f"Note {notes[i].id} exceeds maximum prompt size ({single_size} > {max_chars}). Skipping."
-                        )
-                    else:
-                        # This shouldn't happen if our algorithm is correct, but log for debugging
-                        self.logger.warning(
-                            f"Note {notes[i].id} unexpectedly skipped despite fitting ({single_size} <= {max_chars})."
-                        )
-                except Exception as e:
-                    self.logger.warning(f"Failed to build prompt for note {notes[i].id}: {e}")
+                # Even a single note doesn't fit - check for accurate warning
+                fits, actual_size = self._test_batch_size(notes, i, 1, build_prompt, max_chars)
+                if actual_size > max_chars:
+                    self.logger.warning(
+                        f"Note {notes[i].id} exceeds maximum prompt size ({actual_size} > {max_chars}). Skipping."
+                    )
+                elif fits:
+                    # This shouldn't happen if our algorithm is correct, but log for debugging
+                    self.logger.warning(
+                        f"Note {notes[i].id} unexpectedly skipped despite fitting ({actual_size} <= {max_chars})."
+                    )
 
                 i += 1
                 continue
