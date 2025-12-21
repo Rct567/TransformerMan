@@ -387,9 +387,9 @@ class OpenAILMClient(OpenAiCompatibleLMClient):
         return True, ""
 
 
-class OpenAiCustom(OpenAILMClient):
-    id = "custom-openai-endpoint"
-    name = "OpenAI Custom"
+class CustomOpenAi(OpenAILMClient):
+    id = "custom_openai_endpoint"
+    name = "Custom OpenAI"
 
     @staticmethod
     @override
@@ -606,16 +606,20 @@ class GrokLMClient(OpenAiCompatibleLMClient):
         return ["grok-4-1-fast", "grok-4-1-fast-reasoning", "grok-4", "grok-4-fast-non-reasoning", "grok-3"]
 
 
-LM_CLIENTS = {
-    "dummy": DummyLMClient,
-    "openai": OpenAILMClient,
-    "claude": ClaudeLMClient,
-    "gemini": GeminiLMClient,
-    "deepseek": DeepSeekLMClient,
-    "groq": Groq,
-    "grok": GrokLMClient,
-    "openai_custom": OpenAiCustom,
-}
+LM_CLIENTS_CLASSES = [
+    DummyLMClient,
+    OpenAILMClient,
+    ClaudeLMClient,
+    GeminiLMClient,
+    DeepSeekLMClient,
+    Groq,
+    GrokLMClient,
+    CustomOpenAi,
+]
+
+assert len(LM_CLIENTS_CLASSES) == len(set(client.id for client in LM_CLIENTS_CLASSES)), "Duplicate LM client IDs detected"
+
+LM_CLIENTS = {client.id: client for client in LM_CLIENTS_CLASSES}
 
 
 def get_lm_client_class(name: str) -> Optional[type[LMClient]]:
