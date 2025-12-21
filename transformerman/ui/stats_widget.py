@@ -16,6 +16,7 @@ from aqt.qt import (
     QMouseEvent,
     QEnterEvent,
     QEvent,
+    QCursor,
 )
 
 from dataclasses import dataclass
@@ -79,21 +80,20 @@ class StatContainer(QWidget):
         hover_bg = "#484848" if self.is_dark_mode else "#e0e0e0"
 
         if self._is_clickable:
-            cursor = "pointer"
+            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
             style = (
                 f"background-color: {bg_color}; "
-                f"border-radius: 6px; "
-                f"cursor: {cursor};"
+                f"border-radius: 6px;"
             )
             hover_style = (
                 f"background-color: {hover_bg}; "
-                f"border-radius: 6px; "
-                f"cursor: {cursor};"
+                f"border-radius: 6px;"
             )
             self.setStyleSheet(style)
             self._hover_style = hover_style
             self._normal_style = style
         else:
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
             self.setStyleSheet(f"background-color: {bg_color}; border-radius: 6px;")
 
     @override
