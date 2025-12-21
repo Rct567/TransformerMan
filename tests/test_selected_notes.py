@@ -332,7 +332,7 @@ class TestSelectedNotes:
         assert len(batch) == 3
         assert set(batch.get_ids()) == set(note_ids)
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_batched_by_prompt_size_multiple_batches(
         self,
         col: TestCollection,
@@ -345,7 +345,7 @@ class TestSelectedNotes:
 
         # Create many notes with empty fields
         note_ids = []
-        for i in range(10):
+        for i in range(100):
             note = col.new_note(model)
             note["Front"] = ""  # Empty field
             # Add minimal content to Back - just enough to create prompts
@@ -357,28 +357,26 @@ class TestSelectedNotes:
         prompt_builder = PromptBuilder(col, max_examples=3)
 
         # Use small max_chars to force multiple batches
-        # Need to find a value that allows some notes but not all
-        # Let's try with a moderate size
-        batches = selected_notes.batched_by_prompt_size(
-            prompt_builder=prompt_builder,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=None,
-            note_type_name="Basic",
-            max_chars=1000,  # Moderate size to get multiple batches
-        )
 
-        # Should have multiple batches (unless all fit in one)
-        # At least some batches should be created
-        assert len(batches) >= 1
+        batch_specs = {9_500: 1, 4_900: 2, 2_500: 5, 1_400: 10, 800: 25}
 
-        # If we have only one batch, all notes should be in it
-        if len(batches) == 1:
-            assert len(batches[0]) == 10
-        else:
-            # Multiple batches - verify properties
+        for max_chars, expected_num_batches in batch_specs.items():
+
+            batches = selected_notes.batched_by_prompt_size(
+                prompt_builder=prompt_builder,
+                selected_fields=["Front"],
+                writable_fields=["Front"],
+                overwritable_fields=None,
+                note_type_name="Basic",
+                max_chars=max_chars,  # Moderate size to get multiple batches
+            )
+
+            assert len(batches) == expected_num_batches, (
+                f"Expected {expected_num_batches} batches"
+                f"for max_chars={max_chars}, got {len(batches)}"
+            )
             total_notes_in_batches = sum(len(batch) for batch in batches)
-            assert total_notes_in_batches <= 10  # Some might be skipped if single note exceeds limit
+            assert total_notes_in_batches == 100  # Some might be skipped if single note exceeds limit
 
             # Verify no note appears in multiple batches
             all_batch_note_ids: list[int] = []
