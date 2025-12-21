@@ -446,6 +446,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             self.current_note_model.name, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
         )
 
+        if api_calls_needed == 0:
+            showWarning("No API calls possible with on the current selection and configuration (check prompt size limit).", parent=self)
+            return
+
         # Show warning if API calls > 10
         if api_calls_needed > 10:
             # Need to get empty count for warning message
