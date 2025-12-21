@@ -6,6 +6,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
+import math
 import random
 from typing import TYPE_CHECKING, Callable, NamedTuple
 
@@ -25,6 +26,7 @@ class BatchingStats(NamedTuple):
     avg_batch_size: int | None
     num_batches: int
     num_notes_selected: int  # noqa: F841
+    avg_note_size: int
     max_prompt_size: int
 
 
@@ -74,20 +76,6 @@ class SelectedNotes:
     # Constants for batch sizing algorithm
     EXPONENTIAL_MULTIPLIER: int = 2
     MAX_BINARY_SEARCH_ITERATIONS: int = 3  # Limit binary search to prevent too many prompt builds
-
-    # Constants for dynamic start size calculation
-    # Formula incorporates both max_chars and total notes:
-    # start_size = (max_chars - FIXED_OVERHEAD_ESTIMATE) * BASE_COEFFICIENT * scale_factor
-    # where scale_factor = min(MAX_SCALE, max(MIN_SCALE, (total_notes / REFERENCE_NOTES) ** SCALE_EXPONENT))
-    # Adjusted based on empirical data showing batches up to ~1800 for 500k max_chars
-
-    # Estimated fixed overhead in characters for prompt template, instructions, etc.
-    # This is subtracted from max_chars to get available space for note content
-    FIXED_OVERHEAD_ESTIMATE: int = 2000
-
-    # Maximum allowed starting batch size to prevent excessive memory usage
-    # Increased from 1000 to 2000 based on empirical data showing batches up to ~1800
-    MAX_START_SIZE: int = 2000
 
     def __init__(
         self,
@@ -172,63 +160,45 @@ class SelectedNotes:
         return dict(sorted(counts.items(), key=lambda x: x[1], reverse=True))
 
     @classmethod
-    def _compute_start_size(cls, max_chars: int, total_notes: int | None = None) -> int:
+    def _compute_start_size(cls, max_prompt_size: int, num_notes_selected: int, avg_note_size: int) -> int:
         """
-        Compute a reasonable starting batch size based on max_chars and total notes.
+        Predicts the number of batches using an advanced exponential formula.
 
-        Uses a linear model with coefficient that scales with total notes:
-        start_size = (max_chars - fixed_overhead) * base_coefficient * scale_factor
-
-        where scale_factor = min(MAX_SCALE, (total_notes / REFERENCE_NOTES) ** SCALE_EXPONENT)
-        This accounts for the observation that with more notes, average batch size tends to be larger.
-
-        Args:
-            max_chars: Maximum prompt size in characters.
-            total_notes: Total number of notes available (optional). If None, uses default scaling.
+        This formula adapts to note size and prompt size for better accuracy:
+        - Smaller notes have higher packing efficiency
+        - Larger notes have lower efficiency due to packing challenges
+        - Larger prompts can pack more efficiently
 
         Returns:
-            Suggested starting batch size.
+            Predicted number of batches needed
+
         """
-        if max_chars <= cls.FIXED_OVERHEAD_ESTIMATE:
-            return 1
+        # Per-note overhead for metadata, separators, formatting
+        overhead = 15
 
-        # Base coefficient for notes per character at reference note count (1000 notes)
-        # Represents how many notes fit per character of available space after overhead
-        # Adjusted upward from 0.0025 to 0.0032 based on empirical data showing larger batches
-        BASE_COEFFICIENT: float = 0.0032
+        # Base efficiency: exponential decay with note size
+        # Small notes (~30 chars): ~0.40 efficiency
+        # Large notes (~2000 chars): ~0.18 efficiency
+        base_efficiency = 0.42 * math.exp(-avg_note_size / 800) + 0.18
 
-        # Reference note count for scaling. With this many notes, scale_factor = 1.0
-        # Chosen as a typical moderate note count for common usage scenarios
-        REFERENCE_NOTES: int = 1000
+        # Prompt size scaling: logarithmic boost for larger prompts
+        # Larger prompts can pack more efficiently
+        prompt_scale = 1 + 0.08 * math.log(max_prompt_size / 80000)
 
-        # Exponent for scaling function. Lower values (0.3 vs 0.4) make scaling less aggressive
-        # This controls how quickly the coefficient increases with more notes
-        SCALE_EXPONENT: float = 0.3
+        # Combined efficiency with clamping to reasonable bounds
+        efficiency = base_efficiency * max(0.85, min(1.2, prompt_scale))
 
-        # Minimum scale factor to avoid underprediction when very few notes are selected
-        # Prevents the coefficient from becoming too small for small note counts
-        MIN_SCALE: float = 0.9
+        # Calculate total effective size with overhead
+        effective_size_per_note = avg_note_size + overhead
+        total_effective_size = num_notes_selected * effective_size_per_note
 
-        # Maximum scale factor to prevent overprediction when many notes are selected
-        # Limits how much the coefficient can increase with large note counts
-        MAX_SCALE: float = 1.5
+        # Calculate usable prompt space
+        usable_prompt_size = max_prompt_size * efficiency
 
-        if total_notes is None or total_notes <= 0:
-            # Default to moderate scaling
-            scale_factor = 1.1
-        else:
-            # Scale coefficient based on total notes
-            # With more notes, we can use a larger coefficient (batch sizes tend to be larger)
-            scale_factor = (total_notes / REFERENCE_NOTES) ** SCALE_EXPONENT
-            scale_factor = max(min(scale_factor, MAX_SCALE), MIN_SCALE)
+        # Calculate batches needed (minimum 1)
+        batches = max(1, math.ceil(total_effective_size / usable_prompt_size))
 
-        effective_coefficient = BASE_COEFFICIENT * scale_factor
-
-        # Linear estimate based on available space after fixed overhead
-        estimate = int((max_chars - cls.FIXED_OVERHEAD_ESTIMATE) * effective_coefficient)
-
-        # Apply bounds
-        return max(1, min(estimate, cls.MAX_START_SIZE))
+        return batches
 
     def filter_by_writable_or_overwritable(
         self,
@@ -388,11 +358,12 @@ class SelectedNotes:
         # Get note objects
         notes = notes_with_fields.get_notes()
 
+        avg_note_size = sum(sum(len(note[fields_name]) for fields_name in selected_fields) for note in notes[0:50]) // len(notes[0:50])
+
         batches: list[SelectedNotes] = []
         i = 0  # Current position in notes list
         # Use dynamically computed start size for first batch, then previous batch size
-        # Pass total notes to adjust coefficient based on available notes
-        last_batch_size = self._compute_start_size(max_chars, len(notes))
+        last_batch_size = self._compute_start_size(max_chars, len(notes), avg_note_size)
         num_prompts_tried = 0
 
         def build_prompt(test_selected_notes: SelectedNotes) -> str:
@@ -502,6 +473,7 @@ class SelectedNotes:
             avg_batch_size=avg_batch_size,
             num_batches=num_batches,
             num_notes_selected=len(notes),
+            avg_note_size=avg_note_size,
             max_prompt_size=max_chars
         )
 
