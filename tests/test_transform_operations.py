@@ -70,7 +70,6 @@ class TestNoteTransformer:
                 writable_fields=["Front"],
                 overwritable_fields=[],
                 note_type_name="Basic",
-                max_prompt_size=500000,
                 addon_config=addon_config,
                 user_files_dir=mock_user_files_dir,
             )
@@ -84,6 +83,7 @@ class TestNoteTransformer:
     ) -> None:
         """Test that get_field_updates returns correct field updates in preview mode."""
         addon_config.update_setting("max_examples", 3)
+        addon_config.update_setting("max_prompt_size", 1000)
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
         assert model is not None
@@ -118,7 +118,6 @@ class TestNoteTransformer:
             writable_fields=["Front"],
             overwritable_fields=[],
             note_type_name="Basic",
-            max_prompt_size=1000,
             addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
         )
@@ -189,7 +188,6 @@ class TestNoteTransformer:
             writable_fields=["Front"],
             overwritable_fields=[],
             note_type_name="Basic",
-            max_prompt_size=500000,
             addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
         )
@@ -251,7 +249,6 @@ class TestNoteTransformer:
             writable_fields=["Front"],
             overwritable_fields=[],
             note_type_name="Basic",
-            max_prompt_size=500000,
             addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
         )
@@ -327,7 +324,6 @@ class TestNoteTransformer:
                 writable_fields=["Front"],
                 overwritable_fields=[],
                 note_type_name="Basic",
-                max_prompt_size=500000,
                 addon_config=addon_config,
                 user_files_dir=mock_user_files_dir,
             )
@@ -391,7 +387,6 @@ class TestNoteTransformer:
             writable_fields=["Front"],
             overwritable_fields=[],
             note_type_name="Basic",
-            max_prompt_size=500000,
             addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
         )

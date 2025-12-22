@@ -92,7 +92,6 @@ class NoteTransformer:
         writable_fields: Sequence[str],
         overwritable_fields: Sequence[str],
         note_type_name: str,
-        max_prompt_size: int,
         addon_config: AddonConfig,
         user_files_dir: Path,
     ) -> None:
@@ -109,7 +108,6 @@ class NoteTransformer:
             writable_fields: Sequence of field names to fill (empty fields only).
             overwritable_fields: Sequence of field names to fill (even if not empty).
             note_type_name: Name of the note type.
-            max_prompt_size: Maximum prompt size in characters per batch.
             addon_config: Addon configuration instance.
             user_files_dir: Directory for user files.
         """
@@ -122,7 +120,6 @@ class NoteTransformer:
         self.writable_fields = writable_fields
         self.overwritable_fields = overwritable_fields
         self.note_type_name = note_type_name
-        self.max_prompt_size = max_prompt_size
         self.addon_config = addon_config
         self.user_files_dir = user_files_dir
         self.logger = logging.getLogger(__name__)
@@ -147,7 +144,7 @@ class NoteTransformer:
             selected_fields=self.selected_fields,
             writable_fields=self.writable_fields,
             note_type_name=self.note_type_name,
-            max_chars=self.max_prompt_size,
+            max_chars=self.addon_config.get_max_prompt_size(),
             max_examples=self.addon_config.get_max_examples(),
             overwritable_fields=self.overwritable_fields,
         )
@@ -535,7 +532,6 @@ class TransformNotesWithProgress:
             writable_fields=writable_fields,
             overwritable_fields=overwritable_fields,
             note_type_name=note_type_name,
-            max_prompt_size=self.addon_config.get_max_prompt_size(),
             addon_config=self.addon_config,
             user_files_dir=self.user_files_dir,
         )
