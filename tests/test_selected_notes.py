@@ -361,7 +361,8 @@ class TestSelectedNotes:
 
         # Use small max_chars to force multiple batches
 
-        batch_specs = {20_000: 1, 9_500: 2, 4_900: 4, 2_500: 17}
+        batch_specs = {20_000: 1, 9_500: 2, 4_900: 5, 2_500: 17}
+        num_prompts_tried = []
 
         for max_chars, expected_num_batches in batch_specs.items():
 
@@ -384,14 +385,19 @@ class TestSelectedNotes:
 
             assert selected_notes.batching_stats
             assert selected_notes.batching_stats.num_prompts_tried <= 81
-            assert selected_notes.batching_stats.num_batches > 10 or selected_notes.batching_stats.num_prompts_tried <= 16
-            assert selected_notes.batching_stats.num_batches > 2 or selected_notes.batching_stats.num_prompts_tried <= 6
+
+            num_prompts_tried.append(selected_notes.batching_stats.num_prompts_tried)
 
             # Verify no note appears in multiple batches
             all_batch_note_ids: list[int] = []
             for batch in batches:
                 all_batch_note_ids.extend(batch.get_ids())
             assert len(all_batch_note_ids) == len(set(all_batch_note_ids))
+
+        assert num_prompts_tried[0] <= 2
+        assert num_prompts_tried[1] <= 7
+        assert num_prompts_tried[2] <= 21
+        assert num_prompts_tried[3] <= 81
 
     @with_test_collection("two_deck_collection")
     def test_batched_by_prompt_size_single_note_exceeds_limit(

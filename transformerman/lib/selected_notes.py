@@ -22,7 +22,9 @@ if TYPE_CHECKING:
 
 
 class BatchingStats(NamedTuple):
+    initial_batch_size: int  # noqa: F841
     num_prompts_tried: int
+    median_batch_size: int | None
     avg_batch_size: int | None
     num_batches: int
     num_notes_selected: int  # noqa: F841
@@ -161,44 +163,35 @@ class SelectedNotes:
 
     def predict_batch_size(self, max_prompt_size: int, num_notes_selected: int, avg_note_size: float) -> int:
         """
-        Predicts the optimal starting batch size using an advanced exponential formula.
-
-        This formula adapts to note size and prompt size for better accuracy:
-        - Smaller notes have higher packing efficiency
-        - Larger notes have lower efficiency due to packing challenges
-        - Larger prompts can pack more efficiently
+        Batch size prediction using continuous mathematical formula.
 
         Returns:
             Predicted batch size (notes per batch) to use as starting point
         """
         # Per-note overhead for metadata, separators, formatting
         overhead = 15
-
-        # Base efficiency: exponential decay with note size
-        # Small notes (~30 chars): ~0.40 efficiency
-        # Large notes (~2000 chars): ~0.18 efficiency
-        base_efficiency = 0.42 * math.exp(-avg_note_size / 800) + 0.18
-
-        # Prompt size scaling: logarithmic boost for larger prompts
-        # Larger prompts can pack more efficiently
-        prompt_scale = 1 + 0.08 * math.log(max_prompt_size / 80000)
-
-        # Combined efficiency with clamping to reasonable bounds
-        efficiency = base_efficiency * max(0.85, min(1.2, prompt_scale))
-
+        # Base efficiency: increases with note size using smooth exponential curve
+        # Approaches ~49% for very large notes, starts at ~31% for very small notes
+        # The larger the note, the less the fixed overhead matters
+        base_efficiency = 0.49 - 0.18 * math.exp(-avg_note_size / 530)
+        # Prompt size scaling: larger prompts are more efficient
+        # Use square root scaling for smooth, modest gains
+        prompt_scale = math.sqrt(max_prompt_size / 100000)
+        # Clamp to reasonable bounds (0.8x to 1.25x)
+        prompt_scale = max(0.80, min(1.25, prompt_scale))
+        # Combined efficiency with conservative multiplier
+        # 0.80 multiplier makes predictions ~20% more pessimistic
+        # This targets the lower of median/avg batch size
+        efficiency = base_efficiency * prompt_scale * 0.80
         # Calculate total effective size with overhead
         effective_size_per_note = avg_note_size + overhead
         total_effective_size = num_notes_selected * effective_size_per_note
-
         # Calculate usable prompt space
         usable_prompt_size = max_prompt_size * efficiency
-
         # Calculate batches needed (minimum 1)
         batches = max(1, math.ceil(total_effective_size / usable_prompt_size))
-
         # Return the batch SIZE (notes per batch), not number of batches
         batch_size = max(1, num_notes_selected // batches)
-
         return batch_size
 
     def filter_by_writable_or_overwritable(
@@ -363,10 +356,12 @@ class SelectedNotes:
         sample = random.sample(notes, min(500, len(notes)))
         avg_note_size = sum(sum(len(note[fields_name]) for fields_name in selected_fields) for note in sample) // len(sample)
 
+        predicted_batch_size = self.predict_batch_size(max_chars, len(notes), avg_note_size)
+
         batches: list[SelectedNotes] = []
         i = 0  # Current position in notes list
         # Use dynamically computed start size for first batch, then previous batch size
-        last_batch_size = self.predict_batch_size(max_chars, len(notes), avg_note_size)
+        last_batch_size = predicted_batch_size
         num_prompts_tried = 0
 
         def build_prompt(test_selected_notes: SelectedNotes) -> str:
@@ -467,13 +462,17 @@ class SelectedNotes:
         # Calculate and log average batch size
         num_batches = len(batches)
         if batches:
+            median_batch_size = sorted(len(batch) for batch in batches)[num_batches // 2]
             avg_batch_size = sum(len(batch) for batch in batches) // num_batches
         else:
+            median_batch_size = None
             avg_batch_size = None
             self.logger.info("No batches created")
 
         self.batching_stats = BatchingStats(
+            initial_batch_size=predicted_batch_size,
             num_prompts_tried=num_prompts_tried,
+            median_batch_size=median_batch_size,
             avg_batch_size=avg_batch_size,
             num_batches=num_batches,
             num_notes_selected=len(notes),
