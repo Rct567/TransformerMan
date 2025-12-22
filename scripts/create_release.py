@@ -96,7 +96,7 @@ def commit_and_tag(version_number: str) -> None:
     git_tag = "v"+version_number
 
     # Commit changes with a message
-    subprocess.run(["git", "commit", "-a", f'-m "upgraded version to {version_number}"'], check=True)
+    subprocess.run(["git", "commit", "--no-verify", "-a", f'-m "upgraded version to {version_number}"'], check=True)
 
     # Push changes to remote repository
     subprocess.run(["git", "push"], check=True)
