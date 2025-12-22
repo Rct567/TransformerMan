@@ -71,7 +71,7 @@ def test_note_ids() -> list[NoteId]:
 @pytest.fixture
 def dummy_lm_client() -> DummyLMClient:
     """Real DummyLMClient instance for testing."""
-    return DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+    return DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
 
 @pytest.fixture

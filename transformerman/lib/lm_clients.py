@@ -222,9 +222,9 @@ class DummyLMClient(LMClient):
                     # Keep existing content
                     response_parts.append(f'    <field name="{field_name}">{field_value}</field>')
                 else:
-                    # Fill empty field with mock content
-                    mock_content = f"Mock content for {field_name}"
-                    response_parts.append(f'    <field name="{field_name}">{mock_content}</field>')
+                    # Fill empty field with Lorem ipsum content
+                    lorem_content = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+                    response_parts.append(f'    <field name="{field_name}">{lorem_content}</field>')
 
             response_parts.append("  </note>")
 
@@ -276,7 +276,7 @@ class DummyLMClient(LMClient):
     @staticmethod
     @override
     def get_available_models() -> list[str]:
-        return ["mock_content_generator"]
+        return ["lorem_ipsum"]
 
 
 class OpenAiCompatibleLMClient(LMClient):

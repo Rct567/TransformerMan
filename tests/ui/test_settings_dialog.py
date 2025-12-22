@@ -90,7 +90,7 @@ class TestSettingsDialog:
         # Check that settings were loaded into UI
         assert dialog.client_combo.currentText() == "Dummy"
         assert dialog.client_combo.currentData() == "dummy"
-        assert dialog.model_combo.currentText() == "mock_content_generator"
+        assert dialog.model_combo.currentText() == "lorem_ipsum"
         assert dialog.api_key_input.text() == "test-api-key"
         assert dialog.max_prompt_size_spin.value() == 500000
 

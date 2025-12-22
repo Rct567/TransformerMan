@@ -21,7 +21,7 @@ class TestLmClient:
 
     def test_dummy_client_basic_response(self) -> None:
         """Test that DummyLMClient returns valid XML response."""
-        client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         prompt = """<notes model="Basic">
   <note nid="123" deck="Test Deck">
@@ -35,11 +35,11 @@ class TestLmClient:
         assert '<notes model="Basic">' in response.text_response
         assert 'nid="123"' in response.text_response
         assert '<field name="Front">Hello</field>' in response.text_response
-        assert '<field name="Back">Mock content for Back</field>' in response.text_response
+        assert '<field name="Back">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</field>' in response.text_response
 
     def test_dummy_client_multiple_notes(self) -> None:
         """Test DummyLMClient with multiple notes."""
-        client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         prompt = """<notes model="Basic">
   <note nid="123" deck="Test">
@@ -56,11 +56,11 @@ class TestLmClient:
 
         assert 'nid="123"' in response.text_response
         assert 'nid="456"' in response.text_response
-        assert response.text_response.count("Mock content for Back") == 2
+        assert response.text_response.count("Lorem ipsum dolor sit amet, consectetur adipiscing elit.") == 2
 
     def test_dummy_client_preserves_existing_content(self) -> None:
         """Test that DummyLMClient preserves existing field content."""
-        client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         prompt = """<notes model="Basic">
   <note nid="123" deck="Test">
@@ -73,11 +73,11 @@ class TestLmClient:
 
         assert '<field name="Front">Existing Front</field>' in response.text_response
         assert '<field name="Back">Existing Back</field>' in response.text_response
-        assert "Mock content" not in response.text_response
+        assert "Lorem ipsum" not in response.text_response
 
     def test_dummy_client_empty_prompt(self) -> None:
         """Test DummyLMClient with empty prompt."""
-        client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         response = client.transform("")
 

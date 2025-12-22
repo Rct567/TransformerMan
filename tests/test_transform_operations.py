@@ -52,7 +52,7 @@ class TestNoteTransformer:
         selected_notes = SelectedNotes(col, note_ids)
 
         # Create a real DummyLMClient
-        dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder(col)
@@ -101,7 +101,7 @@ class TestNoteTransformer:
         selected_notes = SelectedNotes(col, note_ids)
 
         # Create a real DummyLMClient
-        dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder(col, max_examples=3)
@@ -136,7 +136,7 @@ class TestNoteTransformer:
         for nid in note_ids:
             assert nid in field_updates
             assert "Front" in field_updates[nid]
-            assert field_updates[nid]["Front"] == "Mock content for Front"
+            assert field_updates[nid]["Front"] == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
         # Verify notes were NOT updated in the collection (preview mode)
         for nid in note_ids:
@@ -172,7 +172,7 @@ class TestNoteTransformer:
         selected_notes = SelectedNotes(col, note_ids)
 
         # Create a real DummyLMClient
-        dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder(col)
@@ -234,7 +234,7 @@ class TestNoteTransformer:
         selected_notes = SelectedNotes(col, note_ids)
 
         # Create a real DummyLMClient
-        dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder(col)
@@ -300,7 +300,7 @@ class TestNoteTransformer:
         prompt_builder = PromptBuilder(col)
 
         # Create a real DummyLMClient
-        dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         # Patch transform to raise an exception for the first batch and return a valid response for the second batch
         # Create a proper mock response for the second batch
@@ -374,7 +374,7 @@ class TestNoteTransformer:
         selected_notes = SelectedNotes(col, note_ids)
 
         # Create a real DummyLMClient
-        dummy_client = DummyLMClient(ApiKey(""), ModelName("mock_content_generator"))
+        dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder(col)
@@ -410,7 +410,7 @@ class TestNoteTransformer:
             if i < 2:
                 # Empty field should have update
                 assert nid in field_updates
-                assert field_updates[nid]["Front"] == "Mock content for Front"
+                assert field_updates[nid]["Front"] == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
             else:
                 # Non-empty field should not have update
                 assert nid not in field_updates

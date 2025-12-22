@@ -25,7 +25,7 @@ def addon_config() -> AddonConfig:
     """
     saved_config: dict[str, JSON_TYPE] = {
         "lm_client": "dummy",
-        "dummy_model": "mock_content_generator",
+        "dummy_model": "lorem_ipsum",
         "batch_size": 10,
         "log_lm_requests": False,
         "log_lm_responses": False,
