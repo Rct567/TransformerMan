@@ -321,6 +321,7 @@ class SelectedNotes:
         overwritable_fields: Sequence[str] | None,
         note_type_name: str,
         max_chars: int,
+        max_examples: int
     ) -> list[SelectedNotes]:
         """
         Split notes into batches where each batch's prompt size <= max_chars.
@@ -374,6 +375,7 @@ class SelectedNotes:
                 selected_fields=selected_fields,
                 writable_fields=writable_fields,
                 overwritable_fields=overwritable_fields,
+                max_examples=max_examples,
                 note_type_name=note_type_name,
             )
 

@@ -255,6 +255,7 @@ class TestSelectedNotes:
             overwritable_fields=None,
             note_type_name="Basic",
             max_chars=1000,
+            max_examples=10,
         )
 
         assert batches == []
@@ -289,6 +290,7 @@ class TestSelectedNotes:
             overwritable_fields=None,
             note_type_name="Basic",
             max_chars=1000,
+            max_examples=10
         )
 
         assert batches == []
@@ -324,6 +326,7 @@ class TestSelectedNotes:
             overwritable_fields=None,
             note_type_name="Basic",
             max_chars=500000,  # Very large
+            max_examples=10,
         )
 
         # Should be one batch with all 3 notes
@@ -354,7 +357,7 @@ class TestSelectedNotes:
             note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, note_ids)
-        prompt_builder = PromptBuilder(col, max_examples=3)
+        prompt_builder = PromptBuilder(col)
 
         # Use small max_chars to force multiple batches
 
@@ -369,6 +372,7 @@ class TestSelectedNotes:
                 overwritable_fields=None,
                 note_type_name="Basic",
                 max_chars=max_chars,  # Moderate size to get multiple batches
+                max_examples=10,
             )
 
             assert len(batches) == expected_num_batches, (
@@ -403,7 +407,7 @@ class TestSelectedNotes:
         col.add_note(note, deck_id)
 
         selected_notes = SelectedNotes(col, [note.id])
-        prompt_builder = PromptBuilder(col, max_examples=3)
+        prompt_builder = PromptBuilder(col)
 
         # Use tiny max_chars so even single note exceeds limit
         batches = selected_notes.batched_by_prompt_size(
@@ -413,6 +417,7 @@ class TestSelectedNotes:
             overwritable_fields=None,
             note_type_name="Basic",
             max_chars=10,  # Extremely small
+            max_examples=3,
         )
         batches_increased_max_chars = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
@@ -421,6 +426,7 @@ class TestSelectedNotes:
             overwritable_fields=None,
             note_type_name="Basic",
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
+            max_examples=3,
         )
         batches_increased_max_chars_with_large_field = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
@@ -429,6 +435,7 @@ class TestSelectedNotes:
             overwritable_fields=None,
             note_type_name="Basic",
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
+            max_examples=3,
         )
 
         # Should be empty (note skipped with warning logged)

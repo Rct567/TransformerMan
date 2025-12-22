@@ -147,6 +147,7 @@ class NoteTransformer:
             writable_fields=self.writable_fields,
             note_type_name=self.note_type_name,
             max_chars=self.max_prompt_size,
+            max_examples=self.addon_config.get_max_examples(),
             overwritable_fields=self.overwritable_fields,
         )
         self.num_batches = len(self.batches)
@@ -184,6 +185,7 @@ class NoteTransformer:
                 self.selected_fields,
                 self.writable_fields,
                 self.overwritable_fields,
+                self.addon_config.get_max_examples(),
                 self.note_type_name,
             )
 
@@ -372,7 +374,7 @@ class TransformNotesWithProgress:
         self.addon_config = addon_config
         self.user_files_dir = user_files_dir
         self.logger = logging.getLogger(__name__)
-        self._prompt_builder = PromptBuilder(col, addon_config.get_max_examples())
+        self._prompt_builder = PromptBuilder(col)
 
         # Cache for transformation results
         self._cache = {}
@@ -481,6 +483,7 @@ class TransformNotesWithProgress:
             writable_fields=writable_fields,
             note_type_name=note_type_name,
             max_chars=self.addon_config.get_max_prompt_size(),
+            max_examples=self.addon_config.get_max_examples(),
             overwritable_fields=overwritable_fields,
         )
 

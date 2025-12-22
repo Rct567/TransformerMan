@@ -31,7 +31,7 @@ class TestPromptBuilder:
             col.update_note(note)
 
         selected_notes = SelectedNotes(col, note_ids)
-        builder = PromptBuilder(col, max_examples=3)
+        builder = PromptBuilder(col)
 
         prompt_with_writeable_fields = builder.build_prompt(
             target_notes=selected_notes,
@@ -39,6 +39,7 @@ class TestPromptBuilder:
             writable_fields=["Front"],
             overwritable_fields=None,
             note_type_name="Basic",
+            max_examples=3
         )
 
         prompt_with_overwritable_fields = builder.build_prompt(
@@ -47,6 +48,7 @@ class TestPromptBuilder:
             writable_fields=None,
             overwritable_fields=["Front"],
             note_type_name="Basic",
+            max_examples=3,
         )
 
         def check_prompt(prompt: str):
@@ -86,7 +88,7 @@ class TestPromptBuilder:
         col.update_note(note)
 
         selected_notes = SelectedNotes(col, [note_id])
-        builder = PromptBuilder(col, max_examples=3)
+        builder = PromptBuilder(col)
 
         # Set field instructions
         instructions = {"Front": "Provide a concise question", "Back": "Provide detailed answer"}
@@ -99,6 +101,7 @@ class TestPromptBuilder:
             writable_fields=["Front"],
             overwritable_fields=None,
             note_type_name="Basic",
+            max_examples=3
         )
 
         # Strategic assertions
@@ -134,7 +137,7 @@ class TestPromptBuilder:
         col.add_note(note, deck_id)
 
         selected_notes = SelectedNotes(col, [note.id])
-        builder = PromptBuilder(col, max_examples=3)
+        builder = PromptBuilder(col)
 
         # Build prompt
         prompt = builder.build_prompt(
@@ -143,6 +146,7 @@ class TestPromptBuilder:
             writable_fields=["Front"],
             overwritable_fields=None,
             note_type_name="Basic",
+            max_examples=3
         )
 
         # Strategic assertions
@@ -192,6 +196,7 @@ class TestPromptBuilder:
             writable_fields=["Front"],
             overwritable_fields=None,
             note_type_name="Basic",
+            max_examples=10
         )
 
         # Strategic assertions

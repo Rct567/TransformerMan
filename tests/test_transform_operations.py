@@ -83,6 +83,7 @@ class TestNoteTransformer:
         mock_user_files_dir: Path,
     ) -> None:
         """Test that get_field_updates returns correct field updates in preview mode."""
+        addon_config.update_setting("max_examples", 3)
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
         assert model is not None
@@ -104,7 +105,7 @@ class TestNoteTransformer:
         dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
         # Create a real PromptBuilder
-        prompt_builder = PromptBuilder(col, max_examples=3)
+        prompt_builder = PromptBuilder(col)
 
         # Create NoteTransformer with max prompt size of 1000
         transformer = NoteTransformer(
