@@ -97,8 +97,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             parent=self,
             col=col,
             selected_notes=self.selected_notes,
-            lm_client=lm_client,
-            addon_config=addon_config,
+            lm_client=self.lm_client,
+            addon_config=self.addon_config,
             user_files_dir=user_files_dir,
         )
 
@@ -288,7 +288,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                 return
             if new_lm_client:
                 self.lm_client = new_lm_client
-                self._update_state()
+                self.transformer.lm_client = new_lm_client
+                self._update_state(clear_preview_results=True)
 
         show_model = bool(self.lm_client.get_model())
         self.stats_widget.update_stats({
