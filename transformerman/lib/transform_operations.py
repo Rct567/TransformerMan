@@ -41,6 +41,7 @@ class TransformResults(NamedTuple):
 
 class CacheKey(NamedTuple):
     """Cache key for transformation results."""
+    client_id: str
     note_type_name: str
     selected_fields: tuple[str, ...]
     writable_fields: tuple[str, ...]
@@ -394,6 +395,7 @@ class TransformNotesWithProgress:
         field_instructions_hash = hash(tuple(field_instructions_items))
 
         return CacheKey(
+            client_id=self.lm_client.id,
             note_type_name=note_type_name,
             selected_fields=tuple(selected_fields),
             writable_fields=tuple(writable_fields),
