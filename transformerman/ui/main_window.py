@@ -461,11 +461,11 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         overwritable_fields = self.field_widgets.get_overwritable_fields()
         if not self.current_note_model:
             return
-        api_calls_needed = self.transformer.get_num_api_calls_needed(
-            self.current_note_model.name, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
-        )
 
-        if api_calls_needed == 0:
+        transform_args = self.current_note_model.name, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
+        api_calls_needed = self.transformer.get_num_api_calls_needed(*transform_args)
+
+        if api_calls_needed == 0 and not self.transformer.is_cached(*transform_args):
             showWarning("No API calls possible with on the current selection and configuration (check prompt size limit).", parent=self)
             return
 

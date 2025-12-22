@@ -405,7 +405,7 @@ class TransformNotesWithProgress:
             field_instructions_hash=field_instructions_hash,
         )
 
-    def _is_cached(
+    def is_cached(
         self,
         note_type_name: str,
         selected_fields: Sequence[str],
@@ -455,7 +455,7 @@ class TransformNotesWithProgress:
             Number of API calls needed.
         """
         # If cached, no API calls needed
-        if self._is_cached(note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids):
+        if self.is_cached(note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids):
             return 0
 
         if not writable_fields and not overwritable_fields:
