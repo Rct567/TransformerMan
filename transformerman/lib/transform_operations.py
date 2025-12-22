@@ -373,7 +373,6 @@ class TransformNotesWithProgress:
         self.user_files_dir = user_files_dir
         self.logger = logging.getLogger(__name__)
         self._prompt_builder = PromptBuilder(col, addon_config.get_max_examples())
-        self.max_prompt_size = self.addon_config.get_max_prompt_size()
 
         # Cache for transformation results
         self._cache = {}
@@ -385,7 +384,6 @@ class TransformNotesWithProgress:
         writable_fields: Sequence[str],
         overwritable_fields: Sequence[str],
         note_ids: Sequence[NoteId],
-        max_prompt_size: int,
     ) -> CacheKey:
         """Generate a cache key for the given transformation parameters."""
         # Create a hash of field_instructions for cache key
@@ -399,7 +397,7 @@ class TransformNotesWithProgress:
             writable_fields=tuple(writable_fields),
             overwritable_fields=tuple(overwritable_fields),
             note_ids=tuple(note_ids),
-            max_prompt_size=max_prompt_size,
+            max_prompt_size=self.addon_config.get_max_prompt_size(),
             field_instructions_hash=field_instructions_hash,
         )
 
@@ -425,7 +423,7 @@ class TransformNotesWithProgress:
             True if results are cached, False otherwise.
         """
         cache_key = self._get_cache_key(
-            note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids, self.max_prompt_size
+            note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids
         )
         return cache_key in self._cache
 
@@ -482,7 +480,7 @@ class TransformNotesWithProgress:
             selected_fields=selected_fields,
             writable_fields=writable_fields,
             note_type_name=note_type_name,
-            max_chars=self.max_prompt_size,
+            max_chars=self.addon_config.get_max_prompt_size(),
             overwritable_fields=overwritable_fields,
         )
 
@@ -514,7 +512,7 @@ class TransformNotesWithProgress:
         """
         # Check cache first
         cache_key = self._get_cache_key(
-            note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids, self.max_prompt_size
+            note_type_name, selected_fields, writable_fields, overwritable_fields, note_ids
         )
         if cache_key in self._cache:
             results, field_updates = self._cache[cache_key]
@@ -532,7 +530,7 @@ class TransformNotesWithProgress:
             writable_fields=writable_fields,
             overwritable_fields=overwritable_fields,
             note_type_name=note_type_name,
-            max_prompt_size=self.max_prompt_size,
+            max_prompt_size=self.addon_config.get_max_prompt_size(),
             addon_config=self.addon_config,
             user_files_dir=self.user_files_dir,
         )
