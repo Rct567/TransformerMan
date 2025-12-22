@@ -361,13 +361,13 @@ class TestSelectedNotes:
 
         # Use small max_chars to force multiple batches
 
-        batch_specs = {9_500: 1, 4_900: 2, 2_500: 5, 1_400: 10, 800: 25}
+        batch_specs = {20_000: 1, 9_500: 2, 4_900: 4, 2_500: 17}
 
         for max_chars, expected_num_batches in batch_specs.items():
 
             batches = selected_notes.batched_by_prompt_size(
                 prompt_builder=prompt_builder,
-                selected_fields=["Front"],
+                selected_fields=["Front", "Back"],
                 writable_fields=["Front"],
                 overwritable_fields=None,
                 note_type_name="Basic",
@@ -376,11 +376,16 @@ class TestSelectedNotes:
             )
 
             assert len(batches) == expected_num_batches, (
-                f"Expected {expected_num_batches} batches"
+                f"Expected {expected_num_batches} batches "
                 f"for max_chars={max_chars}, got {len(batches)}"
             )
             total_notes_in_batches = sum(len(batch) for batch in batches)
-            assert total_notes_in_batches == 100  # Some might be skipped if single note exceeds limit
+            assert total_notes_in_batches == 100
+
+            assert selected_notes.batching_stats
+            assert selected_notes.batching_stats.num_prompts_tried <= 81
+            assert selected_notes.batching_stats.num_batches > 10 or selected_notes.batching_stats.num_prompts_tried <= 16
+            assert selected_notes.batching_stats.num_batches > 2 or selected_notes.batching_stats.num_prompts_tried <= 6
 
             # Verify no note appears in multiple batches
             all_batch_note_ids: list[int] = []

@@ -159,10 +159,9 @@ class SelectedNotes:
         # Sort by count descending
         return dict(sorted(counts.items(), key=lambda x: x[1], reverse=True))
 
-    @classmethod
-    def _compute_start_size(cls, max_prompt_size: int, num_notes_selected: int, avg_note_size: int) -> int:
+    def predict_batch_size(self, max_prompt_size: int, num_notes_selected: int, avg_note_size: float) -> int:
         """
-        Predicts the number of batches using an advanced exponential formula.
+        Predicts the optimal starting batch size using an advanced exponential formula.
 
         This formula adapts to note size and prompt size for better accuracy:
         - Smaller notes have higher packing efficiency
@@ -170,8 +169,7 @@ class SelectedNotes:
         - Larger prompts can pack more efficiently
 
         Returns:
-            Predicted number of batches needed
-
+            Predicted batch size (notes per batch) to use as starting point
         """
         # Per-note overhead for metadata, separators, formatting
         overhead = 15
@@ -198,7 +196,10 @@ class SelectedNotes:
         # Calculate batches needed (minimum 1)
         batches = max(1, math.ceil(total_effective_size / usable_prompt_size))
 
-        return batches
+        # Return the batch SIZE (notes per batch), not number of batches
+        batch_size = max(1, num_notes_selected // batches)
+
+        return batch_size
 
     def filter_by_writable_or_overwritable(
         self,
@@ -359,12 +360,13 @@ class SelectedNotes:
         # Get note objects
         notes = notes_with_fields.get_notes()
 
-        avg_note_size = sum(sum(len(note[fields_name]) for fields_name in selected_fields) for note in notes[0:50]) // len(notes[0:50])
+        sample = random.sample(notes, min(500, len(notes)))
+        avg_note_size = sum(sum(len(note[fields_name]) for fields_name in selected_fields) for note in sample) // len(sample)
 
         batches: list[SelectedNotes] = []
         i = 0  # Current position in notes list
         # Use dynamically computed start size for first batch, then previous batch size
-        last_batch_size = self._compute_start_size(max_chars, len(notes), avg_note_size)
+        last_batch_size = self.predict_batch_size(max_chars, len(notes), avg_note_size)
         num_prompts_tried = 0
 
         def build_prompt(test_selected_notes: SelectedNotes) -> str:
