@@ -87,7 +87,7 @@ def set_release_version(src_dir: Path) -> Optional[str]:
             return provided_version_number
 
     with file_with_version.open("w") as file:
-        file.write('TRANSFORMERMAN_VERSION = "{}"'.format(provided_version_number))
+        file.write('TRANSFORMERMAN_VERSION = "{}"\n'.format(provided_version_number))
     return provided_version_number
 
 
