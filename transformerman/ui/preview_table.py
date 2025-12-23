@@ -13,7 +13,6 @@ import difflib
 from aqt.qt import (
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
     QColor,
     QWidget,
     QAbstractItemView,
@@ -200,6 +199,10 @@ class PreviewTable(QTableWidget):
             self.setRowCount(0)
             return
 
+        # Temporarily disable updates
+        self.setDisabled(True)
+        self.setUpdatesEnabled(False)
+
         # Setup columns
         self.setColumnCount(len(selected_fields))
         self.setHorizontalHeaderLabels(selected_fields)
@@ -207,8 +210,29 @@ class PreviewTable(QTableWidget):
         # Set row count
         self.setRowCount(len(note_ids))
 
+        # Configure table header
+        horizontal_header = self.horizontalHeader()
+        if horizontal_header is not None:
+
+            for col_index in range(len(selected_fields)):
+                horizontal_header.setSectionResizeMode(col_index, horizontal_header.ResizeMode.Interactive)
+
+            # Set default column widths
+            if table_viewport := self.viewport():
+                table_width = table_viewport.width()
+                default_column_width = min(table_width // len(selected_fields), 400)
+                for col_index in range(len(selected_fields)):
+                    self.setColumnWidth(col_index, default_column_width)
+
+            # Make the last column stretch to fill remaining space
+            horizontal_header.setStretchLastSection(True)
+
         # Load notes in background
         self._load_notes_in_background(list(note_ids), selected_fields, field_updates)
+
+        # Enable updates again
+        self.setDisabled(False)
+        self.setUpdatesEnabled(True)
 
     def _create_table_item(
         self, full_content: str, is_highlighted: bool, is_dim_highlight: bool = False, old_content: str | None = None
@@ -334,11 +358,6 @@ class PreviewTable(QTableWidget):
                         # Field doesn't exist in note or note is invalid
                         item = QTableWidgetItem("")
                         self.setItem(row_index, col, item)
-
-            # Adjust column widths
-            header = self.horizontalHeader()
-            if header:
-                header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
         def on_failure(exc: Exception) -> None:
             """Handle failure in background loading."""
