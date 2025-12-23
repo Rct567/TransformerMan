@@ -537,13 +537,25 @@ class TransformNotesWithProgress:
         )
 
         # Create progress dialog
-        progress = QProgressDialog(
-            f"Processing batch 0 of {transformer.num_batches}...",
-            "Cancel",
-            0,
-            transformer.num_batches,
-            self.parent,
-        )
+        # Use indeterminate/busy indicator for single batch, regular progress bar for multiple batches
+        if transformer.num_batches == 1:
+            # Indeterminate progress (busy indicator) - range (0, 0) creates infinite progress bar
+            progress = QProgressDialog(
+                "Processing...",
+                "Cancel",
+                0,
+                0,
+                self.parent,
+            )
+        else:
+            # Regular progress bar with defined range
+            progress = QProgressDialog(
+                f"Processing batch 0 of {transformer.num_batches}...",
+                "Cancel",
+                0,
+                transformer.num_batches,
+                self.parent,
+            )
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)  # Show immediately
         progress.setMinimumWidth(300)
@@ -574,37 +586,42 @@ class TransformNotesWithProgress:
 
             # Create callbacks for progress and cancellation
             def progress_callback(current: int, total: int, detailed: LmProgressData | None = None) -> None:
+                def get_detailed_message(data: LmProgressData) -> str:
+                    """Format detailed progress message for sending/receiving stages."""
+                    if data.stage == LmRequestStage.SENDING:
+                        return "Sending request..."
+
+                    # RECEIVING stage
+                    size_kb = data.total_bytes / 1024
+                    speed_kb_s = (data.total_bytes / data.elapsed) / 1024 if data.elapsed > 0 else 0
+
+                    if not data.text_chunk:  # Download phase (non-SSE or before first chunk)
+                        if data.content_length:
+                            total_kb = data.content_length / 1024
+                            return f"Receiving response... ({size_kb:.0f} KB / {total_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+                        return f"Receiving response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+
+                    # Streaming phase
+                    return f"Processing response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
+
                 def update_ui() -> None:
                     if not is_dialog_active:
                         return
 
-                    # if cancel_requested:
-                    #     return
-
                     try:
+                        # Determine prefix based on batch count
+                        prefix = "Processing..." if total == 1 else f"Processing batch {current + 1} of {total}..."
+
+                        # Build message
                         if detailed:
-                            if detailed.stage == LmRequestStage.SENDING:
-                                progress.setLabelText(f"Processing batch {current + 1} of {total}...\nSending request...")
-                            elif detailed.stage == LmRequestStage.RECEIVING:
-                                # Format detailed progress
-                                size_kb = detailed.total_bytes / 1024
-                                speed_kb_s = (detailed.total_bytes / detailed.elapsed) / 1024 if detailed.elapsed > 0 else 0
-
-                                if not detailed.text_chunk:  # Download phase (non-SSE or before first chunk)
-                                    if detailed.content_length:
-                                        total_kb = detailed.content_length / 1024
-                                        msg = f"Receiving response... ({size_kb:.0f} KB / {total_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
-                                    else:
-                                        msg = f"Receiving response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
-                                else:
-                                    # Streaming phase
-                                    msg = f"Processing response... ({size_kb:.0f} KB at {speed_kb_s:.0f} KB/s)"
-
-                                progress.setLabelText(f"Processing batch {current + 1} of {total}...\n{msg}")
+                            msg = get_detailed_message(detailed)
+                            progress.setLabelText(f"{prefix}\n{msg}")
                         else:
-                            progress.setLabelText(f"Processing batch {current + 1} of {total}...")
+                            progress.setLabelText(prefix)
 
-                        progress.setValue(current)
+                        # Only update value for multiple batches (single batch uses indeterminate mode)
+                        if total > 1:
+                            progress.setValue(current)
                     except RuntimeError:
                         # Progress dialog already deleted
                         pass
