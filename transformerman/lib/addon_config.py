@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from .lm_clients import LM_CLIENTS, LMClient, get_lm_client_class, ApiKey, ModelName
 
 
-DEFAULT_MAX_PROMPT_SIZE = 100_000
+DEFAULT_MAX_PROMPT_SIZE = 50_000
 DEFAULT_TIMEOUT = 240
 DEFAULT_CONNECT_TIMEOUT = 10
 
