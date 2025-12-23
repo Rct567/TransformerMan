@@ -15,9 +15,10 @@ from anki.utils import ids2str
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
-    from anki.notes import Note, NoteId
     from anki.models import NotetypeId, NotetypeDict
+    from anki.notes import Note, NoteId
     from anki.cards import CardId
+    from ..ui.field_widgets import FieldSelection
     from .prompt_builder import PromptBuilder
 
 
@@ -310,9 +311,7 @@ class SelectedNotes:
     def batched_by_prompt_size(
         self,
         prompt_builder: PromptBuilder,
-        selected_fields: Sequence[str],
-        writable_fields: Sequence[str] | None,
-        overwritable_fields: Sequence[str] | None,
+        field_selection: FieldSelection,
         note_type_name: str,
         max_chars: int,
         max_examples: int
@@ -325,28 +324,19 @@ class SelectedNotes:
 
         Args:
             prompt_builder: PromptBuilder instance for building prompts.
-            selected_fields: Sequence of field names to include in the prompt.
-            writable_fields: Sequence of field names that can be filled if empty.
-                If None, defaults to selected_fields.
-            overwritable_fields: Sequence of field names that can be filled even if already have content.
-                If None, defaults to empty list.
-            note_type_name: Name of the note type.
+            field_selection: FieldSelection containing selected, writable, and overwritable fields.
+            note_type_name: Name of note type.
             max_chars: Maximum prompt size in characters.
 
         Returns:
             List of SelectedNotes instances, each representing a batch.
         """
+
         if not self._note_ids:
             return []
 
-        if writable_fields is None:
-            writable_fields = selected_fields
-
-        if overwritable_fields is None:
-            overwritable_fields = []
-
         # Filter to notes with empty fields in writable_fields OR notes with fields in overwritable_fields
-        notes_with_fields = self.filter_by_writable_or_overwritable(writable_fields, overwritable_fields)
+        notes_with_fields = self.filter_by_writable_or_overwritable(field_selection.writable, field_selection.overwritable)
         if not notes_with_fields:
             return []
 
@@ -354,7 +344,7 @@ class SelectedNotes:
         notes = notes_with_fields.get_notes()
 
         sample = random.sample(notes, min(500, len(notes)))
-        avg_note_size = sum(sum(len(note[fields_name]) for fields_name in selected_fields) for note in sample) // len(sample)
+        avg_note_size = sum(sum(len(note[fields_name]) for fields_name in field_selection.selected) for note in sample) // len(sample)
 
         predicted_batch_size = self.predict_batch_size(max_chars, len(notes), avg_note_size)
 
@@ -369,9 +359,7 @@ class SelectedNotes:
             num_prompts_tried += 1
             return prompt_builder.build_prompt(
                 target_notes=test_selected_notes,
-                selected_fields=selected_fields,
-                writable_fields=writable_fields,
-                overwritable_fields=overwritable_fields,
+                field_selection=field_selection,
                 max_examples=max_examples,
                 note_type_name=note_type_name,
             )

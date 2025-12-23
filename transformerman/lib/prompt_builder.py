@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from anki.notes import Note, NoteId
     from anki.cards import Card, CardId
     from anki.decks import DeckId
+    from ..ui.field_widgets import FieldSelection
 
 
 class PromptBuilder:
@@ -125,9 +126,7 @@ class PromptBuilder:
     def build_prompt(
         self,
         target_notes: SelectedNotes,
-        selected_fields: Sequence[str],
-        writable_fields: Sequence[str] | None,
-        overwritable_fields: Sequence[str] | None,
+        field_selection: FieldSelection,
         max_examples: int,
         note_type_name: str = "",
     ) -> str:
@@ -137,27 +136,27 @@ class PromptBuilder:
         OR at least one note with a field in overwritable_fields.
         """
 
-        if writable_fields is None:
-            target_fields = selected_fields
+        if not field_selection.writable:
+            target_fields = field_selection.selected
         else:
-            target_fields = writable_fields
+            target_fields = field_selection.writable
 
         # Check precondition: notes with empty writable fields OR notes with overwritable fields
         has_empty_writable = target_notes.has_note_with_empty_field(target_fields)
-        has_overwritable = overwritable_fields and any(
+        has_overwritable = field_selection.overwritable and any(
             field in note
             for note in target_notes.get_notes()
-            for field in overwritable_fields
+            for field in field_selection.overwritable
         )
         if not has_empty_writable and not has_overwritable:
             raise ValueError("No notes with empty writable fields found and no notes with overwritable fields")
 
-        fields_to_fill = overwritable_fields if overwritable_fields else writable_fields
+        fields_to_fill = field_selection.overwritable if field_selection.overwritable else field_selection.writable
         if not fields_to_fill:
             raise ValueError("No writable or overwritable fields specified")
 
         # Get example notes
-        example_notes = self._select_example_notes(target_notes, selected_fields, note_type_name, max_examples)
+        example_notes = self._select_example_notes(target_notes, field_selection.selected, note_type_name, max_examples)
 
         # Build prompt parts
         prompt_parts = [
@@ -169,7 +168,7 @@ class PromptBuilder:
         # Add field-specific instructions (only for fields to be filled)
         if self.field_instructions:
             for field_name, instruction in self.field_instructions.items():
-                if field_name in selected_fields and field_name in fields_to_fill:
+                if field_name in field_selection.selected and field_name in fields_to_fill:
                     prompt_parts.append(f"- For field '{field_name}': {instruction}")
         else:
             # Adjust instruction based on whether examples are available
@@ -192,7 +191,7 @@ class PromptBuilder:
                     "",
                     "Here are some example notes from the collection:",
                     "",
-                    self._format_notes_as_xml(example_notes, note_type_name, selected_fields),
+                    self._format_notes_as_xml(example_notes, note_type_name, field_selection.selected),
                     "",
                 ]
             )
@@ -206,7 +205,7 @@ class PromptBuilder:
             if SelectedNotes.has_empty_field(note, target_fields):
                 notes_to_include.append(note)
             # Check if note has field in overwritable_fields
-            elif overwritable_fields and any(field in note for field in overwritable_fields):
+            elif field_selection.overwritable and any(field in note for field in field_selection.overwritable):
                 notes_to_include.append(note)
 
         # Add target notes
@@ -227,7 +226,7 @@ class PromptBuilder:
         prompt_parts.extend(
             [
                 "",
-                self._format_notes_as_xml(notes_to_include, note_type_name, selected_fields, overwritable_fields),
+                self._format_notes_as_xml(notes_to_include, note_type_name, field_selection.selected, field_selection.overwritable),
             ]
         )
 

@@ -183,7 +183,7 @@ class PreviewTable(QTableWidget):
     def show_notes(
         self,
         note_ids: Sequence[NoteId],
-        selected_fields: list[str],
+        selected_fields: Sequence[str],
         field_updates: FieldUpdates | None = None,
     ) -> None:
         """
@@ -191,7 +191,7 @@ class PreviewTable(QTableWidget):
 
         Args:
             note_ids: List of note IDs to display.
-            selected_fields: List of selected field names (column headers).
+            selected_fields: Sequence of note fields to show (column headers).
             field_updates: Optional FieldUpdates instance for highlighting.
         """
         if not note_ids or not selected_fields:
@@ -253,7 +253,7 @@ class PreviewTable(QTableWidget):
     def _load_notes_in_background(
         self,
         note_ids: list[NoteId],
-        selected_fields: list[str],
+        selected_fields: Sequence[str],
         field_updates: FieldUpdates | None = None,
     ) -> None:
         """
@@ -261,7 +261,7 @@ class PreviewTable(QTableWidget):
 
         Args:
             note_ids: List of note IDs to load.
-            selected_fields: List of selected field names.
+            selected_fields: Sequence of selected field names.
             field_updates: Optional FieldUpdates instance for preview highlighting.
         """
         selected_notes = self.selected_notes
@@ -273,7 +273,7 @@ class PreviewTable(QTableWidget):
 
         # Store the current state for the background operation
         current_ids = note_ids.copy()
-        current_selected_fields = selected_fields.copy()
+        current_selected_fields = list(selected_fields).copy()
         current_field_updates = field_updates if field_updates else FieldUpdates()
 
         def load_notes_batch(_: Collection) -> list[tuple[int, TableNoteData]]:

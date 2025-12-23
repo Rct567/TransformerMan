@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from transformerman.lib.prompt_builder import PromptBuilder
 from transformerman.lib.selected_notes import SelectedNotes
+from transformerman.ui.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
 col = test_collection_fixture
@@ -35,18 +36,22 @@ class TestPromptBuilder:
 
         prompt_with_writeable_fields = builder.build_prompt(
             target_notes=selected_notes,
-            selected_fields=["Front", "Back"],
-            writable_fields=["Front"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front", "Back"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_examples=3
         )
 
         prompt_with_overwritable_fields = builder.build_prompt(
             target_notes=selected_notes,
-            selected_fields=["Front", "Back"],
-            writable_fields=None,
-            overwritable_fields=["Front"],
+            field_selection=FieldSelection(
+                selected=["Front", "Back"],
+                writable=[],
+                overwritable=["Front"],
+            ),
             note_type_name="Basic",
             max_examples=3,
         )
@@ -97,9 +102,11 @@ class TestPromptBuilder:
         # Build prompt
         prompt = builder.build_prompt(
             target_notes=selected_notes,
-            selected_fields=["Front", "Back"],
-            writable_fields=["Front"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front", "Back"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_examples=3
         )
@@ -142,9 +149,11 @@ class TestPromptBuilder:
         # Build prompt
         prompt = builder.build_prompt(
             target_notes=selected_notes,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_examples=3
         )
@@ -192,9 +201,11 @@ class TestPromptBuilder:
         # Build prompt
         prompt = builder.build_prompt(
             target_notes=selected_notes,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_examples=10
         )

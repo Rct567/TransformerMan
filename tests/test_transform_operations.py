@@ -17,6 +17,7 @@ from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.prompt_builder import PromptBuilder
 from transformerman.lib.field_updates import FieldUpdates
+from transformerman.ui.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection, mock_collection_op
 
 col = test_collection_fixture
@@ -66,9 +67,11 @@ class TestNoteTransformer:
                 note_ids=note_ids,
                 lm_client=dummy_client,
                 prompt_builder=prompt_builder,
-                selected_fields=["Front"],  # Field that exists and is non-empty
-                writable_fields=["Front"],
-                overwritable_fields=[],
+                field_selection=FieldSelection(
+                    selected=["Front"],  # Field that exists and is non-empty
+                    writable=["Front"],
+                    overwritable=[],
+                ),
                 note_type_name="Basic",
                 addon_config=addon_config,
                 user_files_dir=mock_user_files_dir,
@@ -114,9 +117,11 @@ class TestNoteTransformer:
             note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=[],
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
@@ -184,9 +189,11 @@ class TestNoteTransformer:
             note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=[],
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
@@ -245,9 +252,11 @@ class TestNoteTransformer:
             note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=[],
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             addon_config=addon_config,
             user_files_dir=mock_user_files_dir,
@@ -320,9 +329,11 @@ class TestNoteTransformer:
                 note_ids=note_ids,
                 lm_client=dummy_client,
                 prompt_builder=prompt_builder,
-                selected_fields=["Front"],
-                writable_fields=["Front"],
-                overwritable_fields=[],
+                field_selection=FieldSelection(
+                    selected=["Front"],
+                    writable=["Front"],
+                    overwritable=[],
+                ),
                 note_type_name="Basic",
                 addon_config=addon_config,
                 user_files_dir=mock_user_files_dir,
@@ -383,9 +394,11 @@ class TestNoteTransformer:
             note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=[],
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             addon_config=addon_config,
             user_files_dir=mock_user_files_dir,

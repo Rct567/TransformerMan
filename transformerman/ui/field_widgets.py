@@ -6,7 +6,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from aqt.qt import QLabel, QCheckBox, QLineEdit, QWidget, Qt, QMouseEvent, QObject, QEvent
 
@@ -15,6 +15,15 @@ from ..ui.ui_utilities import debounce, EventManager, Event
 
 if TYPE_CHECKING:
     from ..lib.addon_config import AddonConfig
+    from collections.abc import Sequence
+
+
+class FieldSelection(NamedTuple):
+    """Container for field selection state."""
+
+    selected: Sequence[str]
+    writable: Sequence[str]
+    overwritable: Sequence[str]
 
 
 class FieldSelectionChangedEvent(Event):
@@ -222,29 +231,17 @@ class FieldWidgets:
     def __len__(self) -> int:
         return len(self._widgets)
 
-    def get_selected_fields(self) -> list[str]:
-        """Get the currently selected field names."""
-        return [
-            field_name
-            for field_name, widget in self._widgets.items()
-            if widget.is_read_selected()
-        ]
-
-    def get_writable_fields(self) -> list[str]:
-        """Get the currently selected writable field names (excluding overwritable fields)."""
-        return [
-            field_name
-            for field_name, widget in self._widgets.items()
-            if widget.is_writable()
-        ]
-
-    def get_overwritable_fields(self) -> list[str]:
-        """Get the currently selected overwritable field names."""
-        return [
-            field_name
-            for field_name, widget in self._widgets.items()
-            if widget.is_overwritable_selected()
-        ]
+    def get_field_selection(self) -> FieldSelection:
+        """Get the current field selection state as a single FieldSelection object."""
+        selected, writable, overwritable = [], [], []
+        for field_name, widget in self._widgets.items():
+            if widget.is_read_selected():
+                selected.append(field_name)
+            if widget.is_writable():
+                writable.append(field_name)
+            if widget.is_overwritable_selected():
+                overwritable.append(field_name)
+        return FieldSelection(selected=selected, writable=writable, overwritable=overwritable)
 
     def get_fillable_fields(self) -> list[str]:
         """Get all fields that can be filled (writable or overwritable)."""
@@ -260,7 +257,7 @@ class FieldWidgets:
 
     def get_current_field_instructions(self) -> dict[str, str]:
         """Get current field instructions for the selected fields."""
-        selected_fields = self.get_selected_fields()
+        selected_fields = self.get_field_selection().selected
         return {
             field_name: widget.get_instruction()
             for field_name, widget in self._widgets.items()

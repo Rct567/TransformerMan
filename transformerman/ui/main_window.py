@@ -35,6 +35,7 @@ import logging
 from aqt.main import AnkiQt
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
     from anki.collection import Collection
     from anki.notes import NoteId
@@ -220,12 +221,11 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
     def _has_notes_with_fillable_fields(self) -> bool:
         """Return True if there are notes that can be filled (empty writable fields or overwritable fields)."""
-        writable_fields = self.field_widgets.get_writable_fields()
-        overwritable_fields = self.field_widgets.get_overwritable_fields()
-        if not writable_fields and not overwritable_fields:
+        field_selection = self.field_widgets.get_field_selection()
+        if not field_selection.writable and not field_selection.overwritable:
             return False
         # Use the existing method that checks both conditions
-        filtered = self.selected_notes.filter_by_writable_or_overwritable(writable_fields, overwritable_fields)
+        filtered = self.selected_notes.filter_by_writable_or_overwritable(field_selection.writable, field_selection.overwritable)
         return len(filtered) > 0
 
     def _update_state(
@@ -256,6 +256,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
     def _update_stats_widget(self) -> None:
         """Update the stats widget."""
+        overwritable_fields: Sequence[str]
         if not self.current_note_model:
             total_count = 0
             num_notes_empty_field = 0
@@ -264,14 +265,16 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         else:
             filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
             total_count = len(filtered_note_ids)
-            writable_fields = self.field_widgets.get_writable_fields()
-            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(writable_fields)) if writable_fields else 0
-
-            selected_fields = self.field_widgets.get_selected_fields()
-            overwritable_fields = self.field_widgets.get_overwritable_fields()
-            num_api_calls_needed = self.transformer.get_num_api_calls_needed(
-                self.current_note_model.name, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
+            field_selection = self.field_widgets.get_field_selection()
+            num_notes_empty_field = (
+                len(self.selected_notes.filter_by_empty_field(field_selection.writable))
+                if field_selection.writable else 0
             )
+
+            num_api_calls_needed = self.transformer.get_num_api_calls_needed(
+                self.current_note_model.name, field_selection, filtered_note_ids
+            )
+            overwritable_fields = field_selection.overwritable
 
         note_text = "note" if total_count == 1 else "notes"
         empty_text = "note" if num_notes_empty_field == 1 else "notes"
@@ -386,7 +389,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         if self.preview_table.selected_notes:
             self.preview_table.selected_notes.clear_cache()
         # Get selected fields
-        selected_fields = self.field_widgets.get_selected_fields()
+        selected_fields = self.field_widgets.get_field_selection().selected
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
         # Update the preview table
@@ -431,10 +434,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
     def _on_preview_clicked(self) -> None:
         """Handle preview button click."""
-        # Get selected fields
-        selected_fields = self.field_widgets.get_selected_fields()
+        # Get field selection
+        field_selection = self.field_widgets.get_field_selection()
 
-        if not selected_fields:
+        if not field_selection.selected:
             showInfo("Please select at least one field to include.", parent=self)
             return
 
@@ -457,12 +460,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Calculate API calls needed using transformer method
         # Note: transformer should already have latest field instructions from _update_state calls
-        writable_fields = self.field_widgets.get_writable_fields()
-        overwritable_fields = self.field_widgets.get_overwritable_fields()
         if not self.current_note_model:
             return
 
-        transform_args = self.current_note_model.name, selected_fields, writable_fields, overwritable_fields, filtered_note_ids
+        transform_args = (self.current_note_model.name, field_selection, filtered_note_ids)
         api_calls_needed = self.transformer.get_num_api_calls_needed(*transform_args)
 
         if api_calls_needed == 0 and not self.transformer.is_cached(*transform_args):
@@ -472,7 +473,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Show warning if API calls > 10
         if api_calls_needed > 10:
             # Need to get empty count for warning message
-            num_notes_empty_field = len(self.selected_notes.filter_by_empty_field(writable_fields)) if writable_fields else 0
+            num_notes_empty_field = (
+                len(self.selected_notes.filter_by_empty_field(field_selection.writable))
+                if field_selection.writable else 0
+            )
             max_prompt_size = self.addon_config.get_max_prompt_size()
 
             warning_message = (
@@ -541,10 +545,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             return
         self.transformer.transform(
             note_ids=filtered_note_ids,
-            selected_fields=selected_fields,
-            writable_fields=writable_fields,
-            overwritable_fields=overwritable_fields,
             note_type_name=self.current_note_model.name,
+            field_selection=field_selection,
             on_success=on_transform_success,
         )
 
@@ -623,7 +625,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         if not self.current_note_model:
             return
         # Get selected fields
-        selected_fields = self.field_widgets.get_selected_fields()
+        selected_fields = self.field_widgets.get_field_selection().selected
         # Get filtered note IDs
         filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
         # Update the preview table with field updates for highlighting

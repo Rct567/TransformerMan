@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 from anki.models import NotetypeId
 
 from transformerman.lib.selected_notes import SelectedNotes, NoteModel
+from transformerman.ui.field_widgets import FieldSelection
 from transformerman.lib.prompt_builder import PromptBuilder
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
@@ -250,9 +251,11 @@ class TestSelectedNotes:
 
         batches = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_chars=1000,
             max_examples=10,
@@ -285,9 +288,11 @@ class TestSelectedNotes:
 
         batches = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
-            selected_fields=["Front"],  # All notes have non-empty Front
-            writable_fields=["Front"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_chars=1000,
             max_examples=10
@@ -321,9 +326,11 @@ class TestSelectedNotes:
         # Use large max_chars to ensure single batch
         batches = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_chars=500000,  # Very large
             max_examples=10,
@@ -368,9 +375,11 @@ class TestSelectedNotes:
 
             batches = selected_notes.batched_by_prompt_size(
                 prompt_builder=prompt_builder,
-                selected_fields=["Front", "Back"],
-                writable_fields=["Front"],
-                overwritable_fields=None,
+                field_selection=FieldSelection(
+                    selected=["Front", "Back"],
+                    writable=["Front"],
+                    overwritable=[],
+                ),
                 note_type_name="Basic",
                 max_chars=max_chars,  # Moderate size to get multiple batches
                 max_examples=10,
@@ -423,27 +432,33 @@ class TestSelectedNotes:
         # Use tiny max_chars so even single note exceeds limit
         batches = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_chars=10,  # Extremely small
             max_examples=3,
         )
         batches_increased_max_chars = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
-            selected_fields=["Front"],
-            writable_fields=["Front"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
             max_examples=3,
         )
         batches_increased_max_chars_with_large_field = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
-            selected_fields=["Front", "Back"],
-            writable_fields=["Front", "Back"],
-            overwritable_fields=None,
+            field_selection=FieldSelection(
+                selected=["Front", "Back"],
+                writable=["Front", "Back"],
+                overwritable=[],
+            ),
             note_type_name="Basic",
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
             max_examples=3,
