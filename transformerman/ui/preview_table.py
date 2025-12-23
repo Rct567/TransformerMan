@@ -36,10 +36,10 @@ if TYPE_CHECKING:
 
 
 # Constants for content display
-MAX_CONTENT_LENGTH = 50
+MAX_CONTENT_LENGTH = 1000
 ELLIPSIS_LENGTH = 3  # Length of "..."
 TRUNCATED_LENGTH = MAX_CONTENT_LENGTH - ELLIPSIS_LENGTH
-BATCH_SIZE = 10
+BATCH_SIZE = 100
 
 # Color constants for highlighting
 DARK_MODE_HIGHLIGHT_COLOR = (50, 150, 50)  # Dark green
