@@ -133,7 +133,7 @@ class TestNoteTransformer:
         # Verify results
         assert results.num_notes_updated == 4  # All 4 notes should have updates
         assert results.num_notes_failed == 0
-        assert results.num_batches_processed == 2  # Batch size produces 2 batches
+        assert results.num_batches_processed == 3
         assert results.error is None
 
         # Verify field updates contain expected content

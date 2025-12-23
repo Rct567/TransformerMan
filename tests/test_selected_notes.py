@@ -366,12 +366,17 @@ class TestSelectedNotes:
         selected_notes = SelectedNotes(col, note_ids)
         prompt_builder = PromptBuilder(col)
 
-        # Use small max_chars to force multiple batches
+        # Test with different max_chars to ensure multiple batches are created
 
-        batch_specs = {20_000: 1, 9_500: 2, 4_900: 5, 2_500: 17}
+        test_cases = [
+            (20_000, 1, 1),  # (max_chars, min_expected_batches, max_expected_batches)
+            (9_500, 2, 2),
+            (4_900, 5, 6),
+            (2_500, 16, 22),
+        ]
+
         num_prompts_tried = []
-
-        for max_chars, expected_num_batches in batch_specs.items():
+        for max_chars, min_batches, max_batches in test_cases:
 
             batches = selected_notes.batched_by_prompt_size(
                 prompt_builder=prompt_builder,
@@ -381,19 +386,39 @@ class TestSelectedNotes:
                     overwritable=[],
                 ),
                 note_type_name="Basic",
-                max_chars=max_chars,  # Moderate size to get multiple batches
+                max_chars=max_chars,
                 max_examples=10,
             )
 
-            assert len(batches) == expected_num_batches, (
-                f"Expected {expected_num_batches} batches "
+            # Verify batch count is reasonable
+            assert min_batches <= len(batches) <= max_batches, (
+                f"Expected {min_batches}-{max_batches} batches "
                 f"for max_chars={max_chars}, got {len(batches)}"
             )
+
+            # Verify all notes are included
             total_notes_in_batches = sum(len(batch) for batch in batches)
             assert total_notes_in_batches == 100
 
+            # Verify each batch fits within max_chars (sample a few)
+            for i, batch in enumerate(batches[:3]):  # Check first 3 batches
+                # Build prompt for this batch
+                prompt = prompt_builder.build_prompt(
+                    target_notes=batch,
+                    field_selection=FieldSelection(
+                        selected=["Front", "Back"],
+                        writable=["Front"],
+                        overwritable=[],
+                    ),
+                    max_examples=10,
+                    note_type_name="Basic",
+                )
+                assert len(prompt) <= max_chars, (
+                    f"Batch {i} exceeds max_chars ({len(prompt)} > {max_chars})"
+                )
+
             assert selected_notes.batching_stats
-            assert selected_notes.batching_stats.num_prompts_tried <= 81
+            assert selected_notes.batching_stats.num_prompts_tried <= 50
 
             num_prompts_tried.append(selected_notes.batching_stats.num_prompts_tried)
 

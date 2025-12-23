@@ -23,7 +23,6 @@ if TYPE_CHECKING:
 
 
 class BatchingStats(NamedTuple):
-    initial_batch_size: int  # noqa: F841
     num_prompts_tried: int
     median_batch_size: int | None
     avg_batch_size: int | None
@@ -31,6 +30,83 @@ class BatchingStats(NamedTuple):
     num_notes_selected: int  # noqa: F841
     avg_note_size: int
     max_prompt_size: int
+
+
+def find_adaptive_batch_size(
+    total_items: int,
+    predicted_size: int,
+    validate_fn: Callable[[int], bool],
+    accuracy_factor: float = 1.0,
+) -> tuple[int, float]:
+    """
+    Find optimal batch size using adaptive prediction with learning.
+
+    Uses exponential growth/shrinkage to find the maximum valid batch size,
+    starting from a predicted size. Learns from the result to improve future
+    predictions via an accuracy factor.
+
+    Algorithm:
+    1. Apply accuracy factor to prediction
+    2. Test batch size with validate_fn
+    3. If valid: exponentially grow by 20% until invalid or exhausted
+    4. If invalid: exponentially shrink by 30% until valid
+    5. Calculate accuracy factor: 0.9 * old + 0.1 * (actual / predicted)
+
+    Args:
+        total_items: Total number of items available to batch
+        predicted_size: Initial prediction for batch size (before adjustment)
+        validate_fn: Function that returns True if batch size is valid/fits
+        accuracy_factor: Learning factor from previous batches (default: 1.0)
+
+    Returns:
+        Tuple of (optimal_batch_size, updated_accuracy_factor)
+
+    Example:
+        >>> def fits(size: int) -> bool:
+        ...     return build_prompt(notes[:size]) <= max_chars
+        >>>
+        >>> accuracy = 1.0
+        >>> size, accuracy = find_adaptive_batch_size(100, 50, fits, accuracy)
+        >>> # Use size for first batch, then use updated accuracy for next batch
+    """
+    if total_items <= 0:
+        return 0, accuracy_factor
+
+    # Apply learned accuracy adjustment
+    adjusted_prediction = max(1, int(predicted_size * accuracy_factor))
+    current_size = adjusted_prediction
+    last_valid_size: int | None = None
+
+    # Exponential search with growth/shrinkage
+    while current_size > 0 and current_size <= total_items:
+        is_valid = validate_fn(current_size)
+
+        if is_valid:
+            last_valid_size = current_size
+            # Try growing (but cautiously)
+            if current_size == total_items:
+                break
+            next_size = min(total_items, int(current_size * 1.2))
+            if next_size == current_size:
+                break
+            current_size = next_size
+        else:
+            # Too large, shrink
+            if last_valid_size is not None:
+                current_size = last_valid_size
+                break
+            current_size = int(current_size * 0.7)
+
+    # Final batch size
+    batch_size = last_valid_size if last_valid_size is not None else max(1, current_size)
+
+    # Update accuracy factor using exponential moving average
+    if predicted_size > 0:
+        new_accuracy = 0.9 * accuracy_factor + 0.1 * (batch_size / predicted_size)
+    else:
+        new_accuracy = accuracy_factor
+
+    return batch_size, new_accuracy
 
 
 class NoteModel:
@@ -75,10 +151,6 @@ class SelectedNotes:
     _note_cache: dict[NoteId, Note]
     _deck_cache: dict[CardId, str]
     batching_stats: BatchingStats | None
-
-    # Constants for batch sizing algorithm
-    EXPONENTIAL_MULTIPLIER: int = 2
-    MAX_BINARY_SEARCH_ITERATIONS: int = 3  # Limit binary search to prevent too many prompt builds
 
     def __init__(
         self,
@@ -234,80 +306,6 @@ class SelectedNotes:
 
         return self.new_selected_notes(filtered_note_ids)
 
-    def _test_batch_size(
-        self,
-        notes: Sequence[Note],
-        start_idx: int,
-        batch_size: int,
-        build_prompt: Callable[[SelectedNotes], str],
-        max_chars: int,
-    ) -> tuple[bool, int]:
-        """
-        Test if a batch of given size fits within max_chars.
-
-        Args:
-            notes: Sequence of notes to test.
-            start_idx: Starting index in notes sequence.
-            batch_size: Size of batch to test.
-            build_prompt: Function to build prompt for testing.
-            max_chars: Maximum allowed prompt size.
-
-        Returns:
-            Tuple of (fits: bool, actual_size: int).
-            actual_size is -1 if prompt building failed.
-        """
-        test_batch_note_ids = [note.id for note in notes[start_idx:start_idx+batch_size]]
-        test_selected_notes = self.new_selected_notes(test_batch_note_ids)
-
-        try:
-            test_prompt = build_prompt(test_selected_notes)
-            test_size = len(test_prompt)
-            return test_size <= max_chars, test_size
-        except Exception as e:
-            self.logger.warning(f"Failed to build prompt for batch sizing: {e}")
-            return False, -1
-
-    def _perform_binary_search_for_batch_size(
-        self,
-        notes: Sequence[Note],
-        start_idx: int,
-        low: int,
-        high: int,
-        build_prompt: Callable[[SelectedNotes], str],
-        max_chars: int,
-    ) -> int:
-        """
-        Perform binary search to find maximum batch size that fits within max_chars.
-
-        Args:
-            notes: Sequence of notes to search in.
-            start_idx: Starting index in notes sequence.
-            low: Minimum batch size to consider.
-            high: Maximum batch size to consider.
-            build_prompt: Function to build prompt for testing.
-            max_chars: Maximum allowed prompt size.
-
-        Returns:
-            Maximum batch size that fits, or 0 if none found.
-        """
-        best_size = 0
-        iteration = 0
-
-        while low <= high and iteration < self.MAX_BINARY_SEARCH_ITERATIONS:
-            iteration += 1
-            mid = (low + high) // 2
-            fits, _ = self._test_batch_size(notes, start_idx, mid, build_prompt, max_chars)
-
-            if fits:
-                # Fits, try larger
-                best_size = mid
-                low = mid + 1
-            else:
-                # Too large, try smaller
-                high = mid - 1
-
-        return best_size
-
     def batched_by_prompt_size(
         self,
         prompt_builder: PromptBuilder,
@@ -317,21 +315,10 @@ class SelectedNotes:
         max_examples: int
     ) -> list[SelectedNotes]:
         """
-        Split notes into batches where each batch's prompt size <= max_chars.
+        Batch notes by maximum prompt size using adaptive prediction with learning.
 
-        Uses exponential search starting from a dynamically computed start size
-        based on max_chars: increases when it fits, decreases via binary search when it doesn't fit.
-
-        Args:
-            prompt_builder: PromptBuilder instance for building prompts.
-            field_selection: FieldSelection containing selected, writable, and overwritable fields.
-            note_type_name: Name of note type.
-            max_chars: Maximum prompt size in characters.
-
-        Returns:
-            List of SelectedNotes instances, each representing a batch.
+        See find_adaptive_batch_size() for algorithm details.
         """
-
         if not self._note_ids:
             return []
 
@@ -341,17 +328,8 @@ class SelectedNotes:
             return []
 
         # Get note objects
-        notes = notes_with_fields.get_notes()
+        notes = list(notes_with_fields.get_notes())
 
-        sample = random.sample(notes, min(500, len(notes)))
-        avg_note_size = sum(sum(len(note[fields_name]) for fields_name in field_selection.selected) for note in sample) // len(sample)
-
-        predicted_batch_size = self.predict_batch_size(max_chars, len(notes), avg_note_size)
-
-        batches: list[SelectedNotes] = []
-        i = 0  # Current position in notes list
-        # Use dynamically computed start size for first batch, then previous batch size
-        last_batch_size = predicted_batch_size
         num_prompts_tried = 0
 
         def build_prompt(test_selected_notes: SelectedNotes) -> str:
@@ -364,90 +342,62 @@ class SelectedNotes:
                 note_type_name=note_type_name,
             )
 
-        while i < len(notes):
-            remaining = len(notes) - i
+        def create_validator(notes_list: Sequence[Note]) -> Callable[[int], bool]:
+            def validate(size: int) -> bool:
+                if size == 0:
+                    return True
+                test_batch = notes_list[:size]
+                test_selected_notes = self.new_selected_notes([note.id for note in test_batch])
+                prompt = build_prompt(test_selected_notes)
+                return len(prompt) <= max_chars
 
-            # Use the size of the last batch as starting point
-            # This is efficient because batch sizes tend to be similar
-            start_size = min(last_batch_size, remaining)
+            return validate
 
-            # First check if start_size fits
-            start_fits, _ = self._test_batch_size(notes, i, start_size, build_prompt, max_chars)
+        def calc_avg_note_size(notes_list: Sequence[Note], field_names: Sequence[str]) -> int:
+            sample = random.sample(notes_list, min(500, len(notes_list)))
+            return sum(sum(len(note[fields_name]) for fields_name in field_names) for note in sample) // len(sample)
 
-            if start_fits:
-                # start_size fits, try to find larger size that fits
-                # Exponential search with doubling
-                low = start_size
-                high = start_size
+        batches: list[SelectedNotes] = []
+        remaining = notes.copy()
+        accuracy_factor = 1.0
+        avg_note_size = calc_avg_note_size(remaining, field_selection.selected)
+        init_predicted = self.predict_batch_size(max_chars, len(remaining), avg_note_size)
 
-                # Find upper bound (first size that doesn't fit)
-                while high < remaining:
-                    next_size = min(high * self.EXPONENTIAL_MULTIPLIER, remaining)
-                    if next_size <= high:  # Prevent infinite loop
-                        break
+        while remaining:
 
-                    fits, _ = self._test_batch_size(notes, i, next_size, build_prompt, max_chars)
-
-                    if fits:
-                        # Still fits, continue exponential search
-                        low = next_size  # Update lower bound (last known fitting size)
-                        high = next_size
-                    else:
-                        # Doesn't fit, found upper bound
-                        high = next_size
-                        break
-
-                # Now binary search between low and high to find max fitting size
-                # low is last known fitting size, high is first known non-fitting size
-                best_size = low
-
-                # If we reached end of notes without finding non-fitting size, use remaining
-                if high == low and high < remaining:
-                    best_size = remaining
-                else:
-                    # Binary search between low and high to find max fitting size
-                    best_size = self._perform_binary_search_for_batch_size(
-                        notes, i, low, high, build_prompt, max_chars
-                    )
-                    if best_size == 0:
-                        best_size = low  # Fall back to last known good size
+            # Predict batch size based on previous batches
+            if len(batches) > 0:
+                current_avg_batch_size = sum(len(batch) for batch in batches) // len(batches)
+                predicted = current_avg_batch_size
             else:
-                # start_size doesn't fit, binary search between 1 and start_size-1
-                best_size = self._perform_binary_search_for_batch_size(
-                    notes, i, 1, start_size - 1, build_prompt, max_chars
-                )
+                predicted = init_predicted
 
-                # If we still haven't found a fitting size, test the smallest size (1)
-                # This handles the case where binary search didn't test mid=1 due to iteration limit
-                if best_size == 0 and start_size > 1:
-                    fits, _ = self._test_batch_size(notes, i, 1, build_prompt, max_chars)
-                    if fits:
-                        best_size = 1
+            # Find optimal size with adaptive learning
+            validate_fn = create_validator(remaining)
 
-            if best_size == 0:
-                # Even a single note doesn't fit - check for accurate warning
-                fits, actual_size = self._test_batch_size(notes, i, 1, build_prompt, max_chars)
-                if actual_size > max_chars:
+            batch_size, accuracy_factor = find_adaptive_batch_size(
+                total_items=len(remaining),
+                predicted_size=predicted,
+                validate_fn=validate_fn,
+                accuracy_factor=accuracy_factor,
+            )
+
+            if predicted <= 1 and batch_size == 1:
+                note = remaining[0]
+                prompt_size = len(build_prompt(self.new_selected_notes([note.id])))
+                if prompt_size > max_chars:
                     self.logger.warning(
-                        f"Note {notes[i].id} exceeds maximum prompt size ({actual_size} > {max_chars}). Skipping."
+                        f"Note {note.id} exceeds maximum prompt size ({prompt_size} > {max_chars}). Skipping."
                     )
-                elif fits:
-                    # This shouldn't happen if our algorithm is correct, but log for debugging
-                    self.logger.warning(
-                        f"Note {notes[i].id} unexpectedly skipped despite fitting ({actual_size} <= {max_chars})."
-                    )
+                    break
 
-                i += 1
-                continue
-
-            # Create batch with best_size notes
-            batch_note_ids = [note.id for note in notes[i:i+best_size]]
-
+            # Create batch
+            batch_notes = remaining[:batch_size]
+            batch_note_ids = [note.id for note in batch_notes]
             batches.append(self.new_selected_notes(batch_note_ids))
-            last_batch_size = best_size  # Remember for next batch
-            i += best_size
+            remaining = remaining[batch_size:]
 
-        # Calculate and log average batch size
+        # Calculate and store stats
         num_batches = len(batches)
         if batches:
             median_batch_size = sorted(len(batch) for batch in batches)[num_batches // 2]
@@ -458,7 +408,6 @@ class SelectedNotes:
             self.logger.info("No batches created")
 
         self.batching_stats = BatchingStats(
-            initial_batch_size=predicted_batch_size,
             num_prompts_tried=num_prompts_tried,
             median_batch_size=median_batch_size,
             avg_batch_size=avg_batch_size,
