@@ -581,7 +581,7 @@ class TransformNotesWithProgress:
 
         is_dialog_active = True
 
-        def process_batches(col: Collection) -> tuple[TransformResults, FieldUpdates]:
+        def process_batches(_: Collection) -> tuple[TransformResults, FieldUpdates]:
             """Background operation that processes each batch."""
 
             # Create callbacks for progress and cancellation
@@ -672,7 +672,7 @@ class TransformNotesWithProgress:
             parent=self.parent,
             op=process_batches,
             success=on_success_callback,
-        ).failure(on_failure).run_in_background()
+        ).without_collection().failure(on_failure).run_in_background()
 
     def apply_field_updates(
         self,

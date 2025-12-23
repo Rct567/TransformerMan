@@ -537,12 +537,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             showInfo(result_info_text, parent=self)
 
-        # Create backup before preview (prevent anki backing up mid-operation)
-        if self.parent() is not None and hasattr(self.parent(), "mw"):
-            mw = getattr(self.parent(), "mw", None)
-            assert isinstance(mw, AnkiQt)
-            mw.create_backup_now()
-
         if not self.current_note_model:
             return
         self.transformer.transform(
