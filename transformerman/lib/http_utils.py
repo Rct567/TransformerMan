@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
 import requests
 
 if TYPE_CHECKING:
-    from transformerman.lib.utilities import JSON_TYPE
+    from .utilities import JSON_TYPE
 
 
 class LmRequestStage(Enum):

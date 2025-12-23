@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Callable, NamedTuple
 
 from anki.utils import ids2str
 
-from transformerman.lib.notes_batching import BatchingStats, batched_by_prompt_size
+from .notes_batching import BatchingStats, batched_by_prompt_size
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
