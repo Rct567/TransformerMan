@@ -8,6 +8,7 @@ note previews with background loading and highlighting capabilities.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict
+import difflib
 
 from aqt.qt import (
     QTableWidget,
@@ -48,6 +49,75 @@ DARK_MODE_DIM_HIGHLIGHT_COLOR = (65, 100, 65)  # Dimmer dark green
 LIGHT_MODE_DIM_HIGHLIGHT_COLOR = (200, 240, 200)  # Dimmer light green
 DARK_MODE_DIM_TEXT_COLOR = (150, 180, 150)  # Dimmed text for dark mode
 LIGHT_MODE_DIM_TEXT_COLOR = (100, 140, 100)  # Dimmed text for light mode
+
+# Diff tooltip constants
+DIFF_CONTEXT_LENGTH = 40  # Characters of context to show around changes
+MAX_SIMPLE_DIFF_LENGTH = 200  # If both strings are shorter, show full diff
+
+
+def _create_diff_tooltip(old_content: str, new_content: str) -> str:
+    """
+    Create a smart tooltip showing the difference between old and new content.
+
+    For short content, shows both old and new values in full.
+    For long content, shows only the changed sections with context.
+
+    Args:
+        old_content: The original content.
+        new_content: The updated content.
+
+    Returns:
+        A formatted tooltip string showing the differences.
+    """
+    # If content is identical, just show it once
+    if old_content == new_content:
+        return new_content
+
+    # For short content, show both old and new in full
+    if len(old_content) <= MAX_SIMPLE_DIFF_LENGTH and len(new_content) <= MAX_SIMPLE_DIFF_LENGTH:
+        return f"Old: {old_content}\n\nNew: {new_content}"
+
+    # For long content, use smart diffing to show only changes
+    # Split into lines for better diff granularity
+    old_lines = old_content.splitlines(keepends=True)
+    new_lines = new_content.splitlines(keepends=True)
+
+    # Use SequenceMatcher to find differences
+    matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
+    diff_parts: list[str] = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            # Skip equal parts, but show context if they're short
+            equal_content = "".join(old_lines[i1:i2])
+            if len(equal_content) <= DIFF_CONTEXT_LENGTH * 2:
+                diff_parts.append(equal_content)
+            else:
+                # Show beginning and end context
+                context_start = "".join(old_lines[i1 : i1 + 1])[:DIFF_CONTEXT_LENGTH]
+                context_end = "".join(old_lines[i2 - 1 : i2])[-DIFF_CONTEXT_LENGTH:]
+                if context_start:
+                    diff_parts.append(context_start)
+                diff_parts.append("\n[...]\n")
+                if context_end:
+                    diff_parts.append(context_end)
+        elif tag == "replace":
+            old_text = "".join(old_lines[i1:i2])
+            new_text = "".join(new_lines[j1:j2])
+            diff_parts.append(f"\n[-] {old_text}")
+            diff_parts.append(f"\n[+] {new_text}\n")
+        elif tag == "delete":
+            old_text = "".join(old_lines[i1:i2])
+            diff_parts.append(f"\n[-] {old_text}\n")
+        elif tag == "insert":
+            new_text = "".join(new_lines[j1:j2])
+            diff_parts.append(f"\n[+] {new_text}\n")
+
+    if not diff_parts:
+        # Fallback to simple diff if no changes detected
+        return f"Old: {old_content}\n\nNew: {new_content}"
+
+    return "".join(diff_parts).strip()
 
 
 class TableNoteData(TypedDict):
@@ -141,15 +211,16 @@ class PreviewTable(QTableWidget):
         self._load_notes_in_background(list(note_ids), selected_fields, field_updates)
 
     def _create_table_item(
-        self, full_content: str, is_highlighted: bool, is_dim_highlight: bool = False
+        self, full_content: str, is_highlighted: bool, is_dim_highlight: bool = False, old_content: str | None = None
     ) -> QTableWidgetItem:
         """
         Create a table widget item with truncated content and appropriate styling.
 
         Args:
-            full_content: The complete content string.
+            full_content: The complete content string (new content).
             is_highlighted: Whether to apply highlight styling.
             is_dim_highlight: Whether to use dim highlight (when update matches original).
+            old_content: Optional original content for creating diff tooltips.
 
         Returns:
             A QTableWidgetItem with truncated content, tooltip, and optional highlighting.
@@ -161,7 +232,14 @@ class PreviewTable(QTableWidget):
             display_content = full_content
 
         item = QTableWidgetItem(display_content)
-        item.setToolTip(full_content)
+
+        # Create smart diff tooltip if we have old content and it's different
+        if old_content is not None and old_content != full_content:
+            tooltip = _create_diff_tooltip(old_content, full_content)
+            item.setToolTip(tooltip)
+        else:
+            # Use full content as tooltip
+            item.setToolTip(full_content)
 
         if is_highlighted and self.is_highlighted:
             if is_dim_highlight:
@@ -234,11 +312,13 @@ class PreviewTable(QTableWidget):
                         if field_name in note_updates:
                             # Show preview value with green background
                             full_content = note_updates[field_name]
+                            old_content = note[field_name]
                             is_highlighted = True
-                            is_dim_highlight = full_content == note[field_name]
+                            is_dim_highlight = full_content == old_content
                         else:
                             # Show original value
                             full_content = note[field_name]
+                            old_content = None
                             is_highlighted = False
                             is_dim_highlight = False
 
@@ -247,6 +327,7 @@ class PreviewTable(QTableWidget):
                             full_content=full_content,
                             is_highlighted=is_highlighted,
                             is_dim_highlight=is_dim_highlight,
+                            old_content=old_content,
                         )
                         self.setItem(row_index, col, item)
                     except (KeyError, AttributeError):
