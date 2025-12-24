@@ -52,7 +52,7 @@ else:
 if sys.version_info >= (3, 12):
     from typing import override  # type: ignore[attr-defined]
 elif TYPE_CHECKING:
-    from typing_extensions import override
+    from typing_extensions import override  # type: ignore[unused-import]
 else:
     # Dummy decorator for runtime on Python < 3.12
     def override(func):  # type: ignore[misc]

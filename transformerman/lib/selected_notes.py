@@ -6,9 +6,8 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
-import math
 import random
-from typing import TYPE_CHECKING, Callable, NamedTuple
+from typing import TYPE_CHECKING
 
 from anki.utils import ids2str
 

@@ -8,7 +8,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import re
-import importlib.util
 
 
 def test_transformerman_imports() -> None:

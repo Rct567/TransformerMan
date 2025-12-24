@@ -32,8 +32,6 @@ from ..lib.selected_notes import SelectedNotes, NoteModel
 
 import logging
 
-from aqt.main import AnkiQt
-
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
