@@ -11,9 +11,9 @@ import re
 import importlib.util
 
 
-def test_no_absolute_transformerman_imports() -> None:
+def test_transformerman_imports() -> None:
     """
-    Generic test that checks all Python files for problematic absolute imports.
+    Generic test that checks all Python files for problematic imports.
 
     This test scans the entire codebase and ensures no file uses absolute imports
     from the transformerman package, which would fail when Anki loads the addon.
@@ -25,6 +25,7 @@ def test_no_absolute_transformerman_imports() -> None:
 
     # Pattern to match absolute imports from transformerman package
     absolute_import_pattern = re.compile(r"^from transformerman\.")
+    direct_aqt_import_pattern = re.compile(r"^from aqt import Q")
 
     problematic_files = []
 
@@ -42,17 +43,25 @@ def test_no_absolute_transformerman_imports() -> None:
             if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
                 continue
 
+            error = ""
+
             if absolute_import_pattern.match(line.strip()):
+                error = "Found problematic absolute imports that would fail in Anki"
+            elif direct_aqt_import_pattern.match(line.strip()):
+                error = "Direct imports from aqt are not allowed; use aqt.qt instead"
+
+            if error:
                 problematic_files.append({
                     "file": str(file_path.relative_to(Path(__file__).parent.parent)),
                     "line": line_num,
                     "content": line.strip(),
+                    "error": error
                 })
 
     # Fail if any problematic imports found
     if problematic_files:
-        error_msg = "Found problematic absolute imports that would fail in Anki:\n"
+        error_msg = "Found problematic imports:\n"
         for issue in problematic_files:
             error_msg += f"  {issue['file']}:{issue['line']} - {issue['content']}\n"
-        error_msg += "\nThese should be changed to relative imports (e.g., 'from .lib.module import')"
+            error_msg += f"\nError: {issue['error']}\n\n"
         raise AssertionError(error_msg)
