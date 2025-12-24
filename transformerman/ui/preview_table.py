@@ -7,6 +7,8 @@ note previews with background loading and highlighting capabilities.
 
 from __future__ import annotations
 
+from PyQt6.QtCore import QTimer
+
 from typing import TYPE_CHECKING, TypedDict
 import difflib
 
@@ -179,6 +181,21 @@ class PreviewTable(QTableWidget):
         """Set the selected notes instance for loading notes."""
         self.selected_notes = selected_notes
 
+    def _set_column_widths(self, selected_fields: Sequence[str]) -> None:
+
+        horizontal_header = self.horizontalHeader()
+        assert horizontal_header
+
+        for col_index in range(len(selected_fields)):
+            horizontal_header.setSectionResizeMode(col_index, horizontal_header.ResizeMode.Interactive)
+
+        # Set default column widths
+        if table_viewport := self.viewport():
+            table_width = table_viewport.width()
+            default_column_width = min(table_width // len(selected_fields), 400)
+            for col_index in range(len(selected_fields)):
+                self.setColumnWidth(col_index, default_column_width)
+
     def show_notes(
         self,
         note_ids: Sequence[NoteId],
@@ -210,25 +227,16 @@ class PreviewTable(QTableWidget):
         # Set row count
         self.setRowCount(len(note_ids))
 
-        # Configure table header
+        # Make the last column stretch to fill remaining space
         horizontal_header = self.horizontalHeader()
-        if horizontal_header is not None:
-
-            for col_index in range(len(selected_fields)):
-                horizontal_header.setSectionResizeMode(col_index, horizontal_header.ResizeMode.Interactive)
-
-            # Set default column widths
-            if table_viewport := self.viewport():
-                table_width = table_viewport.width()
-                default_column_width = min(table_width // len(selected_fields), 400)
-                for col_index in range(len(selected_fields)):
-                    self.setColumnWidth(col_index, default_column_width)
-
-            # Make the last column stretch to fill remaining space
-            horizontal_header.setStretchLastSection(True)
+        assert horizontal_header
+        horizontal_header.setStretchLastSection(True)
 
         # Load notes in background
         self._load_notes_in_background(list(note_ids), selected_fields, field_updates)
+
+        # Set column widths
+        QTimer.singleShot(0, lambda: self._set_column_widths(selected_fields))
 
         # Enable updates again
         self.setDisabled(False)
