@@ -18,6 +18,7 @@ from aqt.qt import (
     QSizePolicy,
     QFormLayout,
     Qt,
+    QLabel,
     QMessageBox,
     QCloseEvent,
 )
@@ -82,9 +83,10 @@ class SettingsDialog(TransformerManBaseDialog):
         form_layout.addRow("LM Client:", self.client_combo)
 
         # Model Selection
+        self.model_label = QLabel("Model:")
         self.model_combo = QComboBox()
         self.model_combo.currentTextChanged.connect(self._on_setting_changed)
-        form_layout.addRow("Model:", self.model_combo)
+        form_layout.addRow(self.model_label, self.model_combo)
 
         # API Key
         self.api_key_input = QLineEdit()
@@ -293,10 +295,11 @@ class SettingsDialog(TransformerManBaseDialog):
             return True
 
         # Check if model has changed
-        current_model = self.model_combo.currentText()
-        saved_model = self.addon_config.get_model(current_client_id)
-        if current_model != saved_model:
-            return True
+        if self.model_combo.isVisible():
+            current_model = self.model_combo.currentText()
+            saved_model = self.addon_config.get_model(current_client_id)
+            if current_model != saved_model:
+                return True
 
         # Check if max prompt size has changed
         if self.max_prompt_size_spin.value() != self.addon_config.get_max_prompt_size():
@@ -414,8 +417,7 @@ class SettingsDialog(TransformerManBaseDialog):
         for setting_name in custom_setting_names:
             if setting_name in self.custom_settings_widgets:
                 value = self.custom_settings_widgets[setting_name].text().strip()
-                if value:
-                    settings_to_save[setting_name] = value
+                settings_to_save[setting_name] = value
 
         # Validate settings
         is_valid, error_message = client_class.validate_custom_settings(settings_to_save)
@@ -434,6 +436,8 @@ class SettingsDialog(TransformerManBaseDialog):
             models = client_class.get_available_models()
         self.model_combo.clear()
         if models:
+            self.model_combo.show()
+            self.model_label.show()
             self.model_combo.addItems(models)
 
             current_model = self.addon_config.get_model(client_name)
@@ -442,6 +446,9 @@ class SettingsDialog(TransformerManBaseDialog):
                 index = self.model_combo.findText(current_model)
                 if index >= 0:
                     self.model_combo.setCurrentIndex(index)
+        else:
+            self.model_combo.hide()
+            self.model_label.hide()
 
     def _on_restore_clicked(self) -> None:
         """Handle restore button click."""
