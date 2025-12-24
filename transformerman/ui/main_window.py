@@ -456,16 +456,18 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             showInfo("No notes to transform.", parent=self)
             return
 
+        # disable buttons during preview
+        self.preview_button.setEnabled(False)
+        self.preview_button.repaint()
+
         # Calculate API calls needed using transformer method
         # Note: transformer should already have latest field instructions from _update_state calls
-        if not self.current_note_model:
-            return
-
         transform_args = (self.current_note_model.name, field_selection, filtered_note_ids)
         api_calls_needed = self.transformer.get_num_api_calls_needed(*transform_args)
 
         if api_calls_needed == 0 and not self.transformer.is_cached(*transform_args):
             showWarning("No API calls possible with on the current selection and configuration (check prompt size limit).", parent=self)
+            self.update_buttons_state()
             return
 
         # Show warning if API calls > 10
@@ -485,6 +487,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             )
 
             if askUserDialog(warning_message, buttons=["Continue", "Cancel"], parent=self).run() != "Continue":
+                self._update_state()
                 return
 
         def on_transform_success(results: TransformResults, field_updates: FieldUpdates) -> None:
@@ -544,8 +547,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             showInfo("\n".join(result_info_text), parent=self)
 
-        if not self.current_note_model:
-            return
         self.transformer.transform(
             note_ids=filtered_note_ids,
             note_type_name=self.current_note_model.name,
