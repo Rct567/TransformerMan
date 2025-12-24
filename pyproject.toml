@@ -168,5 +168,6 @@ directory = "htmlcov"
 
 [tool.vulture]
 paths = ["__init__.py", "transformerman"]
+ignore_names = ["profile_context"]
 ignore_decorators = ["@override"]
 
