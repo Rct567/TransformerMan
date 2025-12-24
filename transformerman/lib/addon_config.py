@@ -241,9 +241,6 @@ class AddonConfig:
         # Model of LM client (stored with client prefix like API key)
         model_str = self.get_model(client_name)
 
-        if not isinstance(model_str, str):
-            return None, "Configured model is not a string"
-
         if client_class.get_available_models():
             if not model_str:
                 return None, "No model configured"
