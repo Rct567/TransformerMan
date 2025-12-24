@@ -416,9 +416,11 @@ class LmStudio(OpenAILMClient):
         connect_timeout: int = 10,
         custom_settings: dict[str, str] | None = None,
     ) -> None:
-        if not custom_settings:
-            custom_settings = {}
-        custom_settings["end_point"] = "http://127.0.0.1:{}/v1".format(custom_settings.get("port", "1234"))
+        if custom_settings:
+            port = custom_settings.get("port", "").strip()
+            if not port or not port.isdigit():
+                port = "1234"
+            custom_settings["end_point"] = "http://127.0.0.1:{}/v1".format(port)
         self._api_key = ApiKey("lm-studio")
         super().__init__(api_key, model, timeout, connect_timeout, custom_settings)
 
