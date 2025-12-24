@@ -718,3 +718,60 @@ class TestSelectedNotes:
         selected_notes_single = SelectedNotes(col, single_deck_note_ids, card_ids=single_deck_card_ids)
         deck_name = selected_notes_single.get_most_common_deck()
         assert deck_name == "Deck1"
+
+    @with_test_collection("empty_collection")
+    def test_new_selected_notes_card_ids(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test new_selected_notes correctly filters and passes card_ids."""
+        # Create deck and model
+        deck_id = col.decks.id("TestDeck")
+        assert deck_id is not None
+        model = col.models.by_name("Basic")
+        assert model is not None
+
+        # Create notes with their card IDs
+        note_ids: list[NoteId] = []
+        card_ids: list[CardId] = []
+
+        for i in range(5):
+            note = col.new_note(model)
+            note["Front"] = f"Front {i}"
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
+            card_ids.extend(note.card_ids())
+
+        # Create SelectedNotes with both note_ids and card_ids
+        selected_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
+
+        # Test filtering to subset of notes (first 3)
+        subset_note_ids = note_ids[:3]
+        filtered_notes = selected_notes.new_selected_notes(subset_note_ids)
+
+        # Verify the filtered instance has correct note IDs
+        assert set(filtered_notes.get_ids()) == set(subset_note_ids)
+
+        # Verify the filtered instance has correct card IDs
+        # Get expected card IDs for the subset
+        expected_card_ids: list[CardId] = []
+        for note_id in subset_note_ids:
+            note = col.get_note(note_id)
+            expected_card_ids.extend(note.card_ids())
+
+        # The filtered instance should have these card IDs
+        filtered_card_ids = filtered_notes.get_selected_card_ids()
+        assert filtered_card_ids is not None
+        assert set(filtered_card_ids) == set(expected_card_ids)
+
+        # Test with empty subset
+        empty_filtered = selected_notes.new_selected_notes([])
+        assert len(empty_filtered) == 0
+        assert empty_filtered.get_selected_card_ids() is None  # Empty list becomes None in constructor
+
+        # Test with original instance that has no card_ids (None)
+        selected_notes_no_cards = SelectedNotes(col, note_ids, card_ids=None)
+        filtered_no_cards = selected_notes_no_cards.new_selected_notes(subset_note_ids)
+        assert set(filtered_no_cards.get_ids()) == set(subset_note_ids)
+        assert filtered_no_cards.get_selected_card_ids() is None  # Should remain None when original has None

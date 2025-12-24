@@ -78,7 +78,7 @@ class SelectedNotes:
         """Initialize with collection and selected note IDs and optional card IDs."""
         self.col = col
         self._note_ids = note_ids
-        self._card_ids = card_ids if card_ids else None
+        self._card_ids = card_ids if card_ids else None  # these might represent cards selected by the user
         self._note_cache = note_cache if note_cache else {}
         self._deck_cache = deck_cache if deck_cache else {}
         self.logger = logging.getLogger(__name__)
@@ -106,6 +106,10 @@ class SelectedNotes:
     def get_ids(self) -> Sequence[NoteId]:
         """Return the note IDs in the selection."""
         return self._note_ids
+
+    def get_selected_card_ids(self) -> Sequence[CardId] | None:  # noqa: vulture
+        """Return the card IDs in the selection, or None if not available."""
+        return self._card_ids
 
     def filter_by_note_type(self, note_type_name: str) -> Sequence[NoteId]:
         """
@@ -246,14 +250,13 @@ class SelectedNotes:
             New SelectedNotes instance.
         """
 
-        card_ids = []
         if self._card_ids:
-            for note in self.get_notes(note_ids):
-                for card_id in note.card_ids():
-                    if card_id in self._card_ids:
-                        card_ids.append(card_id)
+            original_card_ids_set = set(self._card_ids)
+            new_card_ids = [card_id for card_id in self._get_card_ids_from_notes(note_ids) if card_id in original_card_ids_set]
+        else:
+            new_card_ids = None
 
-        return SelectedNotes(self.col, note_ids, card_ids, note_cache=self._note_cache, deck_cache=self._deck_cache)
+        return SelectedNotes(self.col, note_ids, new_card_ids, note_cache=self._note_cache, deck_cache=self._deck_cache)
 
     @staticmethod
     def has_empty_field(note: Note, selected_fields: Sequence[str]) -> bool:
@@ -326,17 +329,19 @@ class SelectedNotes:
         self._deck_cache[card_id] = name
         return name
 
-    def _get_all_card_ids(self) -> Sequence[CardId]:
-        """Get all card IDs for the selected notes."""
+    def _get_card_ids_from_notes(self, note_ids: Sequence[NoteId]) -> Sequence[CardId]:
+        """Get card IDs associated with the given note IDs."""
 
         assert self.col.db
 
-        if self._card_ids:
-            return self._card_ids
-
         return self.col.db.list(
-            f"SELECT id FROM cards WHERE nid IN {ids2str(self._note_ids)}"
+            f"SELECT id FROM cards WHERE nid IN {ids2str(note_ids)}"
         )
+
+    def _get_all_card_ids(self) -> Sequence[CardId]:
+        """Get all card IDs for the selected notes."""
+
+        return self._get_card_ids_from_notes(self._note_ids)
 
     def get_most_common_deck(self) -> str:
         """
@@ -350,7 +355,10 @@ class SelectedNotes:
 
         sample_size = 500
 
-        card_ids = self._get_all_card_ids()
+        card_ids = self.get_selected_card_ids()
+
+        if not card_ids:
+            card_ids = self._get_all_card_ids()
 
         # Use card IDs
         if not card_ids:
