@@ -403,6 +403,42 @@ class CustomOpenAi(OpenAILMClient):
         return []
 
 
+class LmStudio(OpenAILMClient):
+    id = "lm-studio"
+    name = "LM Studio"
+
+    @override
+    def __init__(
+        self,
+        api_key: ApiKey,
+        model: ModelName,
+        timeout: int = 120,
+        connect_timeout: int = 10,
+        custom_settings: dict[str, str] | None = None,
+    ) -> None:
+        if not custom_settings:
+            custom_settings = {}
+        custom_settings["end_point"] = "http://127.0.0.1:{}/v1".format(custom_settings.get("port", "1234"))
+        self._api_key = ApiKey("lm-studio")
+        super().__init__(api_key, model, timeout, connect_timeout, custom_settings)
+
+    @override
+    @staticmethod
+    def api_key_required() -> bool:
+        return False
+
+    @staticmethod
+    @override
+    def custom_settings() -> list[str]:
+        """Return list of custom setting names for OpenAI client."""
+        return ["model", "port"]
+
+    @staticmethod
+    @override
+    def get_available_models() -> list[str]:
+        return []
+
+
 class Groq(OpenAILMClient):
     id = "groq"
     name = "Groq"
@@ -614,6 +650,7 @@ LM_CLIENTS_CLASSES = [
     DeepSeekLMClient,
     Groq,
     GrokLMClient,
+    LmStudio,
     CustomOpenAi,
 ]
 
