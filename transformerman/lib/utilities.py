@@ -5,13 +5,12 @@ import re
 import sys
 from typing import TYPE_CHECKING, Any
 
-
 from typing_extensions import TypeVar
 
 
 if TYPE_CHECKING:
     from typing import Union
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Iterable, Iterator, Sequence
     from typing_extensions import TypeAlias
     JSON_TYPE: TypeAlias = Union[dict[str, "JSON_TYPE"], list["JSON_TYPE"], str, int, float, bool, None]
 else:
@@ -89,3 +88,13 @@ def create_slug(text: str) -> str:
     # Replace multiple consecutive underscores with a single one
     slug = re.sub(r"_+", "_", slug)
     return slug
+
+
+# evenly_spaced_sample function
+
+def evenly_spaced_sample(lst: Sequence[T], sample_size: int) -> Sequence[T]:
+    """Select evenly spaced items from a list."""
+    if sample_size >= len(lst):
+        return lst
+    step: float = len(lst) / sample_size
+    return [lst[int(i * step)] for i in range(sample_size)]

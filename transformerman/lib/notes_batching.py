@@ -7,8 +7,9 @@ from __future__ import annotations
 
 
 import math
-import random
 from typing import TYPE_CHECKING, Callable, NamedTuple
+
+from .utilities import evenly_spaced_sample
 
 
 if TYPE_CHECKING:
@@ -183,8 +184,9 @@ def batched_by_prompt_size(
         return validate
 
     def calc_avg_note_size(notes_list: Sequence[Note], field_names: Sequence[str]) -> int:
-        sample = random.sample(notes_list, min(500, len(notes_list)))
-        return sum(sum(len(note[fields_name]) for fields_name in field_names) for note in sample) // len(sample)
+        sample = evenly_spaced_sample(notes_list, 4000)
+        avg_size = sum(sum(len(note[fields_name]) for fields_name in field_names) for note in sample) // len(sample)
+        return avg_size
 
     batches: list[SelectedNotes] = []
     remaining = notes.copy()

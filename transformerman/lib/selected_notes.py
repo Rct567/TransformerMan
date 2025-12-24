@@ -6,10 +6,11 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
-import random
 from typing import TYPE_CHECKING
 
 from anki.utils import ids2str
+
+from .utilities import evenly_spaced_sample
 
 from .notes_batching import BatchingStats, batched_by_prompt_size
 
@@ -357,7 +358,7 @@ class SelectedNotes:
 
         # Random sampling for >500 cards
         if len(card_ids) > sample_size:
-            card_ids = random.sample(card_ids, sample_size)
+            card_ids = evenly_spaced_sample(card_ids, sample_size)
 
         for card_id in card_ids:
             deck_name = self._get_deck_name_for_card_id(card_id)
