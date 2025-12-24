@@ -38,6 +38,7 @@ class TransformResults(NamedTuple):
     num_batches_requested: int
     num_batches_processed: int
     num_batches_success: int
+    is_canceled: bool
     error: str | None
 
 
@@ -264,12 +265,14 @@ class NoteTransformer:
             all_field_updates.add_overwritable_field(field_name)
 
         error: str | None = None
+        is_canceled = False
 
         log_request, log_response = create_lm_logger(self.addon_config, self.user_files_dir)
 
         for batch_idx, batch_selected_notes in enumerate(self.batches):
             # Check if operation should be canceled
             if should_cancel and should_cancel():
+                is_canceled = True
                 break
 
             # Report progress
@@ -312,7 +315,7 @@ class NoteTransformer:
         if progress_callback:
             progress_callback(self.num_batches, self.num_batches, None)
 
-        assert error is None or num_batches_success < self.num_batches
+        assert num_batches_success == self.num_batches or is_canceled or error
 
         results: TransformResults = TransformResults(
             num_notes_updated=total_notes_updated,
@@ -320,6 +323,7 @@ class NoteTransformer:
             num_batches_requested=self.num_batches,
             num_batches_processed=num_batches_processed,
             num_batches_success=num_batches_success,
+            is_canceled=is_canceled,
             error=error,
         )
 

@@ -527,17 +527,22 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             num_batches_requested = results.num_batches_requested
             num_batches_processed = results.num_batches_processed
 
-            result_info_text = f"Preview complete:\n\n{num_updated} notes would be updated."
+            result_info_text: list[str] = []
+
+            if results.is_canceled:
+                result_info_text.append("Transformation was canceled by user.")
+            else:
+                result_info_text.append(f"Transformation complete:\n\n{num_updated} notes would be updated.")
 
             if num_notes_failed > 0:
-                result_info_text += f"\n{num_notes_failed} notes failed."
+                result_info_text.append(f"{num_notes_failed} notes failed.")
             if num_batches_requested > 1:
                 if num_batches_requested != num_batches_processed:
-                    result_info_text += f"\n{num_batches_processed} of {num_batches_requested} batches processed."
+                    result_info_text.append(f"{num_batches_processed} of {num_batches_requested} batches processed.")
                 else:
-                    result_info_text += f"\n{num_batches_processed} batches processed."
+                    result_info_text.append(f"{num_batches_processed} batches processed.")
 
-            showInfo(result_info_text, parent=self)
+            showInfo("\n".join(result_info_text), parent=self)
 
         if not self.current_note_model:
             return
