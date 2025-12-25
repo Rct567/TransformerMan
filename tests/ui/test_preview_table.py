@@ -198,7 +198,7 @@ class TestPreviewTable:
         if success_callback:
             # Create mock note data that matches the field updates
             mock_notes_data = []
-            for row, note_id in enumerate(test_note_ids):
+            for note_id in test_note_ids:
                 note_updates = test_field_updates.get(note_id, {})
                 # Create a mock note
                 mock_note = Mock()
@@ -213,7 +213,7 @@ class TestPreviewTable:
                     "note": mock_note,
                     "note_updates": note_updates,
                 }
-                mock_notes_data.append((row, note_data))
+                mock_notes_data.append(note_data)
 
             # Call the success callback
             success_callback(mock_notes_data)

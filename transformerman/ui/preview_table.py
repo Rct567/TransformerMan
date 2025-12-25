@@ -41,7 +41,6 @@ if TYPE_CHECKING:
 MAX_CONTENT_LENGTH = 1000
 ELLIPSIS_LENGTH = 3  # Length of "..."
 TRUNCATED_LENGTH = MAX_CONTENT_LENGTH - ELLIPSIS_LENGTH
-BATCH_SIZE = 100
 
 # Color constants for highlighting
 DARK_MODE_HIGHLIGHT_COLOR = (50, 150, 50)  # Dark green
@@ -303,41 +302,29 @@ class PreviewTable(QTableWidget):
         # Set whether the table should be in highlighted mode
         self.is_highlighted = field_updates is not None
 
-        # Store the current state for the background operation
-        current_ids = note_ids.copy()
-        current_selected_fields = list(selected_fields).copy()
         current_field_updates = field_updates if field_updates else FieldUpdates()
 
-        def load_notes_batch(_: Collection) -> list[tuple[int, TableNoteData]]:
+        def load_notes(_: Collection) -> list[TableNoteData]:
             """Background operation that loads notes in batches."""
-            loaded_data: list[tuple[int, TableNoteData]] = []
-            row_index = 0
+            loaded_data: list[TableNoteData] = []
 
-            # Use batched utility function for cleaner batch processing
-            for batch_ids in batched(current_ids, BATCH_SIZE):
-
-                # Load notes for this batch
-                notes = selected_notes.get_notes(batch_ids)
-
-                # Process each note in the batch
-                for i, note in enumerate(notes):
+            for batch_ids in batched(note_ids, 1000):
+                for note in selected_notes.get_notes(batch_ids):
                     note_data: TableNoteData = {
                         "note": note,
                         "note_updates": current_field_updates.get(note.id, {}),
                     }
-                    loaded_data.append((row_index + i, note_data))
-
-                row_index += len(notes)
+                    loaded_data.append(note_data)
 
             return loaded_data
 
-        def on_batch_loaded(result: list[tuple[int, TableNoteData]]) -> None:
+        def on_notes_loaded(result: list[TableNoteData]) -> None:
             """Update the table with loaded notes."""
-            for row_index, data in result:
+            for row_index, data in enumerate(result):
                 note = data["note"]
                 note_updates = data["note_updates"]
 
-                for col, field_name in enumerate(current_selected_fields):
+                for col, field_name in enumerate(selected_fields):
                     # Check if field exists in note
                     try:
                         # Check if this field has a preview update
@@ -374,8 +361,8 @@ class PreviewTable(QTableWidget):
         # Run the operation in the background
         QueryOp(
             parent=self,
-            op=lambda col: load_notes_batch(col),
-            success=on_batch_loaded,
+            op=lambda col: load_notes(col),
+            success=on_notes_loaded,
         ).failure(on_failure).run_in_background()
 
     @override
