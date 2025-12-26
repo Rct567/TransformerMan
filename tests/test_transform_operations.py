@@ -644,8 +644,10 @@ class TestLmLoggingMiddleware:
         middleware = LogLastRequestResponseMiddleware(addon_config, mock_user_files_dir)
 
         # Call middleware hooks
-        middleware.before_transform("test prompt", LmResponse(""))
-        middleware.after_transform(LmResponse("test response"))
+        mock_note_transformer = MagicMock(spec=NoteTransformer)
+        mock_note_transformer.response = LmResponse("")
+        middleware.before_transform("test prompt", mock_note_transformer)
+        middleware.after_transform(mock_note_transformer)
 
         # Verify no files were created (since logging is disabled)
         logs_dir = mock_user_files_dir / "logs"
@@ -664,10 +666,12 @@ class TestLmLoggingMiddleware:
 
         # Call middleware hooks
         test_prompt = "test prompt"
-        test_response = LmResponse("test response")
+        test_lm_response = LmResponse("test response")
+        mock_note_transformer = MagicMock(spec=NoteTransformer)
+        mock_note_transformer.response = test_lm_response
 
-        middleware.before_transform(test_prompt, test_response)
-        middleware.after_transform(test_response)
+        middleware.before_transform(test_prompt, mock_note_transformer)
+        middleware.after_transform(mock_note_transformer)
 
         # Verify files were created and contain expected content
         logs_dir = mock_user_files_dir / "logs"
@@ -681,4 +685,4 @@ class TestLmLoggingMiddleware:
             assert "=== REQUEST" in content
             assert test_prompt in content
             assert "=== RESPONSE" in content
-            assert test_response.content in content
+            assert test_lm_response.content in content

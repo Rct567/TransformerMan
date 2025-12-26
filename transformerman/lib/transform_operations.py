@@ -13,7 +13,6 @@ from aqt.operations import CollectionOp, QueryOp
 from aqt.qt import QProgressDialog, QWidget, Qt
 from aqt.utils import showInfo
 
-from .lm_clients import LmResponse
 from .prompt_builder import PromptBuilder
 from .http_utils import LmRequestStage, LmProgressData
 from .field_updates import FieldUpdates
@@ -139,10 +138,6 @@ class NoteTransformer:
             field_updates is a FieldUpdates instance mapping note_id -> dict of field_name -> new_value.
             error is None if no error, otherwise error message string.
         """
-        num_notes_updated = 0
-        num_notes_failed = 0
-        field_updates = FieldUpdates()
-        error: str | None = None
 
         # Build prompt
         prompt = self.prompt_builder.build_prompt(
@@ -153,27 +148,32 @@ class NoteTransformer:
         )
 
         # Initial response
-        response = LmResponse("")
-        assert not response
+        self.response = None
 
         # Pre-transform middleware (e.g., log request)
-        transform_middleware.before_transform(prompt, response)
+        transform_middleware.before_transform(prompt, self)
 
         # Get LM response
-        if not response:
-            response = self.lm_client.transform(prompt, progress_callback=progress_callback)
+        if not self.response:
+            self.response = self.lm_client.transform(prompt, progress_callback=progress_callback)
 
         # Post-transform middleware (e.g., log response)
-        transform_middleware.after_transform(response)
+        transform_middleware.after_transform(self)
+
+        #
+        num_notes_updated = 0
+        num_notes_failed = 0
+        field_updates = FieldUpdates()
+        error: str | None = None
 
         # Check for error in response
-        if response.error is not None:
-            error = response.error
+        if self.response.error is not None:
+            error = self.response.error
             # Stop processing on first error
             return num_notes_updated, num_notes_failed, field_updates, error
 
         # Parse response
-        response_field_updates = response.get_notes_from_xml()
+        response_field_updates = self.response.get_notes_from_xml()
 
         # Collect field updates
         for note in batch_selected_notes.get_notes():

@@ -8,7 +8,7 @@ from .utilities import override
 if TYPE_CHECKING:
     from pathlib import Path
     from .addon_config import AddonConfig
-    from .lm_clients import LmResponse
+    from .transform_operations import NoteTransformer
 
 
 class Middleware(ABC):
@@ -19,22 +19,12 @@ class Middleware(ABC):
         """Initialize middleware."""
 
     @abstractmethod
-    def before_transform(self, prompt: str, response: LmResponse) -> None:
-        """
-        Hook called before LM transformation.
-
-        Args:
-            prompt: The prompt to be sent to LM.
-        """
+    def before_transform(self, prompt: str, note_transformer: NoteTransformer) -> None:
+        """Hook called before LM transformation."""
 
     @abstractmethod
-    def after_transform(self, response: LmResponse) -> None:
-        """
-        Hook called after LM transformation.
-
-        Args:
-            response: The response from LM.
-        """
+    def after_transform(self, note_transformer: NoteTransformer) -> None:
+        """Hook called after LM transformation."""
 
 
 class LogLastRequestResponseMiddleware(Middleware):
@@ -54,7 +44,7 @@ class LogLastRequestResponseMiddleware(Middleware):
             self.logs_dir.mkdir(parents=True, exist_ok=True)
 
     @override
-    def before_transform(self, prompt: str, response: LmResponse) -> None:
+    def before_transform(self, prompt: str, note_transformer: NoteTransformer) -> None:
         """Hook called before LM transformation."""
         if not self.log_enabled:
             return
@@ -65,7 +55,7 @@ class LogLastRequestResponseMiddleware(Middleware):
             f.write(f"{prompt}\n\n")
 
     @override
-    def after_transform(self, response: LmResponse) -> None:
+    def after_transform(self, note_transformer: NoteTransformer) -> None:
         """Hook called after LM transformation."""
         if not self.log_enabled:
             return
@@ -73,7 +63,10 @@ class LogLastRequestResponseMiddleware(Middleware):
         timestamp = datetime.now().isoformat()
         with self.log_file.open("a", encoding="utf-8") as f:
             f.write(f"=== RESPONSE [{timestamp}] ===\n")
-            f.write(f"{response.content}\n\n")
+            if note_transformer.response is None:
+                f.write("No response...\n\n")
+            else:
+                f.write(f"{note_transformer.response.content}\n\n")
 
 
 class TransformMiddleware:
@@ -104,7 +97,7 @@ class TransformMiddleware:
         """
         return self._middleware.get(middleware_type)
 
-    def before_transform(self, prompt: str, response: LmResponse) -> None:
+    def before_transform(self, prompt: str, note_transformer: NoteTransformer) -> None:
         """
         Execute all middleware before LM transformation.
 
@@ -112,9 +105,9 @@ class TransformMiddleware:
             prompt: The prompt to be sent to LM.
         """
         for middleware in self._middleware.values():
-            middleware.before_transform(prompt, response)
+            middleware.before_transform(prompt, note_transformer)
 
-    def after_transform(self, response: LmResponse) -> None:
+    def after_transform(self, note_transformer: NoteTransformer) -> None:
         """
         Execute all middleware after LM transformation.
 
@@ -122,4 +115,4 @@ class TransformMiddleware:
             response: The response from LM.
         """
         for middleware in self._middleware.values():
-            middleware.after_transform(response)
+            middleware.after_transform(note_transformer)
