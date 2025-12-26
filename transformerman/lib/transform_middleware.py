@@ -19,7 +19,7 @@ class Middleware(ABC):
         """Initialize middleware."""
 
     @abstractmethod
-    def before_transform(self, prompt: str) -> None:
+    def before_transform(self, prompt: str, response: LmResponse) -> None:
         """
         Hook called before LM transformation.
 
@@ -78,7 +78,7 @@ class LmLoggingMiddleware(Middleware):
                 f.write(f"[{timestamp}] {response.content}\n\n")
 
     @override
-    def before_transform(self, prompt: str) -> None:
+    def before_transform(self, prompt: str, response: LmResponse) -> None:
         """Hook called before LM transformation."""
         self._log_request(prompt)
 
@@ -116,7 +116,7 @@ class TransformMiddleware:
         """
         return self._middleware.get(middleware_type)
 
-    def before_transform(self, prompt: str) -> None:
+    def before_transform(self, prompt: str, response: LmResponse) -> None:
         """
         Execute all middleware before LM transformation.
 
@@ -124,7 +124,7 @@ class TransformMiddleware:
             prompt: The prompt to be sent to LM.
         """
         for middleware in self._middleware.values():
-            middleware.before_transform(prompt)
+            middleware.before_transform(prompt, response)
 
     def after_transform(self, response: LmResponse) -> None:
         """

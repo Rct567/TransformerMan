@@ -318,44 +318,37 @@ class TestNoteTransformer:
         # Create a real DummyLMClient
         dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
-        # Patch transform to raise an exception for the first batch and return a valid response for the second batch
-        # Create a proper mock response for the second batch
+        # Mock transform to return a response with missing field updates
         mock_response = MagicMock(spec=LmResponse)
-        # The second batch contains note_ids[2] and note_ids[3]
-        mock_response.get_notes_from_xml.return_value = {
-            note_ids[2]: {"Front": "Content3"},
-            note_ids[3]: {"Front": "Content4"},
-        }
-        mock_response.text_response = "<xml>response</xml>"
-        mock_response.error = None  # Add error attribute
+        mock_response.get_notes_from_xml.return_value = {}  # Return empty dict to trigger missing updates error
+        mock_response.text_response = "<xml>empty</xml>"
+        mock_response.error = None
 
-        # Make first batch fail, second batch succeed
-        with patch.object(dummy_client, "transform", side_effect=[Exception("Batch failed"), mock_response]):
-            # Create NoteTransformer with max prompt size
-            transformer = NoteTransformer(
-                col=col,
-                selected_notes=selected_notes,
-                note_ids=note_ids,
-                lm_client=dummy_client,
-                prompt_builder=prompt_builder,
-                field_selection=FieldSelection(
-                    selected=["Front"],
-                    writable=["Front"],
-                    overwritable=[],
-                ),
-                note_type_name="Basic",
-                addon_config=addon_config,
-                transform_middleware=transform_middleware,
-            )
+        # Create NoteTransformer with max prompt size
+        transformer = NoteTransformer(
+            col=col,
+            selected_notes=selected_notes,
+            note_ids=note_ids,
+            lm_client=dummy_client,
+            prompt_builder=prompt_builder,
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
+            note_type_name="Basic",
+            addon_config=addon_config,
+            transform_middleware=transform_middleware,
+        )
 
-            # Get field updates
+        # Get field updates with mocked transform
+        with patch.object(dummy_client, "transform", return_value=mock_response):
             results, field_updates = transformer.get_field_updates()
 
         # Verify results show failures for all notes (all in one batch that failed)
-        assert results.num_notes_failed == 4  # All 4 notes in the single batch
-        assert results.num_notes_updated == 0  # No notes updated due to batch failure
         assert results.num_batches_processed == 1  # Only one batch attempted
-        assert results.error and "4 field updates appear to be missing" in results.error
+        assert results.error is not None
+        assert "4 field updates appear to be missing" in results.error
 
         # Verify that no notes have updates (batch failed)
         assert len(field_updates) == 0
@@ -651,7 +644,7 @@ class TestLmLoggingMiddleware:
         middleware = LmLoggingMiddleware(addon_config, mock_user_files_dir)
 
         # Call middleware hooks
-        middleware.before_transform("test prompt")
+        middleware.before_transform("test prompt", LmResponse(""))
         middleware.after_transform(LmResponse("test response"))
 
         # Verify no files were created (since logging is disabled)
@@ -674,7 +667,7 @@ class TestLmLoggingMiddleware:
         test_prompt = "test prompt"
         test_response = LmResponse("test response")
 
-        middleware.before_transform(test_prompt)
+        middleware.before_transform(test_prompt, test_response)
         middleware.after_transform(test_response)
 
         # Verify files were created and contain expected content

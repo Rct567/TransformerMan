@@ -36,6 +36,9 @@ class LmResponse:
             return FieldUpdates()
         return notes_from_xml(self.content)
 
+    def __bool__(self) -> bool:
+        return len(self.content) > 0 or self.error is not None or self.exception is not None
+
 
 class LMClient(ABC):
     """Abstract base class for language model clients."""

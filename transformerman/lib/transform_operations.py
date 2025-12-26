@@ -13,6 +13,7 @@ from aqt.operations import CollectionOp, QueryOp
 from aqt.qt import QProgressDialog, QWidget, Qt
 from aqt.utils import showInfo
 
+from .lm_clients import LmResponse
 from .prompt_builder import PromptBuilder
 from .http_utils import LmRequestStage, LmProgressData
 from .field_updates import FieldUpdates
@@ -125,10 +126,11 @@ class NoteTransformer:
         progress_callback: Callable[[LmProgressData], None] | None = None,
     ) -> tuple[int, int, FieldUpdates, str | None]:
         """
-        Get field updates for a single batch of notes (preview mode).
+        Get field updates for a single batch of notes using the provided LM client.
 
         Args:
             batch_selected_notes: Batch of notes to process.
+            field_selection: FieldSelection containing selected, writable, and overwritable fields.
             transform_middleware: Transform middleware instance.
             progress_callback: Optional callback for detailed progress.
 
@@ -142,61 +144,61 @@ class NoteTransformer:
         field_updates = FieldUpdates()
         error: str | None = None
 
-        try:
-            # Build prompt
-            prompt = self.prompt_builder.build_prompt(
-                batch_selected_notes,
-                field_selection,
-                self.addon_config.get_max_examples(),
-                self.note_type_name,
-            )
+        # Build prompt
+        prompt = self.prompt_builder.build_prompt(
+            batch_selected_notes,
+            field_selection,
+            self.addon_config.get_max_examples(),
+            self.note_type_name,
+        )
 
-            # Pre-transform middleware (e.g., log request)
-            transform_middleware.before_transform(prompt)
+        # Initial response
+        response = LmResponse("")
+        assert not response
 
-            # Get LM response
+        # Pre-transform middleware (e.g., log request)
+        transform_middleware.before_transform(prompt, response)
+
+        # Get LM response
+        if not response:
             response = self.lm_client.transform(prompt, progress_callback=progress_callback)
 
-            # Post-transform middleware (e.g., log response)
-            transform_middleware.after_transform(response)
+        # Post-transform middleware (e.g., log response)
+        transform_middleware.after_transform(response)
 
-            # Check for error in response
-            if response.error is not None:
-                error = response.error
-                # Stop processing on first error
-                return num_notes_updated, num_notes_failed, field_updates, error
+        # Check for error in response
+        if response.error is not None:
+            error = response.error
+            # Stop processing on first error
+            return num_notes_updated, num_notes_failed, field_updates, error
 
-            # Parse response
-            response_field_updates = response.get_notes_from_xml()
+        # Parse response
+        response_field_updates = response.get_notes_from_xml()
 
-            # Collect field updates (preview mode)
-            for note in batch_selected_notes.get_notes():
-                try:
-                    note_field_updates = response_field_updates.get(note.id, {})
+        # Collect field updates
+        for note in batch_selected_notes.get_notes():
+            try:
+                note_field_updates = response_field_updates.get(note.id, {})
 
-                    batch_field_updates: dict[str, str] = {}
+                batch_field_updates: dict[str, str] = {}
 
-                    for field_name, content in note_field_updates.items():
-                        # Collect if field is in writable fields and is empty
-                        if field_name in self.field_selection.writable and not note[field_name].strip():
-                            batch_field_updates[field_name] = content
-                        # Also collect if field is in overwritable fields (regardless of content)
-                        elif field_name in self.field_selection.overwritable:
-                            batch_field_updates[field_name] = content
+                for field_name, content in note_field_updates.items():
+                    # Collect if field is in writable fields and is empty
+                    if field_name in self.field_selection.writable and not note[field_name].strip():
+                        batch_field_updates[field_name] = content
+                    # Also collect if field is in overwritable fields (regardless of content)
+                    elif field_name in self.field_selection.overwritable:
+                        batch_field_updates[field_name] = content
 
-                    if batch_field_updates:
-                        # Store field updates for preview
-                        field_updates.add_field_updates(note.id, batch_field_updates)
-                        num_notes_updated += 1
+                if batch_field_updates:
+                    # Store field updates for preview
+                    field_updates.add_field_updates(note.id, batch_field_updates)
+                    num_notes_updated += 1
 
-                except Exception as e:
-                    self.logger.error(f"Error processing note {note.id} in preview: {e!r}")
-                    num_notes_failed += 1
-                    continue
-
-        except Exception as e:
-            self.logger.error(f"Error processing batch in preview: {e!r}")
-            num_notes_failed += len(batch_selected_notes)
+            except Exception as e:
+                self.logger.error(f"Error processing note {note.id} in preview: {e!r}")
+                num_notes_failed += 1
+                continue
 
         return num_notes_updated, num_notes_failed, field_updates, error
 
@@ -249,7 +251,7 @@ class NoteTransformer:
                 if progress_callback:
                     progress_callback(current_batch_idx, self.num_batches, data)
 
-            # Get field updates for batch (preview mode)
+            # Get field updates for batch
             num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
                 batch_selected_notes, self.field_selection, self.transform_middleware, progress_callback=batch_progress_callback
             )
@@ -510,7 +512,6 @@ class TransformNotesWithProgress:
         def on_cancel() -> None:
             nonlocal cancel_requested
             cancel_requested = True
-            # progress.setLabelText("Canceling... please wait for current batch to finish.")
             progress.setCancelButtonText(None)  # Hide cancel button
 
         # Disconnect default canceled slot to prevent immediate closing
@@ -588,9 +589,6 @@ class TransformNotesWithProgress:
                 progress.close()
             except RuntimeError:
                 pass
-
-            # if cancel_requested:
-            #     return
 
             results, field_updates = result_tuple
             # Cache the results
