@@ -54,6 +54,7 @@ class LmLoggingMiddleware(Middleware):
 
         self.log_requests_enabled = self._addon_config.is_enabled("log_lm_requests", False)
         self.log_responses_enabled = self._addon_config.is_enabled("log_lm_responses", False)
+        self.log_last_only = self._addon_config.is_enabled("log_last_only", True)
 
         self.logs_dir = self._user_files_dir / "logs"
 
@@ -64,14 +65,16 @@ class LmLoggingMiddleware(Middleware):
         if self.log_requests_enabled:
             requests_file = self.logs_dir / "lm_requests.log"
             timestamp = datetime.now().isoformat()
-            with requests_file.open("a", encoding="utf-8") as f:
+            mode = "w" if self.log_last_only else "a"
+            with requests_file.open(mode, encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {prompt}\n\n")
 
     def _log_response(self, response: LmResponse) -> None:
         if self.log_responses_enabled:
             responses_file = self.logs_dir / "lm_responses.log"
             timestamp = datetime.now().isoformat()
-            with responses_file.open("a", encoding="utf-8") as f:
+            mode = "w" if self.log_last_only else "a"
+            with responses_file.open(mode, encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {response.content}\n\n")
 
     @override
