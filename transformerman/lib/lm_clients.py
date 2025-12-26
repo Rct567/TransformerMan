@@ -25,8 +25,8 @@ ModelName = NewType("ModelName", str)
 class LmResponse:
     """Response from a language model containing the text response and parsed notes."""
 
-    def __init__(self, text_response: str, error: str | None = None, exception: Exception | None = None) -> None:
-        self.text_response = text_response
+    def __init__(self, content: str, error: str | None = None, exception: Exception | None = None) -> None:
+        self.content = content
         self.error = error
         self.exception = exception
 
@@ -34,7 +34,7 @@ class LmResponse:
         """Parse XML response and extract field updates by note ID."""
         if self.error is not None or self.exception is not None:
             return FieldUpdates()
-        return notes_from_xml(self.text_response)
+        return notes_from_xml(self.content)
 
 
 class LMClient(ABC):

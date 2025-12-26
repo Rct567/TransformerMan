@@ -652,7 +652,7 @@ class TestLmLoggingMiddleware:
 
         # Call middleware hooks
         middleware.before_transform("test prompt")
-        middleware.after_transform(MagicMock(spec=LmResponse, text_response="test response"))
+        middleware.after_transform(LmResponse("test response"))
 
         # Verify no files were created (since logging is disabled)
         logs_dir = mock_user_files_dir / "logs"
@@ -672,7 +672,7 @@ class TestLmLoggingMiddleware:
 
         # Call middleware hooks
         test_prompt = "test prompt"
-        test_response = MagicMock(spec=LmResponse, text_response="test response")
+        test_response = LmResponse("test response")
 
         middleware.before_transform(test_prompt)
         middleware.after_transform(test_response)
@@ -693,4 +693,4 @@ class TestLmLoggingMiddleware:
         assert responses_file.exists()
         with responses_file.open("r", encoding="utf-8") as f:
             content = f.read()
-            assert test_response.text_response in content
+            assert test_response.content in content

@@ -32,10 +32,10 @@ class TestLmClient:
 
         response = client.transform(prompt)
 
-        assert '<notes model="Basic">' in response.text_response
-        assert 'nid="123"' in response.text_response
-        assert '<field name="Front">Hello</field>' in response.text_response
-        assert '<field name="Back">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</field>' in response.text_response
+        assert '<notes model="Basic">' in response.content
+        assert 'nid="123"' in response.content
+        assert '<field name="Front">Hello</field>' in response.content
+        assert '<field name="Back">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</field>' in response.content
 
     def test_dummy_client_multiple_notes(self) -> None:
         """Test DummyLMClient with multiple notes."""
@@ -54,9 +54,9 @@ class TestLmClient:
 
         response = client.transform(prompt)
 
-        assert 'nid="123"' in response.text_response
-        assert 'nid="456"' in response.text_response
-        assert response.text_response.count("Lorem ipsum dolor sit amet, consectetur adipiscing elit.") == 2
+        assert 'nid="123"' in response.content
+        assert 'nid="456"' in response.content
+        assert response.content.count("Lorem ipsum dolor sit amet, consectetur adipiscing elit.") == 2
 
     def test_dummy_client_preserves_existing_content(self) -> None:
         """Test that DummyLMClient preserves existing field content."""
@@ -71,9 +71,9 @@ class TestLmClient:
 
         response = client.transform(prompt)
 
-        assert '<field name="Front">Existing Front</field>' in response.text_response
-        assert '<field name="Back">Existing Back</field>' in response.text_response
-        assert "Lorem ipsum" not in response.text_response
+        assert '<field name="Front">Existing Front</field>' in response.content
+        assert '<field name="Back">Existing Back</field>' in response.content
+        assert "Lorem ipsum" not in response.content
 
     def test_dummy_client_empty_prompt(self) -> None:
         """Test DummyLMClient with empty prompt."""
@@ -81,7 +81,7 @@ class TestLmClient:
 
         response = client.transform("")
 
-        assert response.text_response == "<notes></notes>"
+        assert response.content == "<notes></notes>"
 
     def test_gemini_client_request_construction(self) -> None:
         """Test GeminiLMClient request construction."""

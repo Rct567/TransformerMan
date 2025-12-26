@@ -72,7 +72,7 @@ class LmLoggingMiddleware(Middleware):
             responses_file = self.logs_dir / "lm_responses.log"
             timestamp = datetime.now().isoformat()
             with responses_file.open("a", encoding="utf-8") as f:
-                f.write(f"[{timestamp}] {response.text_response}\n\n")
+                f.write(f"[{timestamp}] {response.content}\n\n")
 
     @override
     def before_transform(self, prompt: str) -> None:
