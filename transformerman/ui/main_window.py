@@ -28,6 +28,7 @@ from .stats_widget import StatsWidget, StatKeyValue
 from .settings_dialog import SettingsDialog
 
 from ..lib.transform_operations import TransformNotesWithProgress
+from ..lib.transform_middleware import LmLoggingMiddleware, TransformMiddleware
 from ..lib.selected_notes import SelectedNotes, NoteModel
 
 import logging
@@ -85,7 +86,11 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.lm_client = lm_client
         self.addon_config = addon_config
         self.logger = logging.getLogger(__name__)
-        self.user_files_dir = user_files_dir
+
+        # Setup transform middleware
+        self.transform_middleware = TransformMiddleware()
+        lm_logging = LmLoggingMiddleware(self.addon_config, user_files_dir)
+        self.transform_middleware.register(lm_logging)
 
         self.selected_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
         self.field_widgets = FieldWidgets()
@@ -98,7 +103,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             selected_notes=self.selected_notes,
             lm_client=self.lm_client,
             addon_config=self.addon_config,
-            user_files_dir=user_files_dir,
+            transform_middleware=self.transform_middleware,
         )
 
         # State

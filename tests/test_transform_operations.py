@@ -11,8 +11,8 @@ import pytest
 from transformerman.lib.transform_operations import (
     NoteTransformer,
     apply_field_updates_with_operation,
-    create_lm_logger,
 )
+from transformerman.lib.transform_middleware import LmLoggingMiddleware, TransformMiddleware
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.prompt_builder import PromptBuilder
@@ -36,6 +36,15 @@ def mock_user_files_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture
+def transform_middleware(addon_config: AddonConfig, mock_user_files_dir: Path) -> TransformMiddleware:
+    """Create a TransformMiddleware with LmLoggingMiddleware for testing."""
+    middleware = TransformMiddleware()
+    lm_logging = LmLoggingMiddleware(addon_config, mock_user_files_dir)
+    middleware.register(lm_logging)
+    return middleware
+
+
 class TestNoteTransformer:
     """Test class for NoteTransformer."""
 
@@ -44,7 +53,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        mock_user_files_dir: Path,
+        transform_middleware: TransformMiddleware,
     ) -> None:
         """Test that __init__ validates notes have empty fields."""
         # Get real note IDs from the collection (all have non-empty fields)
@@ -74,7 +83,7 @@ class TestNoteTransformer:
                 ),
                 note_type_name="Basic",
                 addon_config=addon_config,
-                user_files_dir=mock_user_files_dir,
+                transform_middleware=transform_middleware,
             )
 
     @with_test_collection("two_deck_collection")
@@ -82,7 +91,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        mock_user_files_dir: Path,
+        transform_middleware: TransformMiddleware,
     ) -> None:
         """Test that get_field_updates returns correct field updates in preview mode."""
         addon_config.update_setting("max_examples", 3)
@@ -124,7 +133,7 @@ class TestNoteTransformer:
             ),
             note_type_name="Basic",
             addon_config=addon_config,
-            user_files_dir=mock_user_files_dir,
+            transform_middleware=transform_middleware,
         )
 
         # Get field updates (preview mode)
@@ -156,7 +165,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        mock_user_files_dir: Path,
+        transform_middleware: TransformMiddleware,
     ) -> None:
         """Test that get_field_updates calls progress callback."""
         # Create 4 new notes with empty fields
@@ -196,7 +205,7 @@ class TestNoteTransformer:
             ),
             note_type_name="Basic",
             addon_config=addon_config,
-            user_files_dir=mock_user_files_dir,
+            transform_middleware=transform_middleware,
         )
 
         # Track progress calls
@@ -219,7 +228,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        mock_user_files_dir: Path,
+        transform_middleware: TransformMiddleware,
     ) -> None:
         """Test that get_field_updates respects cancellation."""
         # Create 4 new notes with empty fields
@@ -259,7 +268,7 @@ class TestNoteTransformer:
             ),
             note_type_name="Basic",
             addon_config=addon_config,
-            user_files_dir=mock_user_files_dir,
+            transform_middleware=transform_middleware,
         )
 
         # Cancel immediately (before processing)
@@ -283,7 +292,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        mock_user_files_dir: Path,
+        transform_middleware: TransformMiddleware,
     ) -> None:
         """Test that get_field_updates handles batch processing errors gracefully."""
         # Create 4 new notes with empty fields
@@ -336,7 +345,7 @@ class TestNoteTransformer:
                 ),
                 note_type_name="Basic",
                 addon_config=addon_config,
-                user_files_dir=mock_user_files_dir,
+                transform_middleware=transform_middleware,
             )
 
             # Get field updates
@@ -358,7 +367,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        mock_user_files_dir: Path,
+        transform_middleware: TransformMiddleware,
     ) -> None:
         """Test that get_field_updates only returns updates for empty fields."""
         # Create 4 new notes with mixed empty/non-empty fields
@@ -401,7 +410,7 @@ class TestNoteTransformer:
             ),
             note_type_name="Basic",
             addon_config=addon_config,
-            user_files_dir=mock_user_files_dir,
+            transform_middleware=transform_middleware,
         )
 
         # Get field updates
@@ -630,44 +639,43 @@ class TestApplyFieldUpdatesWithOperation:
         assert success_results[0]["failed"] == 0
 
 
-class TestCreateLmLogger:
-    """Test class for create_lm_logger function."""
+class TestLmLoggingMiddleware:
+    """Test class for LmLoggingMiddleware."""
 
-    def test_create_lm_logger_disabled_logging(
+    def test_logging_disabled_does_not_create_files(
         self,
         addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
-        """Test that create_lm_logger returns functions that don't log when disabled."""
-        # Ensure logging is disabled (default config already has False for both)
-        log_request, log_response = create_lm_logger(addon_config, mock_user_files_dir)
+        """Test that middleware does not log when disabled."""
+        middleware = LmLoggingMiddleware(addon_config, mock_user_files_dir)
 
-        # Call logging functions
-        log_request("test prompt")
-        log_response(MagicMock(spec=LmResponse, text_response="test response"))
+        # Call middleware hooks
+        middleware.before_transform("test prompt")
+        middleware.after_transform(MagicMock(spec=LmResponse, text_response="test response"))
 
         # Verify no files were created (since logging is disabled)
         logs_dir = mock_user_files_dir / "logs"
         assert not logs_dir.exists()
 
-    def test_create_lm_logger_enabled_logging(
+    def test_logging_enabled_creates_files(
         self,
         addon_config: AddonConfig,
         mock_user_files_dir: Path,
     ) -> None:
-        """Test that create_lm_logger returns functions that log when enabled."""
+        """Test that middleware logs when enabled."""
         # Enable logging by updating config
         addon_config.update_setting("log_lm_requests", True)
         addon_config.update_setting("log_lm_responses", True)
 
-        log_request, log_response = create_lm_logger(addon_config, mock_user_files_dir)
+        middleware = LmLoggingMiddleware(addon_config, mock_user_files_dir)
 
-        # Call logging functions
+        # Call middleware hooks
         test_prompt = "test prompt"
         test_response = MagicMock(spec=LmResponse, text_response="test response")
 
-        log_request(test_prompt)
-        log_response(test_response)
+        middleware.before_transform(test_prompt)
+        middleware.after_transform(test_response)
 
         # Verify files were created and contain expected content
         logs_dir = mock_user_files_dir / "logs"

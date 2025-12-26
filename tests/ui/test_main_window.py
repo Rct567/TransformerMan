@@ -21,6 +21,7 @@ from aqt.qt import QWidget, QLineEdit, QComboBox, QPushButton, Qt
 from transformerman.ui.main_window import TransformerManMainWindow, FieldWidget
 from transformerman.ui.stats_widget import StatsWidget
 from transformerman.lib.field_updates import FieldUpdates
+from transformerman.lib.transform_middleware import LmLoggingMiddleware, TransformMiddleware
 from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
 
 col = test_collection_fixture
@@ -59,7 +60,12 @@ class TestTransformerManMainWindow:
         assert window.col is col
         assert window.lm_client is dummy_lm_client
         assert window.addon_config is addon_config
-        assert window.user_files_dir == user_files_dir
+
+        # Verify middleware is created and configured
+        assert hasattr(window, "transform_middleware")
+        assert isinstance(window.transform_middleware, TransformMiddleware)
+        assert window.transform_middleware.get(LmLoggingMiddleware) is not None
+        assert isinstance(window.transform_middleware.get(LmLoggingMiddleware), LmLoggingMiddleware)
 
         # Window should have correct title
         assert "TransformerMan" in window.windowTitle()

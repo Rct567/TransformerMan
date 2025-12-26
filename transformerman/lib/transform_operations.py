@@ -6,7 +6,6 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Any, NamedTuple
 
 from aqt import mw
@@ -20,14 +19,12 @@ from .field_updates import FieldUpdates
 
 if TYPE_CHECKING:
     from ..ui.field_widgets import FieldSelection
-
-if TYPE_CHECKING:
+    from .transform_middleware import TransformMiddleware
     from collections.abc import Sequence
-    from pathlib import Path
     from anki.collection import Collection, OpChanges
     from anki.notes import NoteId
     from .addon_config import AddonConfig
-    from .lm_clients import LMClient, LmResponse
+    from .lm_clients import LMClient
     from .selected_notes import SelectedNotes
 
 
@@ -54,33 +51,6 @@ class CacheKey(NamedTuple):
     field_instructions_hash: int
 
 
-def create_lm_logger(addon_config: AddonConfig, user_files_dir: Path) -> tuple[Callable[[str], None], Callable[[LmResponse], None]]:
-    """Create logging functions for LM requests and responses."""
-    logs_dir = user_files_dir / "logs"
-
-    log_requests_enabled = addon_config.is_enabled("log_lm_requests", False)
-    log_responses_enabled = addon_config.is_enabled("log_lm_responses", False)
-
-    if log_requests_enabled or log_responses_enabled:
-        logs_dir.mkdir(parents=True, exist_ok=True)
-
-    def log_request(prompt: str) -> None:
-        if log_requests_enabled:
-            requests_file = logs_dir / "lm_requests.log"
-            timestamp = datetime.now().isoformat()
-            with requests_file.open("a", encoding="utf-8") as f:
-                f.write(f"[{timestamp}] {prompt}\n\n")
-
-    def log_response(response: LmResponse) -> None:
-        if log_responses_enabled:
-            responses_file = logs_dir / "lm_responses.log"
-            timestamp = datetime.now().isoformat()
-            with responses_file.open("a", encoding="utf-8") as f:
-                f.write(f"[{timestamp}] {response.text_response}\n\n")
-
-    return log_request, log_response
-
-
 class NoteTransformer:
     """Transforms notes in batches (UI-agnostic)."""
 
@@ -94,7 +64,7 @@ class NoteTransformer:
         field_selection: FieldSelection,
         note_type_name: str,
         addon_config: AddonConfig,
-        user_files_dir: Path,
+        transform_middleware: TransformMiddleware,
     ) -> None:
         """
         Initialize the NoteTransformer.
@@ -108,7 +78,7 @@ class NoteTransformer:
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             note_type_name: Name of note type.
             addon_config: Addon configuration.
-            user_files_dir: Directory for user files.
+            transform_middleware: Transform middleware instance.
         """
         self.col = col
         self.selected_notes = selected_notes
@@ -118,7 +88,7 @@ class NoteTransformer:
         self.field_selection = field_selection
         self.note_type_name = note_type_name
         self.addon_config = addon_config
-        self.user_files_dir = user_files_dir
+        self.transform_middleware = transform_middleware
         self.logger = logging.getLogger(__name__)
 
         # Validate that we have notes with empty fields in writable_fields OR notes with overwritable_fields
@@ -151,8 +121,7 @@ class NoteTransformer:
         self,
         batch_selected_notes: SelectedNotes,
         field_selection: FieldSelection,
-        log_request: Callable[[str], None],
-        log_response: Callable[[LmResponse], None],
+        transform_middleware: TransformMiddleware,
         progress_callback: Callable[[LmProgressData], None] | None = None,
     ) -> tuple[int, int, FieldUpdates, str | None]:
         """
@@ -160,8 +129,7 @@ class NoteTransformer:
 
         Args:
             batch_selected_notes: Batch of notes to process.
-            log_request: Function to log LM requests.
-            log_response: Function to log LM responses.
+            transform_middleware: Transform middleware instance.
             progress_callback: Optional callback for detailed progress.
 
         Returns:
@@ -183,14 +151,14 @@ class NoteTransformer:
                 self.note_type_name,
             )
 
-            # Log request
-            log_request(prompt)
+            # Pre-transform middleware (e.g., log request)
+            transform_middleware.before_transform(prompt)
 
             # Get LM response
             response = self.lm_client.transform(prompt, progress_callback=progress_callback)
 
-            # Log response
-            log_response(response)
+            # Post-transform middleware (e.g., log response)
+            transform_middleware.after_transform(response)
 
             # Check for error in response
             if response.error is not None:
@@ -267,8 +235,6 @@ class NoteTransformer:
         error: str | None = None
         is_canceled = False
 
-        log_request, log_response = create_lm_logger(self.addon_config, self.user_files_dir)
-
         for batch_idx, batch_selected_notes in enumerate(self.batches):
             # Check if operation should be canceled
             if should_cancel and should_cancel():
@@ -285,7 +251,7 @@ class NoteTransformer:
 
             # Get field updates for batch (preview mode)
             num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
-                batch_selected_notes, self.field_selection, log_request, log_response, progress_callback=batch_progress_callback
+                batch_selected_notes, self.field_selection, self.transform_middleware, progress_callback=batch_progress_callback
             )
 
             num_batches_processed += 1
@@ -351,7 +317,7 @@ class TransformNotesWithProgress:
         selected_notes: SelectedNotes,
         lm_client: LMClient,
         addon_config: AddonConfig,
-        user_files_dir: Path,
+        transform_middleware: TransformMiddleware,
     ) -> None:
         """
         Initialize the transformer.
@@ -362,14 +328,14 @@ class TransformNotesWithProgress:
             selected_notes: SelectedNotes instance.
             lm_client: LM client instance.
             addon_config: Addon configuration instance.
-            user_files_dir: Directory for user files.
+            transform_middleware: Transform middleware instance.
         """
         self.parent = parent
         self.col = col
         self.selected_notes = selected_notes
         self.lm_client = lm_client
         self.addon_config = addon_config
-        self.user_files_dir = user_files_dir
+        self.transform_middleware = transform_middleware
         self.logger = logging.getLogger(__name__)
         self._prompt_builder = PromptBuilder(col)
 
@@ -510,7 +476,7 @@ class TransformNotesWithProgress:
             field_selection=field_selection,
             note_type_name=note_type_name,
             addon_config=self.addon_config,
-            user_files_dir=self.user_files_dir,
+            transform_middleware=self.transform_middleware,
         )
 
         # Create progress dialog
