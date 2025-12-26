@@ -96,16 +96,6 @@ def test_field_updates() -> FieldUpdates:
 
 
 @pytest.fixture
-def test_transform_results() -> dict[str, int]:
-    """Test transformation results for results dialog."""
-    return {
-        "updated": 5,
-        "failed": 1,
-        "batches_processed": 2,
-    }
-
-
-@pytest.fixture
 def test_selected_fields() -> set[str]:
     """Test selected fields set."""
     return {"Front", "Back"}
