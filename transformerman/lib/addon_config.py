@@ -84,13 +84,12 @@ class AddonConfig:
         # After load(), __config should not be None
         assert self.__config is not None
 
-        # Try client-specific key first (e.g., "openai_api_key")
+        # client-specific key (e.g., "openai_api_key")
         client_key = f"{client_id}_api_key"
         if client_key in self.__config:
             return ApiKey(str(self.__config[client_key]))
 
-        # Fall back to generic "api_key" for backward compatibility
-        return ApiKey(str(self.get("api_key", "")))
+        return ApiKey("")
 
     def get_model(self, client_id: str) -> str:
         """Get the model for a specific LM client."""
@@ -249,10 +248,9 @@ class AddonConfig:
                 return None, f"Configured model '{model_str}' is not available for client '{client_name}'"
 
         # Api key
-        api_key: ApiKey = ApiKey("")
+        api_key = self.get_api_key(client_name)
 
         if client_class.api_key_required():
-            api_key = self.get_api_key(client_name)
             if not api_key:
                 return None, f"API key is required for client '{client_name}'"
 

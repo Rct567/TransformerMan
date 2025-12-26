@@ -103,7 +103,7 @@ class TestSettingsDialog:
     ) -> None:
         """Test that changing client updates API key field."""
         # Add openai API key to config
-        addon_config.update_setting("openai_api_key", "api-key-for-openai")
+        addon_config.set_api_key("openai", "api-key-for-openai")
 
         dialog = SettingsDialog(parent_widget, addon_config)
         qtbot.addWidget(dialog)
@@ -172,7 +172,7 @@ class TestSettingsDialog:
 
         # Check that config was actually updated
         assert addon_config.get("lm_client", "") == "openai"
-        assert addon_config.get("openai_model", "") == "gpt-4o"
+        assert addon_config.get_model("openai") == "gpt-4o"
         assert addon_config.get("max_prompt_size", 0) == 550000
         # Check API key was set
         assert str(addon_config.get_api_key("openai")) == "new-api-key"

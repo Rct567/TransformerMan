@@ -22,7 +22,6 @@ def addon_config_with_data() -> AddonConfig:
 
     def loader() -> dict[str, JSON_TYPE]:
         return {
-            "api_key": "test-key",
             "model": "gpt-4",
             "batch_size": 5,
         }
@@ -56,10 +55,6 @@ def empty_addon_config() -> AddonConfig:
 class TestAddonConfig:
     """Test class for AddonConfig."""
 
-    def test_get_api_key(self, addon_config_with_data: AddonConfig) -> None:
-        """Test getting API key."""
-        assert str(addon_config_with_data.get("api_key", "")) == "test-key"
-
     def test_set_api_key(self) -> None:
         """Test setting API key."""
         saved_data: dict[str, JSON_TYPE] = {}
@@ -82,7 +77,6 @@ class TestAddonConfig:
 
     def test_default_values(self, empty_addon_config: AddonConfig) -> None:
         """Test default values when config is empty."""
-        assert str(empty_addon_config.get("api_key", "")) == ""
         assert str(empty_addon_config.get("model", "claude-v1.3-100k")) == "claude-v1.3-100k"
         assert empty_addon_config.get("batch_size", 10) == 10
         assert empty_addon_config.is_enabled("log_last_lm_response_request", False) is False
@@ -143,13 +137,11 @@ class TestAddonConfig:
 
     def test_contains(self, addon_config_with_data: AddonConfig) -> None:
         """Test __contains__ method."""
-        assert "api_key" in addon_config_with_data
         assert "model" in addon_config_with_data
         assert "nonexistent" not in addon_config_with_data
 
     def test_getitem(self, addon_config_with_data: AddonConfig) -> None:
         """Test __getitem__ method."""
-        assert addon_config_with_data["api_key"] == "test-key"
         assert addon_config_with_data["batch_size"] == 5
 
     def test_error_when_config_not_loaded(self) -> None:
@@ -165,20 +157,11 @@ class TestAddonConfig:
         # Don't call load()
 
         with pytest.raises(ValueError, match="Config not loaded!"):
-            _ = addon_config.get("api_key", "")
-
-        with pytest.raises(ValueError, match="Config not loaded!"):
-            _ = addon_config["api_key"]
-
-        with pytest.raises(ValueError, match="Config not loaded!"):
-            _ = "api_key" in addon_config
-
-        with pytest.raises(ValueError, match="Config not loaded!"):
             addon_config.is_enabled("feature")
 
     def test_reload(self) -> None:
         """Test reload method."""
-        current_data: dict[str, JSON_TYPE] = {"api_key": "initial"}
+        current_data: dict[str, JSON_TYPE] = {"gemini_api_key": "initial"}
 
         def loader() -> dict[str, JSON_TYPE]:
             return current_data.copy()
@@ -190,14 +173,14 @@ class TestAddonConfig:
         addon_config = AddonConfig(loader, saver)
         addon_config.load()
 
-        assert addon_config.get("api_key", "") == "initial"
+        assert addon_config.get("gemini_api_key", "") == "initial"
 
         # Update data externally
-        current_data["api_key"] = "updated"
+        current_data["gemini_api_key"] = "updated"
 
         # Reload should pick up the change
         addon_config.reload()
-        assert addon_config.get("api_key", "") == "updated"
+        assert addon_config.get("gemini_api_key", "") == "updated"
 
     def test_update_setting_persists_changes(self) -> None:
         """Test that update_setting persists changes through saver callback."""

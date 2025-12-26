@@ -1,5 +1,4 @@
 {
-    "api_key": "",
     "max_prompt_size": 50000,
     "log_last_lm_response_request": false,
     "show_tm_in_browser_top_menu": false,
