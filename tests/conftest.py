@@ -27,8 +27,7 @@ def addon_config() -> AddonConfig:
         "lm_client": "dummy",
         "dummy_model": "lorem_ipsum",
         "batch_size": 10,
-        "log_lm_requests": False,
-        "log_lm_responses": False,
+        "log_last_lm_response_request": False,
         "max_prompt_size": 500000,
         "dummy_api_key": "test-api-key",
     }

@@ -85,8 +85,7 @@ class TestAddonConfig:
         assert str(empty_addon_config.get("api_key", "")) == ""
         assert str(empty_addon_config.get("model", "claude-v1.3-100k")) == "claude-v1.3-100k"
         assert empty_addon_config.get("batch_size", 10) == 10
-        assert empty_addon_config.is_enabled("log_lm_requests", False) is False
-        assert empty_addon_config.is_enabled("log_lm_responses", False) is False
+        assert empty_addon_config.is_enabled("log_last_lm_response_request", False) is False
 
     def test_get_client(self) -> None:
         """Test getting LM client."""

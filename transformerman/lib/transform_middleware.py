@@ -37,55 +37,43 @@ class Middleware(ABC):
         """
 
 
-class LmLoggingMiddleware(Middleware):
-    """Middleware for logging LM requests and responses."""
+class LogLastRequestResponseMiddleware(Middleware):
+    """Middleware for logging last LM request and response"""
 
     def __init__(self, addon_config: AddonConfig, user_files_dir: Path) -> None:
-        """
-        Initialize LM logging middleware.
-
-        Args:
-            addon_config: Addon configuration.
-            user_files_dir: Directory for user files.
-        """
+        """Initialize LM logging middleware."""
 
         self._addon_config = addon_config
         self._user_files_dir = user_files_dir
 
-        self.log_requests_enabled = self._addon_config.is_enabled("log_lm_requests", False)
-        self.log_responses_enabled = self._addon_config.is_enabled("log_lm_responses", False)
-        self.log_last_only = self._addon_config.is_enabled("log_last_only", True)
-
+        self.log_enabled = self._addon_config.is_enabled("log_last_lm_response_request", False)
         self.logs_dir = self._user_files_dir / "logs"
+        self.log_file = self.logs_dir / "last_lm_request_response.log"
 
-        if self.log_requests_enabled or self.log_responses_enabled:
+        if self.log_enabled:
             self.logs_dir.mkdir(parents=True, exist_ok=True)
-
-    def _log_request(self, prompt: str) -> None:
-        if self.log_requests_enabled:
-            requests_file = self.logs_dir / "lm_requests.log"
-            timestamp = datetime.now().isoformat()
-            mode = "w" if self.log_last_only else "a"
-            with requests_file.open(mode, encoding="utf-8") as f:
-                f.write(f"[{timestamp}] {prompt}\n\n")
-
-    def _log_response(self, response: LmResponse) -> None:
-        if self.log_responses_enabled:
-            responses_file = self.logs_dir / "lm_responses.log"
-            timestamp = datetime.now().isoformat()
-            mode = "w" if self.log_last_only else "a"
-            with responses_file.open(mode, encoding="utf-8") as f:
-                f.write(f"[{timestamp}] {response.content}\n\n")
 
     @override
     def before_transform(self, prompt: str, response: LmResponse) -> None:
         """Hook called before LM transformation."""
-        self._log_request(prompt)
+        if not self.log_enabled:
+            return
+
+        timestamp = datetime.now().isoformat()
+        with self.log_file.open("w", encoding="utf-8") as f:
+            f.write(f"=== REQUEST [{timestamp}] ===\n")
+            f.write(f"{prompt}\n\n")
 
     @override
     def after_transform(self, response: LmResponse) -> None:
         """Hook called after LM transformation."""
-        self._log_response(response)
+        if not self.log_enabled:
+            return
+
+        timestamp = datetime.now().isoformat()
+        with self.log_file.open("a", encoding="utf-8") as f:
+            f.write(f"=== RESPONSE [{timestamp}] ===\n")
+            f.write(f"{response.content}\n\n")
 
 
 class TransformMiddleware:

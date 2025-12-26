@@ -12,7 +12,7 @@ from transformerman.lib.transform_operations import (
     NoteTransformer,
     apply_field_updates_with_operation,
 )
-from transformerman.lib.transform_middleware import LmLoggingMiddleware, TransformMiddleware
+from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, TransformMiddleware
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.prompt_builder import PromptBuilder
@@ -40,7 +40,7 @@ def mock_user_files_dir(tmp_path: Path) -> Path:
 def transform_middleware(addon_config: AddonConfig, mock_user_files_dir: Path) -> TransformMiddleware:
     """Create a TransformMiddleware with LmLoggingMiddleware for testing."""
     middleware = TransformMiddleware()
-    lm_logging = LmLoggingMiddleware(addon_config, mock_user_files_dir)
+    lm_logging = LogLastRequestResponseMiddleware(addon_config, mock_user_files_dir)
     middleware.register(lm_logging)
     return middleware
 
@@ -641,7 +641,7 @@ class TestLmLoggingMiddleware:
         mock_user_files_dir: Path,
     ) -> None:
         """Test that middleware does not log when disabled."""
-        middleware = LmLoggingMiddleware(addon_config, mock_user_files_dir)
+        middleware = LogLastRequestResponseMiddleware(addon_config, mock_user_files_dir)
 
         # Call middleware hooks
         middleware.before_transform("test prompt", LmResponse(""))
@@ -658,10 +658,9 @@ class TestLmLoggingMiddleware:
     ) -> None:
         """Test that middleware logs when enabled."""
         # Enable logging by updating config
-        addon_config.update_setting("log_lm_requests", True)
-        addon_config.update_setting("log_lm_responses", True)
+        addon_config.update_setting("log_last_lm_response_request", True)
 
-        middleware = LmLoggingMiddleware(addon_config, mock_user_files_dir)
+        middleware = LogLastRequestResponseMiddleware(addon_config, mock_user_files_dir)
 
         # Call middleware hooks
         test_prompt = "test prompt"
@@ -674,16 +673,12 @@ class TestLmLoggingMiddleware:
         logs_dir = mock_user_files_dir / "logs"
         assert logs_dir.exists()
 
-        # Check request log
-        requests_file = logs_dir / "lm_requests.log"
-        assert requests_file.exists()
-        with requests_file.open("r", encoding="utf-8") as f:
+        # Check log file
+        log_file = logs_dir / "last_lm_request_response.log"
+        assert log_file.exists()
+        with log_file.open("r", encoding="utf-8") as f:
             content = f.read()
+            assert "=== REQUEST" in content
             assert test_prompt in content
-
-        # Check response log
-        responses_file = logs_dir / "lm_responses.log"
-        assert responses_file.exists()
-        with responses_file.open("r", encoding="utf-8") as f:
-            content = f.read()
+            assert "=== RESPONSE" in content
             assert test_response.content in content
