@@ -6,6 +6,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
+import random
 import re
 import time
 from abc import ABC, abstractmethod
@@ -238,7 +239,11 @@ class DummyLMClient(LMClient):
         if progress_callback:
             progress_callback(LmProgressData.in_sending_state())
 
-        time.sleep(6)
+        if self.get_model() == "lorem_ipsum_network":
+            if random.random() < 0.5:
+                time.sleep(random.uniform(0.1, 8.0))
+            else:
+                time.sleep(random.uniform(8.0, 10.0))
 
         # Find all note blocks
         note_pattern = r'<note nid="(\d+)"[^>]*>(.*?)</note>'
@@ -297,7 +302,13 @@ class DummyLMClient(LMClient):
                         elapsed=elapsed,
                     )
                 )
-                time.sleep(0.01)  # Small delay to simulate network
+                if self.get_model() == "lorem_ipsum_network":
+                    time.sleep(random.uniform(0.01, 0.2))  # Delay to simulate network
+                else:
+                    time.sleep(0.01)  # Small delay for local processing
+
+                if should_cancel and should_cancel():
+                    return LmResponse("", is_canceled=True)
 
         return LmResponse(full_text)
 
@@ -324,7 +335,7 @@ class DummyLMClient(LMClient):
     @staticmethod
     @override
     def get_available_models() -> list[str]:
-        return ["lorem_ipsum"]
+        return ["lorem_ipsum", "lorem_ipsum_network"]
 
 
 class OpenAiCompatibleLMClient(LMClient):
