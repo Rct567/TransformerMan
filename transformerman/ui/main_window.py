@@ -512,6 +512,12 @@ class TransformerManMainWindow(TransformerManBaseDialog):
                     self.update_buttons_state()
                     return
 
+            if results.is_canceled and len(field_updates) == 0:
+                showInfo("Preview canceled by user.", parent=self)
+                self.preview_results = None
+                self.update_buttons_state()
+                return
+
             # Store preview results
             self.preview_results = field_updates
 

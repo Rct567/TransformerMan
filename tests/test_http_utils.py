@@ -27,8 +27,9 @@ class TestHttpUtils:
             mock_response.headers = {}
             mock_request.return_value = mock_response
 
-            result = make_api_request("https://api.example.com/test", method="POST")
+            result, is_cancelled = make_api_request("https://api.example.com/test", method="POST")
             assert result == b"hello world"
+            assert not is_cancelled
 
     def test_make_api_request_json_basic(self) -> None:
         """Test basic JSON API request with successful response."""
@@ -39,8 +40,9 @@ class TestHttpUtils:
             mock_response.headers = {"Content-Type": "application/json"}
             mock_request.return_value = mock_response
 
-            result = make_api_request_json("https://api.example.com/json")
+            result, is_cancelled = make_api_request_json("https://api.example.com/json")
             assert result == {"status": "ok"}
+            assert not is_cancelled
 
     def test_make_api_request_sse_openai_format(self) -> None:
         """Test SSE stream parsing with OpenAI-style format."""
@@ -69,7 +71,7 @@ class TestHttpUtils:
                     return data["choices"][0].get("delta", {}).get("content")
                 return None
 
-            result = make_api_request_json(
+            result, is_cancelled = make_api_request_json(
                 "https://api.openai.com/v1/chat/completions",
                 json_data={"stream": True},
                 progress_callback=progress_callback,
@@ -83,7 +85,9 @@ class TestHttpUtils:
             assert receiving_updates[1].text_chunk == " world"
 
             # Check final result (new format returns {"content": "..."})
+            assert result is not None
             assert result["content"] == "Hello world"
+            assert not is_cancelled
 
     def test_make_api_request_http_error(self) -> None:
         """Test that HTTP errors are correctly raised."""
@@ -125,14 +129,16 @@ class TestHttpUtils:
             mock_response.iter_content.side_effect = mock_iter_content
             mock_request.return_value = mock_response
 
-            result = make_api_request_json(
+            result, is_cancelled = make_api_request_json(
                 "https://api.example.com/sse",
                 json_data={"stream": True},
                 stream_chunk_parser=lambda d: d.get("content"),
             )
 
             # Should have forced to utf-8
+            assert result is not None
             assert result["content"] == "El queso holandés"
+            assert not is_cancelled
             assert mock_response.encoding == "utf-8"
 
     def test_make_api_request_sse_explicit_charset(self) -> None:
@@ -157,12 +163,14 @@ class TestHttpUtils:
             mock_response.iter_content.side_effect = mock_iter_content
             mock_request.return_value = mock_response
 
-            result = make_api_request_json(
+            result, is_cancelled = make_api_request_json(
                 "https://api.example.com/sse",
                 json_data={"stream": True},
                 stream_chunk_parser=lambda d: d.get("content"),
             )
 
             # Should have respected ISO-8859-1
+            assert result is not None
             assert result["content"] == "El queso holandés"
+            assert not is_cancelled
             assert mock_response.encoding == "ISO-8859-1"

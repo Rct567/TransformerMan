@@ -47,7 +47,8 @@ def make_api_request(  # noqa: PLR0913
     progress_callback: Optional[Callable[[LmProgressData], None]] = None,
     stream_chunk_parser: Optional[Callable[[dict[str, Any]], Optional[str]]] = None,
     chunk_size: int = 8192,
-) -> bytes:
+    should_cancel: Optional[Callable[[], bool]] = None,
+) -> tuple[bytes | None, bool]:
     """
     Make an HTTP request with progress callback support.
     For LLM APIs, supports Server-Sent Events (SSE) streaming.
@@ -63,9 +64,10 @@ def make_api_request(  # noqa: PLR0913
         progress_callback: Function called with LmProgressData
         stream_chunk_parser: Optional function to extract text from SSE JSON data
         chunk_size: Size of chunks to read at a time for streaming
+        should_cancel: Optional callback to check if operation should be canceled.
 
     Returns:
-        The response content as bytes (for SSE, this is the reconstructed full text in a simple JSON)
+        A tuple of (response_content, is_cancelled). response_content is bytes or None if cancelled.
 
     Raises:
         requests.exceptions.Timeout: If the request times out
@@ -107,23 +109,31 @@ def make_api_request(  # noqa: PLR0913
     is_sse_stream = "text/event-stream" in content_type or (json_data is not None and json_data.get("stream") is True)
 
     if is_sse_stream:
-        return _handle_sse_stream(response, progress_callback, stream_chunk_parser)
+        content, is_cancelled = _handle_sse_stream(response, progress_callback, stream_chunk_parser, should_cancel)
+        return content, is_cancelled
 
     # If no progress callback and not SSE, read the entire response
     if progress_callback is None:
-        return response.content
+        if should_cancel and should_cancel():
+            return None, True
+        return response.content, False
 
     # Handle regular byte streaming
-    return _handle_byte_stream(response, progress_callback, chunk_size)
+    content, is_cancelled = _handle_byte_stream(response, progress_callback, chunk_size, should_cancel)
+    return content, is_cancelled
 
 
 def _handle_sse_stream(
     response: requests.Response,
     progress_callback: Optional[Callable[[LmProgressData], None]],
     stream_chunk_parser: Optional[Callable[[dict[str, Any]], Optional[str]]] = None,
-) -> bytes:
+    should_cancel: Optional[Callable[[], bool]] = None,
+) -> tuple[bytes | None, bool]:
     """
     Handle Server-Sent Events (SSE) streaming for LLM APIs in real-time.
+
+    Returns:
+        A tuple of (response_content, is_cancelled). response_content is bytes or None if cancelled.
     """
     full_text = ""
     start_time = time.time()
@@ -144,6 +154,9 @@ def _handle_sse_stream(
             response.encoding = "utf-8"
 
     for chunk in response.iter_content(chunk_size=None, decode_unicode=True):
+        if should_cancel and should_cancel():
+            return None, True
+
         if not chunk:
             continue
 
@@ -219,17 +232,20 @@ def _handle_sse_stream(
                 # This is a bit of a hack since we don't have the parser for non-SSE JSON here
                 # but usually the caller will handle the full response if it's not SSE.
                 # However, to maintain compatibility with the previous version:
-                return buffer.encode("utf-8")
+                return buffer.encode("utf-8"), False
         except json.JSONDecodeError:
             pass
 
     # Return a simple JSON containing the full text to maintain compatibility with make_api_request_json
-    return json.dumps({"content": full_text}, ensure_ascii=False).encode("utf-8")
+    return json.dumps({"content": full_text}, ensure_ascii=False).encode("utf-8"), False
 
 
 def _handle_byte_stream(
-    response: requests.Response, progress_callback: Optional[Callable[[LmProgressData], None]], chunk_size: int
-) -> bytes:
+    response: requests.Response,
+    progress_callback: Optional[Callable[[LmProgressData], None]],
+    chunk_size: int,
+    should_cancel: Optional[Callable[[], bool]] = None,
+) -> tuple[bytes | None, bool]:
     """
     Handle regular byte streaming (for non-LLM requests or backward compatibility).
 
@@ -237,9 +253,10 @@ def _handle_byte_stream(
         response: The streaming HTTP response
         progress_callback: Function to call with progress updates
         chunk_size: Size of chunks to read
+        should_cancel: Optional callback to check if operation should be canceled.
 
     Returns:
-        The complete response content as bytes
+        A tuple of (response_content, is_cancelled). response_content is bytes or None if cancelled.
     """
     content_length_header = response.headers.get("Content-Length")
     content_length = int(content_length_header) if content_length_header is not None and content_length_header.isdigit() else None
@@ -248,6 +265,9 @@ def _handle_byte_stream(
     content_parts = []
 
     for chunk in response.iter_content(chunk_size=chunk_size):
+        if should_cancel and should_cancel():
+            return None, True
+
         if chunk:  # filter out keep-alive new chunks
             content_parts.append(chunk)
             downloaded += len(chunk)
@@ -268,7 +288,7 @@ def _handle_byte_stream(
             if progress_callback:
                 progress_callback(progress_data)
 
-    return b"".join(content_parts)
+    return b"".join(content_parts), False
 
 
 def make_api_request_json(  # noqa: PLR0913
@@ -282,7 +302,8 @@ def make_api_request_json(  # noqa: PLR0913
     progress_callback: Optional[Callable[[LmProgressData], None]] = None,
     stream_chunk_parser: Optional[Callable[[dict[str, Any]], Optional[str]]] = None,
     chunk_size: int = 8192,
-) -> dict[str, JSON_TYPE]:
+    should_cancel: Optional[Callable[[], bool]] = None,
+) -> tuple[dict[str, JSON_TYPE] | None, bool]:
     """
     Make an HTTP request and parse the response as JSON.
 
@@ -297,9 +318,10 @@ def make_api_request_json(  # noqa: PLR0913
         progress_callback: Function called with LmProgressData
         stream_chunk_parser: Optional function to extract text from SSE JSON data
         chunk_size: Size of chunks to read at a time for streaming
+        should_cancel: Optional callback to check if operation should be canceled.
 
     Returns:
-        The parsed JSON response as a dictionary
+        A tuple of (parsed_json_response, is_cancelled). parsed_json_response is a dict or None if cancelled.
 
     Raises:
         requests.exceptions.Timeout: If the request times out
@@ -308,7 +330,7 @@ def make_api_request_json(  # noqa: PLR0913
         ValueError: If the response is not valid JSON or is not a JSON object (dict)
     """
 
-    content = make_api_request(
+    content, is_cancelled = make_api_request(
         url=url,
         method=method,
         headers=headers,
@@ -319,7 +341,11 @@ def make_api_request_json(  # noqa: PLR0913
         progress_callback=progress_callback,
         stream_chunk_parser=stream_chunk_parser,
         chunk_size=chunk_size,
+        should_cancel=should_cancel,
     )
+
+    if is_cancelled or content is None:
+        return None, True
 
     content_str = content.decode("utf-8")
 
@@ -331,4 +357,4 @@ def make_api_request_json(  # noqa: PLR0913
     if not isinstance(parsed, dict):
         raise ValueError(f"Expected JSON object (dict), got {type(parsed).__name__}")
 
-    return parsed
+    return parsed, False

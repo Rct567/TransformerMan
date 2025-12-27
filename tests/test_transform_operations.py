@@ -323,6 +323,7 @@ class TestNoteTransformer:
         mock_response.get_notes_from_xml.return_value = {}  # Return empty dict to trigger missing updates error
         mock_response.text_response = "<xml>empty</xml>"
         mock_response.error = None
+        mock_response.is_canceled = False
 
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(

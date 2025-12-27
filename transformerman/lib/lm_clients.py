@@ -25,10 +25,13 @@ ModelName = NewType("ModelName", str)
 class LmResponse:
     """Response from a language model containing the text response and parsed notes."""
 
-    def __init__(self, content: str, error: str | None = None, exception: Exception | None = None) -> None:
+    def __init__(
+        self, content: str, error: str | None = None, exception: Exception | None = None, is_canceled: bool = False
+    ) -> None:
         self.content = content
         self.error = error
         self.exception = exception
+        self.is_canceled = is_canceled
 
     def get_notes_from_xml(self) -> FieldUpdates:
         """Parse XML response and extract field updates by note ID."""
@@ -85,8 +88,22 @@ class LMClient(ABC):
     def api_key_required() -> bool:
         return True
 
-    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
-        """Generic transform implementation for network-based clients."""
+    def transform(
+        self,
+        prompt: str,
+        progress_callback: Callable[[LmProgressData], None] | None = None,
+        should_cancel: Optional[Callable[[], bool]] = None,
+    ) -> LmResponse:
+        """Generic transform implementation for network-based clients.
+
+        Args:
+            prompt: The prompt to send to the LM.
+            progress_callback: Optional callback for progress reporting.
+            should_cancel: Optional callback to check if operation should be canceled.
+
+        Returns:
+            An LmResponse object containing the content, error, or cancellation status.
+        """
         if self.api_key_required() and (not self._api_key or not self._api_key.strip()):
             raise ValueError(f"API key is required for {self.id} LMClient")
 
@@ -95,7 +112,7 @@ class LMClient(ABC):
         data = self._get_request_data(prompt)
 
         try:
-            result = make_api_request_json(
+            json_response, is_cancelled = make_api_request_json(
                 url=url,
                 method="POST",
                 headers=headers,
@@ -104,14 +121,21 @@ class LMClient(ABC):
                 read_timeout=self._read_timeout,
                 progress_callback=progress_callback,
                 stream_chunk_parser=self._get_stream_chunk_parser(),
+                should_cancel=should_cancel,
             )
 
-            text_val = result.get("content")
+            if is_cancelled:
+                return LmResponse("", is_canceled=True)
+
+            if json_response is None:
+                return LmResponse("", error="Empty response from API", is_canceled=False)
+
+            text_val = json_response.get("content")
             if text_val is not None and isinstance(text_val, str):
                 return LmResponse(text_val)
 
             # Fallback for non-streaming or different response format
-            text = self._extract_text_from_non_stream_json(result)
+            text = self._extract_text_from_non_stream_json(json_response)
             if not text:
                 raise KeyError(f"Missing 'content' or vendor-specific fields in {self.id} response")
 
@@ -191,7 +215,22 @@ class DummyLMClient(LMClient):
         return False
 
     @override
-    def transform(self, prompt: str, progress_callback: Callable[[LmProgressData], None] | None = None) -> LmResponse:
+    def transform(
+        self,
+        prompt: str,
+        progress_callback: Callable[[LmProgressData], None] | None = None,
+        should_cancel: Optional[Callable[[], bool]] = None,
+    ) -> LmResponse:
+        """Dummy transform implementation for testing.
+
+        Args:
+            prompt: The prompt to send to the LM.
+            progress_callback: Optional callback for progress reporting.
+            should_cancel: Optional callback to check if operation should be canceled.
+
+        Returns:
+            An LmResponse object containing the content, error, or cancellation status.
+        """
         # Extract note IDs and field names from the prompt
         # This is a simple implementation that looks for empty fields
 

@@ -123,6 +123,7 @@ class NoteTransformer:
         field_selection: FieldSelection,
         transform_middleware: TransformMiddleware,
         progress_callback: Callable[[LmProgressData], None] | None = None,
+        should_cancel: Callable[[], bool] | None = None,
     ) -> tuple[int, int, FieldUpdates, str | None]:
         """
         Get field updates for a single batch of notes using the provided LM client.
@@ -132,6 +133,7 @@ class NoteTransformer:
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             transform_middleware: Transform middleware instance.
             progress_callback: Optional callback for detailed progress.
+            should_cancel: Optional callback to check if operation should be canceled.
 
         Returns:
             Tuple of (updated_count, failed_count, field_updates, error) for this batch.
@@ -155,7 +157,7 @@ class NoteTransformer:
 
         # Get LM response
         if not self.response:
-            self.response = self.lm_client.transform(prompt, progress_callback=progress_callback)
+            self.response = self.lm_client.transform(prompt, progress_callback=progress_callback, should_cancel=should_cancel)
 
         # Post-transform middleware (e.g., log response)
         transform_middleware.after_transform(self)
@@ -165,6 +167,10 @@ class NoteTransformer:
         num_notes_failed = 0
         field_updates = FieldUpdates()
         error: str | None = None
+
+        # Check for cancellation
+        if self.response.is_canceled:
+            return num_notes_updated, num_notes_failed, field_updates, None
 
         # Check for error in response
         if self.response.error is not None:
@@ -220,7 +226,7 @@ class NoteTransformer:
 
         Returns:
             Tuple of (results, field_updates) where:
-            - results: Transformation results dictionary
+            - results: Transformation results dictionary, with is_canceled set if the operation was cancelled.
             - field_updates: FieldUpdates instance mapping note_id -> dict of field_name -> new_value
         """
         total_notes_updated = 0
@@ -253,8 +259,16 @@ class NoteTransformer:
 
             # Get field updates for batch
             num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
-                batch_selected_notes, self.field_selection, self.transform_middleware, progress_callback=batch_progress_callback
+                batch_selected_notes,
+                self.field_selection,
+                self.transform_middleware,
+                progress_callback=batch_progress_callback,
+                should_cancel=should_cancel,
             )
+
+            if should_cancel and should_cancel():
+                is_canceled = True
+                break
 
             num_batches_processed += 1
 
@@ -551,7 +565,7 @@ class TransformNotesWithProgress:
                         progress_msg: list[str] = []
 
                         if cancel_requested:
-                            progress_msg.append("Processing... (final batch)")
+                            progress_msg.append("Processing canceled...")
                         else:
                             progress_msg.append("Processing..." if total == 1 else f"Processing batch {current + 1} of {total}...")
 
@@ -573,10 +587,11 @@ class TransformNotesWithProgress:
                 return cancel_requested
 
             # Run transformation with callbacks (always returns field updates)
-            return transformer.get_field_updates(
+            results, field_updates = transformer.get_field_updates(
                 progress_callback=progress_callback,
                 should_cancel=should_cancel,
             )
+            return results, field_updates
 
         def on_success_callback(result_tuple: tuple[TransformResults, FieldUpdates]) -> None:
             """Called when transformation succeeds."""
@@ -589,7 +604,7 @@ class TransformNotesWithProgress:
 
             results, field_updates = result_tuple
             # Cache the results
-            if results.error is None and (results.num_batches_success > 0 or len(field_updates) > 0):
+            if results.error is None and not results.is_canceled and (results.num_batches_success > 0 or len(field_updates) > 0):
                 self._cache[cache_key] = (results, field_updates)
 
             # Call the success callback
