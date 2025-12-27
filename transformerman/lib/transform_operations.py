@@ -117,7 +117,6 @@ class NoteTransformer:
         self,
         batch_selected_notes: SelectedNotes,
         field_selection: FieldSelection,
-        transform_middleware: TransformMiddleware,
         progress_callback: Callable[[LmProgressData], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
     ) -> tuple[int, int, FieldUpdates, str | None]:
@@ -149,14 +148,14 @@ class NoteTransformer:
         self.response = None
 
         # Pre-transform middleware (e.g., log request)
-        transform_middleware.before_transform(self)
+        self.transform_middleware.before_transform(self)
 
         # Get LM response
         if not self.response:
             self.response = self.lm_client.transform(self.prompt, progress_callback=progress_callback, should_cancel=should_cancel)
 
         # Post-transform middleware (e.g., log response)
-        transform_middleware.after_transform(self)
+        self.transform_middleware.after_transform(self)
 
         #
         num_notes_updated = 0
@@ -257,7 +256,6 @@ class NoteTransformer:
             num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
                 batch_selected_notes,
                 self.field_selection,
-                self.transform_middleware,
                 progress_callback=batch_progress_callback,
                 should_cancel=should_cancel,
             )
