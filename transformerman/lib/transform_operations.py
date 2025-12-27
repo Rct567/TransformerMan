@@ -514,13 +514,8 @@ class TransformNotesWithProgress:
             cancel_requested = True
             progress.setCancelButtonText(None)  # Hide cancel button
 
-        # Disconnect default canceled slot to prevent immediate closing
-        try:
-            progress.canceled.disconnect()
-        except TypeError:
-            pass
+        progress.canceled.disconnect()
         progress.canceled.connect(on_cancel)
-
         progress.show()
 
         is_dialog_active = True
@@ -553,15 +548,17 @@ class TransformNotesWithProgress:
                         return
 
                     try:
-                        # Determine prefix based on batch count
-                        prefix = "Processing..." if total == 1 else f"Processing batch {current + 1} of {total}..."
+                        progress_msg: list[str] = []
 
-                        # Build message
-                        if detailed:
-                            msg = get_detailed_message(detailed)
-                            progress.setLabelText(f"{prefix}\n{msg}")
+                        if cancel_requested:
+                            progress_msg.append("Processing... (final batch)")
                         else:
-                            progress.setLabelText(prefix)
+                            progress_msg.append("Processing..." if total == 1 else f"Processing batch {current + 1} of {total}...")
+
+                        if detailed:
+                            progress_msg.append(get_detailed_message(detailed))
+
+                        progress.setLabelText("\n".join(progress_msg))
 
                         # Only update value for multiple batches (single batch uses indeterminate mode)
                         if total > 1:
