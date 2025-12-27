@@ -8,10 +8,8 @@ from typing import TYPE_CHECKING, Optional, cast
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
-from transformerman.lib.transform_operations import (
-    NoteTransformer,
-    apply_field_updates_with_operation,
-)
+from transformerman.lib.transform_operations import NoteTransformer
+from transformerman.ui.transform_notes import apply_field_updates_with_operation
 from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, TransformMiddleware
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse

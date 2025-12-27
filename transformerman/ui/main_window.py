@@ -27,7 +27,7 @@ from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent
 from .stats_widget import StatsWidget, StatKeyValue
 from .settings_dialog import SettingsDialog
 
-from ..lib.transform_operations import TransformNotesWithProgress
+from ..ui.transform_notes import TransformNotesWithProgress
 from ..lib.transform_middleware import LogLastRequestResponseMiddleware, TransformMiddleware
 from ..lib.selected_notes import SelectedNotes, NoteModel
 
