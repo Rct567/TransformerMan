@@ -36,7 +36,7 @@ class TestLmLoggingMiddleware:
         # Call middleware hooks
         mock_note_transformer = MagicMock(spec=NoteTransformer)
         mock_note_transformer.response = LmResponse("")
-        middleware.before_transform("test prompt", mock_note_transformer)
+        middleware.before_transform(mock_note_transformer)
         middleware.after_transform(mock_note_transformer)
 
         # Verify no files were created (since logging is disabled)
@@ -59,8 +59,9 @@ class TestLmLoggingMiddleware:
         test_lm_response = LmResponse("test response")
         mock_note_transformer = MagicMock(spec=NoteTransformer)
         mock_note_transformer.response = test_lm_response
+        mock_note_transformer.prompt = test_prompt
 
-        middleware.before_transform(test_prompt, mock_note_transformer)
+        middleware.before_transform(mock_note_transformer)
         middleware.after_transform(mock_note_transformer)
 
         # Verify files were created and contain expected content
@@ -97,7 +98,7 @@ class TestCacheBatchMiddleware:
         mock_note_transformer.lm_client = mock_lm_client
         mock_note_transformer.response = LmResponse("test response")
 
-        middleware.before_transform("test prompt", mock_note_transformer)
+        middleware.before_transform(mock_note_transformer)
         middleware.after_transform(mock_note_transformer)
 
         # Verify no files were created (since caching is disabled)
@@ -130,7 +131,7 @@ class TestCacheBatchMiddleware:
 
         # First call - should cache the response
         note_transformer1 = MockNoteTransformer(dummy_client, "test prompt", None)
-        middleware.before_transform("test prompt", note_transformer1)  # type: ignore
+        middleware.before_transform(note_transformer1)  # type: ignore
         assert note_transformer1.response is None  # Should not be set (cache miss)
 
         # Simulate LM response
@@ -145,7 +146,7 @@ class TestCacheBatchMiddleware:
 
         # Second call - should hit cache
         note_transformer2 = MockNoteTransformer(dummy_client, "test prompt", None)
-        middleware.before_transform("test prompt", note_transformer2)  # type: ignore
+        middleware.before_transform(note_transformer2)  # type: ignore
         assert note_transformer2.response is not None  # Should be set (cache hit)
         assert note_transformer2.response.content == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
         middleware.after_transform(note_transformer2)  # type: ignore

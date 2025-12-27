@@ -24,7 +24,7 @@ class Middleware(ABC):
         """Initialize middleware."""
 
     @abstractmethod
-    def before_transform(self, prompt: str, note_transformer: NoteTransformer) -> None:
+    def before_transform(self, note_transformer: NoteTransformer) -> None:
         """Hook called before LM transformation."""
 
     @abstractmethod
@@ -49,7 +49,7 @@ class LogLastRequestResponseMiddleware(Middleware):
             self.logs_dir.mkdir(parents=True, exist_ok=True)
 
     @override
-    def before_transform(self, prompt: str, note_transformer: NoteTransformer) -> None:
+    def before_transform(self, note_transformer: NoteTransformer) -> None:
         """Hook called before LM transformation."""
         if not self.log_enabled:
             return
@@ -57,7 +57,7 @@ class LogLastRequestResponseMiddleware(Middleware):
         timestamp = datetime.now().isoformat()
         with self.log_file.open("w", encoding="utf-8") as f:
             f.write(f"=== REQUEST [{timestamp}] ===\n")
-            f.write(f"{prompt}\n\n")
+            f.write(f"{note_transformer.prompt}\n\n")
 
     @override
     def after_transform(self, note_transformer: NoteTransformer) -> None:
@@ -130,7 +130,7 @@ class CacheBatchMiddleware(Middleware):
         return hashlib.sha256(key_data.encode("utf-8")).hexdigest()
 
     @override
-    def before_transform(self, prompt: str, note_transformer: NoteTransformer) -> None:
+    def before_transform(self, note_transformer: NoteTransformer) -> None:
         """Check cache before LM transformation."""
         if not self.is_cache_enabled:
             self._last_was_cache_hit = False
@@ -142,6 +142,9 @@ class CacheBatchMiddleware(Middleware):
             self._init_db()
             self._db_initialized = True
 
+        assert note_transformer.prompt and note_transformer.lm_client
+
+        prompt = note_transformer.prompt
         client_id = note_transformer.lm_client.id
         model = note_transformer.lm_client.get_model()
         cache_key = self._get_cache_key(prompt, client_id, model)
@@ -237,7 +240,7 @@ class TransformMiddleware:
         """
         return self._middleware.get(middleware_type)
 
-    def before_transform(self, prompt: str, note_transformer: NoteTransformer) -> None:
+    def before_transform(self, note_transformer: NoteTransformer) -> None:
         """
         Execute all middleware before LM transformation.
 
@@ -245,7 +248,7 @@ class TransformMiddleware:
             prompt: The prompt to be sent to LM.
         """
         for middleware in self._middleware.values():
-            middleware.before_transform(prompt, note_transformer)
+            middleware.before_transform(note_transformer)
 
     def after_transform(self, note_transformer: NoteTransformer) -> None:
         """

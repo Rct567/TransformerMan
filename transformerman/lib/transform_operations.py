@@ -149,7 +149,7 @@ class NoteTransformer:
         self.response = None
 
         # Pre-transform middleware (e.g., log request)
-        transform_middleware.before_transform(self.prompt, self)
+        transform_middleware.before_transform(self)
 
         # Get LM response
         if not self.response:
