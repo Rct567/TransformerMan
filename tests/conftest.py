@@ -13,7 +13,15 @@ import pytest
 from transformerman.lib.addon_config import AddonConfig
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from transformerman.lib.utilities import JSON_TYPE
+
+
+@pytest.fixture
+def user_files_dir(tmp_path: Path) -> Path:
+    """Temporary directory for user files."""
+    return tmp_path / "user_files"
+
 
 
 @pytest.fixture

@@ -138,7 +138,7 @@ class NoteTransformer:
         """
 
         # Build prompt
-        prompt = self.prompt_builder.build_prompt(
+        self.prompt = self.prompt_builder.build_prompt(
             batch_selected_notes,
             field_selection,
             self.addon_config.get_max_examples(),
@@ -149,11 +149,11 @@ class NoteTransformer:
         self.response = None
 
         # Pre-transform middleware (e.g., log request)
-        transform_middleware.before_transform(prompt, self)
+        transform_middleware.before_transform(self.prompt, self)
 
         # Get LM response
         if not self.response:
-            self.response = self.lm_client.transform(prompt, progress_callback=progress_callback, should_cancel=should_cancel)
+            self.response = self.lm_client.transform(self.prompt, progress_callback=progress_callback, should_cancel=should_cancel)
 
         # Post-transform middleware (e.g., log response)
         transform_middleware.after_transform(self)
