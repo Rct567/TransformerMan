@@ -35,6 +35,17 @@ class LmProgressData(NamedTuple):
     elapsed: float  # Time elapsed since request started
     content_length: Optional[int] = None  # Total expected bytes (if known)
 
+    @staticmethod
+    def in_sending_state() -> LmProgressData:
+        return LmProgressData(
+            stage=LmRequestStage.SENDING,
+            text_chunk="",
+            total_chars=0,
+            total_bytes=0,
+            elapsed=0.0,
+            content_length=None,
+        )
+
 
 def make_api_request(  # noqa: PLR0913
     url: str,
@@ -79,16 +90,7 @@ def make_api_request(  # noqa: PLR0913
 
     # Report sending stage
     if progress_callback:
-        progress_callback(
-            LmProgressData(
-                stage=LmRequestStage.SENDING,
-                text_chunk="",
-                total_chars=0,
-                total_bytes=0,
-                elapsed=0.0,
-                content_length=None,
-            )
-        )
+        progress_callback(LmProgressData.in_sending_state())
 
     # Make the request with parameters based on what's provided
     # We use stream=True if we have a progress callback OR if we expect SSE

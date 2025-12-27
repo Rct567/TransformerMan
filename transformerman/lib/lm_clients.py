@@ -234,6 +234,12 @@ class DummyLMClient(LMClient):
         # Extract note IDs and field names from the prompt
         # This is a simple implementation that looks for empty fields
 
+        # Report sending stage
+        if progress_callback:
+            progress_callback(LmProgressData.in_sending_state())
+
+        time.sleep(6)
+
         # Find all note blocks
         note_pattern = r'<note nid="(\d+)"[^>]*>(.*?)</note>'
         notes = re.findall(note_pattern, prompt, re.DOTALL)
