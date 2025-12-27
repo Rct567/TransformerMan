@@ -23,7 +23,6 @@ def user_files_dir(tmp_path: Path) -> Path:
     return tmp_path / "user_files"
 
 
-
 @pytest.fixture
 def addon_config() -> AddonConfig:
     """

@@ -18,7 +18,6 @@ from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.field_updates import FieldUpdates
 
 if TYPE_CHECKING:
-    from pathlib import Path
     from pytestqt.qtbot import QtBot
     from anki.notes import NoteId
 
@@ -78,12 +77,6 @@ def dummy_lm_client() -> DummyLMClient:
 def is_dark_mode() -> bool:
     """Fixture for dark mode setting."""
     return False
-
-
-@pytest.fixture
-def user_files_dir(tmp_path: Path) -> Path:
-    """Temporary directory for user files."""
-    return tmp_path / "user_files"
 
 
 @pytest.fixture

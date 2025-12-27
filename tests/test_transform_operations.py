@@ -29,16 +29,10 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def mock_user_files_dir(tmp_path: Path) -> Path:
-    """Create a temporary directory for user files."""
-    return tmp_path
-
-
-@pytest.fixture
-def transform_middleware(addon_config: AddonConfig, mock_user_files_dir: Path) -> TransformMiddleware:
+def transform_middleware(addon_config: AddonConfig, user_files_dir: Path) -> TransformMiddleware:
     """Create a TransformMiddleware with LmLoggingMiddleware for testing."""
     middleware = TransformMiddleware()
-    lm_logging = LogLastRequestResponseMiddleware(addon_config, mock_user_files_dir)
+    lm_logging = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
     middleware.register(lm_logging)
     return middleware
 
