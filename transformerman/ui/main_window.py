@@ -237,6 +237,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         *,
         clear_preview_results: bool = False,
         update_preview_table: bool = True,
+        reload_notes: bool = False,
     ) -> None:
         """
         Update the UI state based on current selections.
@@ -254,7 +255,9 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self._update_stats_widget()
 
         if update_preview_table:
-            self._update_preview_table()
+            self._update_preview_table(reload_notes)
+        elif reload_notes:
+            raise ValueError("Cannot reload notes without updating preview table")
 
         self.update_buttons_state()
 
@@ -386,12 +389,13 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Update state (clears preview results, updates transformer, notes count, preview table, and buttons)
         self._update_state(clear_preview_results=True)
 
-    def _update_preview_table(self) -> None:
+    def _update_preview_table(self, reload_notes: bool = False) -> None:
         """Update the preview table with data from selected notes."""
         if not self.current_note_model:
             return
-        if self.selected_notes:
-            self.selected_notes.clear_cache()
+        # Clear note cache if requested
+        if reload_notes:
+            self.selected_notes.clear_cache(clear_notes_cache=True, clear_deck_cache=False)
         # Get selected fields
         selected_fields = self.field_widgets.get_field_selection().selected
         # Get filtered note IDs
@@ -611,6 +615,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             self._update_state(
                 clear_preview_results=True,
                 update_preview_table=True,
+                reload_notes=True,
             )
 
         def on_failure(exception: Exception) -> None:
