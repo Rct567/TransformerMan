@@ -27,7 +27,7 @@ class PromptBuilder:
     note_cache: dict[NoteId, Note]
     card_cache: dict[CardId, Card]
     find_notes_cache: dict[str, Sequence[NoteId]]
-    note_xml_cache: dict[tuple[NoteId, tuple[str, ...]], str]
+    note_xml_cache: dict[tuple[NoteId, tuple[str, ...], tuple[str, ...]], str]
     max_examples: int
 
     def __init__(self, col: Collection) -> None:
@@ -70,7 +70,7 @@ class PromptBuilder:
     def _format_note_as_xml(self, note: Note, fields_included: Sequence[str], leave_empty: Sequence[str] | None) -> str:
         """Format a single note as XML with caching."""
         # Create cache key
-        cache_key = (note.id, tuple(fields_included))
+        cache_key = (note.id, tuple(fields_included), tuple(leave_empty or []))
 
         # Check cache
         if cache_key in self.note_xml_cache:
