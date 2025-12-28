@@ -140,6 +140,16 @@ class FieldUpdates:
         assert not self.is_applied, "Cannot add overwritable fields after updates have been applied."
         self._overwritable_fields.add(field_name)
 
+    def remove_note_updates(self, note_id: NoteId) -> None:
+        """
+        Remove all field updates for a specific note.
+
+        Args:
+            note_id: The note ID to remove updates for.
+        """
+        assert not self.is_applied, "Cannot remove field updates after they have been applied."
+        self._updates.pop(note_id, None)
+
     def get_overwritable_fields(self) -> set[str]:
         """
         Get the set of overwritable fields for this transformation.

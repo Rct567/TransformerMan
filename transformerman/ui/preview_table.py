@@ -134,6 +134,9 @@ class PreviewTable(QTableWidget):
     dim_highlight_color: QColor
     dim_text_color: QColor
     is_highlighted: bool
+    current_note_ids: list[NoteId] | None
+    current_selected_fields: Sequence[str] | None
+    current_field_updates: FieldUpdates | None
 
     def __init__(
         self,
@@ -175,24 +178,28 @@ class PreviewTable(QTableWidget):
         # State
         self.selected_notes = None
         self.is_highlighted = False
+        self.current_note_ids = None
+        self.current_selected_fields = None
+        self.current_field_updates = None
 
     def set_selected_notes(self, selected_notes: SelectedNotes) -> None:
         """Set the selected notes instance for loading notes."""
         self.selected_notes = selected_notes
 
-    def _set_column_widths(self, selected_fields: Sequence[str]) -> None:
+    def _set_column_widths(self) -> None:
 
         horizontal_header = self.horizontalHeader()
         assert horizontal_header
 
-        for col_index in range(len(selected_fields)):
+        column_count = self.columnCount()
+        for col_index in range(column_count):
             horizontal_header.setSectionResizeMode(col_index, horizontal_header.ResizeMode.Interactive)
 
         # Set default column widths
         if table_viewport := self.viewport():
             table_width = table_viewport.width()
-            default_column_width = min(table_width // len(selected_fields), 400)
-            for col_index in range(len(selected_fields)):
+            default_column_width = min(table_width // column_count, 400)
+            for col_index in range(column_count):
                 self.setColumnWidth(col_index, default_column_width)
 
     def show_notes(
@@ -215,6 +222,11 @@ class PreviewTable(QTableWidget):
             self.setRowCount(0)
             return
 
+        # Store current display parameters
+        self.current_note_ids = list(note_ids)
+        self.current_selected_fields = list(selected_fields)
+        self.current_field_updates = field_updates
+
         # Temporarily disable updates
         self.setDisabled(True)
         self.setUpdatesEnabled(False)
@@ -232,10 +244,10 @@ class PreviewTable(QTableWidget):
         horizontal_header.setStretchLastSection(True)
 
         # Load notes in background
-        self._load_notes_in_background(list(note_ids), selected_fields, field_updates)
+        self._load_notes_in_background()
 
         # Set column widths
-        QTimer.singleShot(0, lambda: self._set_column_widths(selected_fields))
+        QTimer.singleShot(0, self._set_column_widths)
 
         # Enable updates again
         self.setDisabled(False)
@@ -281,34 +293,28 @@ class PreviewTable(QTableWidget):
 
         return item
 
-    def _load_notes_in_background(
-        self,
-        note_ids: list[NoteId],
-        selected_fields: Sequence[str],
-        field_updates: FieldUpdates | None = None,
-    ) -> None:
+    def _load_notes_in_background(self) -> None:
         """
         Load notes in batches in a background thread and update the table as they come in.
-
-        Args:
-            note_ids: List of note IDs to load.
-            selected_fields: Sequence of selected field names.
-            field_updates: Optional FieldUpdates instance for preview highlighting.
         """
         selected_notes = self.selected_notes
-        if selected_notes is None:
+        if selected_notes is None or self.current_note_ids is None or self.current_selected_fields is None:
             return
 
-        # Set whether the table should be in highlighted mode
-        self.is_highlighted = field_updates is not None
+        # At this point, current_note_ids and current_selected_fields are guaranteed to be not None
+        current_note_ids = self.current_note_ids
+        current_selected_fields = self.current_selected_fields
 
-        current_field_updates = field_updates if field_updates else FieldUpdates()
+        # Set whether the table should be in highlighted mode
+        self.is_highlighted = self.current_field_updates is not None
+
+        current_field_updates = self.current_field_updates if self.current_field_updates else FieldUpdates()
 
         def load_notes(_: Collection) -> list[TableNoteData]:
             """Background operation that loads notes in batches."""
             loaded_data: list[TableNoteData] = []
 
-            for batch_ids in batched(note_ids, 1000):
+            for batch_ids in batched(current_note_ids, 1000):
                 for note in selected_notes.get_notes(batch_ids):
                     note_data: TableNoteData = {
                         "note": note,
@@ -324,7 +330,7 @@ class PreviewTable(QTableWidget):
                 note = data["note"]
                 note_updates = data["note_updates"]
 
-                for col, field_name in enumerate(selected_fields):
+                for col, field_name in enumerate(current_selected_fields):
                     # Check if field exists in note
                     try:
                         # Check if this field has a preview update
@@ -375,10 +381,27 @@ class PreviewTable(QTableWidget):
         if not selected_items:
             return
 
+        # Check if any selected rows have highlighted cells (field updates)
+        has_highlighted_rows = False
+        if self.current_field_updates is not None and self.current_note_ids is not None:
+            selected_rows = set(item.row() for item in selected_items)
+            for row in selected_rows:
+                if row < len(self.current_note_ids):
+                    note_id = self.current_note_ids[row]
+                    if note_id in self.current_field_updates:
+                        has_highlighted_rows = True
+                        break
+
         menu = QMenu(self)
         copy_action = QAction("Copy", self)
         copy_action.triggered.connect(lambda: self._copy_selected_cells())
         menu.addAction(copy_action)
+
+        if has_highlighted_rows:
+            menu.addSeparator()
+            discard_action = QAction("Discard", self)
+            discard_action.triggered.connect(lambda: self._discard_selected_rows())
+            menu.addAction(discard_action)
 
         menu.exec(a0.globalPos())
 
@@ -424,3 +447,39 @@ class PreviewTable(QTableWidget):
         clipboard = QApplication.clipboard()
         if clipboard:
             clipboard.setText(clipboard_text)
+
+    def refresh(self) -> None:
+        """Refresh the table display with current data."""
+        if self.current_note_ids is None or self.current_selected_fields is None:
+            return
+
+        # Temporarily disable updates
+        self.setDisabled(True)
+        self.setUpdatesEnabled(False)
+
+        # Reload notes in background
+        self._load_notes_in_background()
+
+        # Enable updates again
+        self.setDisabled(False)
+        self.setUpdatesEnabled(True)
+
+    def _discard_selected_rows(self) -> None:
+        """Discard field updates for selected rows that have updates."""
+        if self.current_field_updates is None or self.current_note_ids is None or self.current_selected_fields is None:
+            return
+
+        selected_items = self.selectedItems()
+        if not selected_items:
+            return
+
+        selected_rows = set(item.row() for item in selected_items)
+
+        # Remove updates for selected rows that have them
+        for row in selected_rows:
+            if row < len(self.current_note_ids):
+                note_id = self.current_note_ids[row]
+                self.current_field_updates.remove_note_updates(note_id)
+
+        # Refresh the table with updated field_updates
+        self.refresh()
