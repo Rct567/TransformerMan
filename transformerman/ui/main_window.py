@@ -192,8 +192,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Preview Table
         layout.addWidget(QLabel("Selected notes:"))
-        self.preview_table = PreviewTable(self, self.is_dark_mode)
-        self.preview_table.set_selected_notes(self.selected_notes)
+        self.preview_table = PreviewTable(self, self.is_dark_mode, self.selected_notes.get_notes)
         layout.addWidget(self.preview_table, 1)
 
         # Button layout
@@ -391,8 +390,8 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         """Update the preview table with data from selected notes."""
         if not self.current_note_model:
             return
-        if self.preview_table.selected_notes:
-            self.preview_table.selected_notes.clear_cache()
+        if self.selected_notes:
+            self.selected_notes.clear_cache()
         # Get selected fields
         selected_fields = self.field_widgets.get_field_selection().selected
         # Get filtered note IDs

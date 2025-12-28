@@ -33,14 +33,17 @@ col = test_collection_fixture
 class TestPreviewTable:
     """Test class for PreviewTable."""
 
+    @with_test_collection("empty_collection")
     def test_table_creation(
         self,
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
+        col: TestCollection,
     ) -> None:
         """Test that preview table can be created."""
-        table = PreviewTable(parent_widget, is_dark_mode)
+        selected_notes = SelectedNotes(col, [])
+        table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
         qtbot.addWidget(table)
 
         assert table.parent() is parent_widget
@@ -68,10 +71,9 @@ class TestPreviewTable:
         col: TestCollection,
     ) -> None:
         """Test that table handles empty note IDs or fields."""
-        table = PreviewTable(parent_widget, is_dark_mode)
-        qtbot.addWidget(table)
         selected_notes = SelectedNotes(col, [])
-        table.set_selected_notes(selected_notes)
+        table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
+        qtbot.addWidget(table)
 
         # Test with empty note IDs
         table.show_notes([], ["Front", "Back"])
@@ -98,10 +100,9 @@ class TestPreviewTable:
         test_selected_fields: Sequence[str],
     ) -> None:
         """Test that table headers are set correctly."""
-        table = PreviewTable(parent_widget, is_dark_mode)
-        qtbot.addWidget(table)
         selected_notes = SelectedNotes(col, [])
-        table.set_selected_notes(selected_notes)
+        table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
+        qtbot.addWidget(table)
 
         # Mock QueryOp to avoid requiring main window
         mock_op_instance = Mock()
@@ -139,10 +140,9 @@ class TestPreviewTable:
         test_field_updates: FieldUpdates,
     ) -> None:
         """Test that table highlights cells with field updates."""
-        table = PreviewTable(parent_widget, is_dark_mode)
-        qtbot.addWidget(table)
         selected_notes = SelectedNotes(col, [])
-        table.set_selected_notes(selected_notes)
+        table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
+        qtbot.addWidget(table)
 
         selected_fields_list = list(test_selected_fields)
 
@@ -235,9 +235,8 @@ class TestPreviewTable:
                             assert item.background().color() != table.highlight_color
 
         # Also test that without field updates, table is not in highlighted mode
-        table2 = PreviewTable(parent_widget, is_dark_mode)
+        table2 = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
         qtbot.addWidget(table2)
-        table2.set_selected_notes(selected_notes)
 
         # Reset mock for second test
         success_callback2 = None
@@ -287,10 +286,9 @@ class TestPreviewTable:
         test_selected_fields: Sequence[str],
     ) -> None:
         """Test that background loading is set up correctly."""
-        table = PreviewTable(parent_widget, is_dark_mode)
-        qtbot.addWidget(table)
         selected_notes = SelectedNotes(col, [])
-        table.set_selected_notes(selected_notes)
+        table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
+        qtbot.addWidget(table)
 
         selected_fields_list = list(test_selected_fields)
 
@@ -330,10 +328,9 @@ class TestPreviewTable:
         test_field_updates: FieldUpdates,
     ) -> None:
         """Test that table handles field updates for highlighting."""
-        table = PreviewTable(parent_widget, is_dark_mode)
-        qtbot.addWidget(table)
         selected_notes = SelectedNotes(col, [])
-        table.set_selected_notes(selected_notes)
+        table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
+        qtbot.addWidget(table)
 
         selected_fields_list = list(test_selected_fields)
 

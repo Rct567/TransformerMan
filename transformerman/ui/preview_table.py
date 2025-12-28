@@ -31,10 +31,9 @@ from ..lib.field_updates import FieldUpdates
 import logging
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Sequence, Callable
     from anki.collection import Collection
     from anki.notes import NoteId, Note
-    from ..lib.selected_notes import SelectedNotes
 
 
 # Constants for content display
@@ -129,11 +128,11 @@ class TableNoteData(TypedDict):
 class PreviewTable(QTableWidget):
     """Table widget for displaying note previews with background loading."""
 
-    selected_notes: SelectedNotes | None
     highlight_color: QColor
     dim_highlight_color: QColor
     dim_text_color: QColor
     is_highlighted: bool
+    get_notes: Callable[[Sequence[NoteId]], Sequence[Note]]
     current_note_ids: list[NoteId] | None
     current_selected_fields: Sequence[str] | None
     current_field_updates: FieldUpdates | None
@@ -142,6 +141,7 @@ class PreviewTable(QTableWidget):
         self,
         parent: QWidget,
         is_dark_mode: bool,
+        get_notes: Callable[[Sequence[NoteId]], Sequence[Note]]
     ) -> None:
         """
         Initialize the preview table.
@@ -176,15 +176,11 @@ class PreviewTable(QTableWidget):
             self.dim_text_color = QColor(*LIGHT_MODE_DIM_TEXT_COLOR)
 
         # State
-        self.selected_notes = None
+        self.get_notes = get_notes
         self.is_highlighted = False
         self.current_note_ids = None
         self.current_selected_fields = None
         self.current_field_updates = None
-
-    def set_selected_notes(self, selected_notes: SelectedNotes) -> None:
-        """Set the selected notes instance for loading notes."""
-        self.selected_notes = selected_notes
 
     def _set_column_widths(self) -> None:
 
@@ -297,8 +293,7 @@ class PreviewTable(QTableWidget):
         """
         Load notes in batches in a background thread and update the table as they come in.
         """
-        selected_notes = self.selected_notes
-        if selected_notes is None or self.current_note_ids is None or self.current_selected_fields is None:
+        if not self.current_note_ids or self.current_selected_fields is None:
             return
 
         # At this point, current_note_ids and current_selected_fields are guaranteed to be not None
@@ -315,7 +310,7 @@ class PreviewTable(QTableWidget):
             loaded_data: list[TableNoteData] = []
 
             for batch_ids in batched(current_note_ids, 1000):
-                for note in selected_notes.get_notes(batch_ids):
+                for note in self.get_notes(batch_ids):
                     note_data: TableNoteData = {
                         "note": note,
                         "note_updates": current_field_updates.get(note.id, {}),
