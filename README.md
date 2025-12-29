@@ -1,6 +1,6 @@
 # TransformerMan
 
-An Anki add-on that uses language models to intelligently __fill empty fields__ in your notes based on context, examples, and custom instructions.
+An Anki add-on that uses LM's to intelligently __fill empty fields__ based on context, examples, and custom instructions.
 
 ![TransformerMan](tranformerman_showcase_1.gif)
 
@@ -8,7 +8,7 @@ An Anki add-on that uses language models to intelligently __fill empty fields__ 
 ## Features
 
 - 🤖 **AI-Powered Field Completion**: Fill empty fields in bulk using language models
-- 📝 **Context-Aware**: Uses example notes from your collection to guide the LM
+- 📝 **Context-Aware**: Automatically uses related notes as examples
 - 📋 **Custom Instructions**: Add field-specific instructions to guide the LM
 - 🔍 **Preview Before Applying**: See what changes will be made before applying them
 - ✅ **Multiple LM Support**: Gemini, DeepSeek, Claude, OpenAI, and a Dummy client for testing
@@ -19,16 +19,14 @@ An Anki add-on that uses language models to intelligently __fill empty fields__ 
 - 🧠 **Mnemonics**: Create memory aids and associations to help retention
 - 🎨 **Visual Content**: Generate SVG images to visualize concepts
 - 📚 **Definitions & Examples**: Fill in explanations, examples, or clarifications
-- 🏷️ **Classification**: Tag and categorize learning material by topic or difficulty
+- 🏷️ **Classification**: Tag, annotate or categorize learning material
 - 📦 **Deck Standardization**: Fill missing information in decks you've downloaded or imported
 - ❓ **Active Recall**: Generate cloze deletions or question-answer pairs from content
 
 ## Installation
 
-1. Download the latest release from the [GitHub repository](https://github.com/Rct567/TransformerMan/releases)
-2. Open Anki and go to **Tools → Add-ons**
-3. Click **Install from file...** and select the downloaded `.ankiaddon` file
-4. Restart Anki
+To download this add-on, please copy and paste the following code into Anki (**Tools > Add-ons > Get Add-ons...**):
+__1033047802__
 
 ## Usage
 
@@ -77,9 +75,9 @@ Access via **Tools → TransformerMan Settings**:
 1. **Note Selection**: Select notes in the Anki browser and open TransformerMan from the menu or right-click context menu
 
 2. **Field Configuration**: For each field in your note type, you can:
-   - **Context (read)**: Include field content in the prompt to provide context
-   - **Writable (write)**: Allow the field to be filled (only empty fields by default)
-   - **Overwritable**: Hold Ctrl+click on writable fields to allow overwriting existing content
+   - **Context (read)**: Include field in the prompt to provide context
+   - **Writable (write)**: Allow empty fields to be filled
+   - **Overwritable**: Ctrl+click on 'Write' checkbox to allow overwriting existing content
    - **Instructions**: Add field-specific instructions to guide the LM
 
 3. **Example Selection**: The plugin selects example notes from your collection (up to your configured "Max Examples" setting) that:
