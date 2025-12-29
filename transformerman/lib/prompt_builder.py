@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .utilities import override
 from .xml_parser import escape_xml_content
 from .selected_notes import SelectedNotes, NoteModel
 
@@ -17,6 +18,77 @@ if TYPE_CHECKING:
     from anki.cards import Card, CardId
     from anki.decks import DeckId
     from ..ui.field_widgets import FieldSelection
+
+
+class PromptSection:
+    def __init__(self) -> None:
+        self.parts: list[str] = []
+
+    @override
+    def __str__(self) -> str:
+        return "\n".join(self.parts)
+
+
+class IntroductionSection(PromptSection):
+    def __init__(self, field_instructions: dict[str, str], fields_to_fill: list[str], has_examples: bool) -> None:
+        self.parts = [
+            "You are an Anki note assistant. Your task is to fill empty fields in notes based on context.",
+            "",
+            "Instructions:",
+        ]
+
+        # Add field-specific instructions (only for fields to be filled)
+        if field_instructions:
+            for field_name, instruction in field_instructions.items():
+                if field_name in fields_to_fill:
+                    self.parts.append(f"- For field '{field_name}': {instruction}")
+        else:
+            # Adjust instruction based on whether examples are available
+            if has_examples:
+                self.parts.append("- Fill empty fields intelligently based on field names, deck context, and examples.")
+            else:
+                self.parts.append("- Fill empty fields intelligently based on field names and deck context.")
+
+            if fields_to_fill:
+                if len(fields_to_fill) == 1:
+                    self.parts.append(f'- Fill in only the following empty field: "{fields_to_fill[0]}".')
+                else:
+                    fields_str = ", ".join(f"'{f}'" for f in fields_to_fill)
+                    self.parts.append(f"- Fill in only the following empty fields: {fields_str}.")
+
+
+class ExamplesSection(PromptSection):
+    def __init__(self, formatted_examples_xml: str) -> None:
+        if not formatted_examples_xml:
+            self.parts = []
+        else:
+            self.parts = [
+                "",
+                "Here are some example notes from the collection:",
+                "",
+                formatted_examples_xml,
+                "",
+            ]
+
+
+class TargetNotesSection(PromptSection):
+    def __init__(self, fields_to_fill: list[str], formatted_target_notes_xml: str) -> None:
+        if fields_to_fill:
+            if len(fields_to_fill) == 1:
+                instruction = (
+                    f'Please fill the specified empty field ("{fields_to_fill[0]}") in the following '
+                    "notes and return them in the same XML format:"
+                )
+            else:
+                instruction = "Please fill the specified empty fields in the following notes and return them in the same XML format:"
+        else:
+            instruction = "Please fill the empty fields in the following notes and return them in the same XML format:"
+
+        self.parts = [
+            instruction,
+            "",
+            formatted_target_notes_xml,
+        ]
 
 
 class PromptBuilder:
@@ -158,44 +230,6 @@ class PromptBuilder:
         # Get example notes
         example_notes = self._select_example_notes(target_notes, field_selection.selected, note_type_name, max_examples)
 
-        # Build prompt parts
-        prompt_parts = [
-            "You are an Anki note assistant. Your task is to fill empty fields in notes based on context.",
-            "",
-            "Instructions:",
-        ]
-
-        # Add field-specific instructions (only for fields to be filled)
-        if self.field_instructions:
-            for field_name, instruction in self.field_instructions.items():
-                if field_name in field_selection.selected and field_name in fields_to_fill:
-                    prompt_parts.append(f"- For field '{field_name}': {instruction}")
-        else:
-            # Adjust instruction based on whether examples are available
-            if example_notes:
-                prompt_parts.append("- Fill empty fields intelligently based on field names, deck context, and examples.")
-            else:
-                prompt_parts.append("- Fill empty fields intelligently based on field names and deck context.")
-
-            if fields_to_fill:
-                if len(fields_to_fill) == 1:
-                    prompt_parts.append(f'- Fill in only the following empty field: "{fields_to_fill[0]}".')
-                else:
-                    fields_str = ", ".join(f"'{f}'" for f in fields_to_fill)
-                    prompt_parts.append(f"- Fill in only the following empty fields: {fields_str}.")
-
-        # Only include examples section if there are examples
-        if example_notes:
-            prompt_parts.extend(
-                [
-                    "",
-                    "Here are some example notes from the collection:",
-                    "",
-                    self._format_notes_as_xml(example_notes, note_type_name, field_selection.selected),
-                    "",
-                ]
-            )
-
         # Get target notes and filter to include:
         # 1. Notes with empty fields in writable_fields
         # 2. Notes with fields in overwritable_fields (regardless of emptiness)
@@ -208,29 +242,30 @@ class PromptBuilder:
             elif field_selection.overwritable and any(field in note for field in field_selection.overwritable):
                 notes_to_include.append(note)
 
-        # Add target notes
         if not notes_to_include:
             raise ValueError("No notes with empty writable fields or overwritable fields found")
 
-        if fields_to_fill:
-            if len(fields_to_fill) == 1:
-                prompt_parts.append(
-                    'Please fill the specified empty field ("{}") in the following '.format(fields_to_fill[0])
-                    + "notes and return them in the same XML format:"
-                )
-            else:
-                prompt_parts.append("Please fill the specified empty fields in the following notes and return them in the same XML format:")
-        else:
-            prompt_parts.append("Please fill the empty fields in the following notes and return them in the same XML format:")
-
-        prompt_parts.extend(
-            [
-                "",
-                self._format_notes_as_xml(notes_to_include, note_type_name, field_selection.selected, field_selection.overwritable),
-            ]
+        # Format XML for sections
+        formatted_examples_xml = (
+            self._format_notes_as_xml(example_notes, note_type_name, field_selection.selected)
+            if example_notes else ""
         )
 
-        return "\n".join(prompt_parts)
+        formatted_target_notes_xml = self._format_notes_as_xml(
+            notes_to_include,
+            note_type_name,
+            field_selection.selected,
+            field_selection.overwritable
+        )
+
+        # Create prompt sections
+        sections: list[PromptSection] = [
+            IntroductionSection(self.field_instructions, list(fields_to_fill), bool(example_notes)),
+            ExamplesSection(formatted_examples_xml),
+            TargetNotesSection(list(fields_to_fill), formatted_target_notes_xml),
+        ]
+
+        return "\n".join(str(section) for section in sections)
 
     def _select_example_notes(
         self,
