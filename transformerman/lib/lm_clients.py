@@ -676,7 +676,7 @@ class DeepSeekLMClient(OpenAiCompatibleLMClient):
 
 class GrokLMClient(OpenAiCompatibleLMClient):
     id = "grok"
-    name = "Grok"
+    name = "Grok (x.ai)"
 
     @override
     def _get_url(self) -> str:
