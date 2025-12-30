@@ -4,7 +4,7 @@ Tests for FieldUpdates overwritable fields tracking functionality.
 
 from __future__ import annotations
 
-from anki.notes import NoteId
+from anki.notes import NoteId, Note
 
 from transformerman.lib.field_updates import FieldUpdates
 from transformerman.lib.selected_notes import SelectedNotes
@@ -67,7 +67,7 @@ class TestFieldUpdates:
 
         # Create selected notes with the actual note IDs
         selected_notes = SelectedNotes(col, [note1.id, note2.id, note3.id])
-        field_updates = FieldUpdates(selected_notes=selected_notes)
+        field_updates = FieldUpdates()
 
         # Add overwritable fields
         field_updates.add_overwritable_field("Front")
@@ -80,7 +80,7 @@ class TestFieldUpdates:
         field_updates.add_field_update(note3.id, "Back", "new_back3")  # not overwritable
 
         # Calculate overwritten content
-        overwritten = field_updates.get_notes_with_overwritten_content()
+        overwritten = field_updates.get_notes_with_overwritten_content(selected_notes.get_note)
 
         # Note 1 should have Front overwritten (has content and is overwritable)
         # Note 2 should not have anything overwritten (Back is not overwritable)
@@ -167,13 +167,17 @@ class TestFieldUpdates:
 
     def test_get_notes_with_overwritten_content_handles_missing_notes(self) -> None:
         """Test that get_notes_with_overwritten_content handles missing notes gracefully."""
-        field_updates = FieldUpdates()  # No selected_notes
+        field_updates = FieldUpdates()
 
         # Add overwritable fields and field updates
         field_updates.add_overwritable_field("field1")
         note_id = NoteId(123)
         field_updates.add_field_update(note_id, "field1", "content1")
 
-        # Should handle missing selected_notes gracefully
-        overwritten = field_updates.get_notes_with_overwritten_content()
+        # Mock get_note function that raises an exception to simulate missing notes
+        def mock_get_note(note_id: NoteId) -> Note:
+            raise Exception("Note not found")
+
+        # Should handle missing notes gracefully
+        overwritten = field_updates.get_notes_with_overwritten_content(mock_get_note)
         assert overwritten == {}

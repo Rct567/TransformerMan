@@ -229,7 +229,7 @@ class NoteTransformer:
         num_batches_processed = 0
         num_batches_success = 0
         batch_idx = 0
-        all_field_updates = FieldUpdates(selected_notes=self.selected_notes)
+        all_field_updates = FieldUpdates()
 
         # Add overwritable fields to track globally
         for field_name in self.field_selection.overwritable:

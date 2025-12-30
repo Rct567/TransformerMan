@@ -11,9 +11,8 @@ from typing import TYPE_CHECKING, overload
 from .utilities import override
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-    from anki.notes import NoteId
-    from ..lib.selected_notes import SelectedNotes
+    from collections.abc import Iterator, Callable
+    from anki.notes import NoteId, Note
 
 
 class FieldUpdates:
@@ -25,17 +24,15 @@ class FieldUpdates:
     dict[NoteId, dict[str, str]] directly.
     """
 
-    def __init__(self, updates: dict[NoteId, dict[str, str]] | None = None, selected_notes: SelectedNotes | None = None) -> None:
+    def __init__(self, updates: dict[NoteId, dict[str, str]] | None = None) -> None:
         """
         Initialize FieldUpdates with optional initial data.
 
         Args:
             updates: Initial field updates dictionary. If None, creates empty updates.
-            selected_notes: SelectedNotes instance for accessing note data.
         """
         self._updates: dict[NoteId, dict[str, str]] = updates.copy() if updates else {}
         self._overwritable_fields: set[str] = set()
-        self._selected_notes = selected_notes
         self.is_applied = False
 
     def __len__(self) -> int:
@@ -96,10 +93,6 @@ class FieldUpdates:
 
             # Merge overwritable fields
             self._overwritable_fields.update(other._overwritable_fields)
-
-            # Use the other's selected_notes if we don't have one and they do
-            if not self._selected_notes and other._selected_notes:
-                self._selected_notes = other._selected_notes
         else:
             self._updates.update(other)
 
@@ -168,21 +161,19 @@ class FieldUpdates:
         """
         return bool(self._overwritable_fields)
 
-    def get_notes_with_overwritten_content(self) -> dict[NoteId, set[str]]:
+    def get_notes_with_overwritten_content(self, get_note: Callable[[NoteId], Note]) -> dict[NoteId, set[str]]:
         """
         Get notes that will have content overwritten based on overwritable fields.
 
         Returns:
             Dictionary mapping note_id to set of field names that will be overwritten.
         """
-        if not self._selected_notes:
-            return {}
 
         notes_with_overwritten: dict[NoteId, set[str]] = {}
 
         for note_id, field_updates in self._updates.items():
             try:
-                note = self._selected_notes.get_note(note_id)
+                note = get_note(note_id)
                 overwritten_fields: set[str] = set()
 
                 for field_name in field_updates.keys():
@@ -217,8 +208,7 @@ class FieldUpdates:
         """Check equality with another FieldUpdates instance or dictionary."""
         if isinstance(other, FieldUpdates):
             return (self._updates == other._updates and
-                   self._overwritable_fields == other._overwritable_fields and
-                   self._selected_notes is other._selected_notes)
+                   self._overwritable_fields == other._overwritable_fields)
         if isinstance(other, dict):
             return self._updates == other
         return False
@@ -231,12 +221,10 @@ class FieldUpdates:
             for note_id, field_items in self._updates.items()
         ))
         overwritable_tuple = tuple(sorted(self._overwritable_fields))
-        selected_notes_tuple = (id(self._selected_notes) if self._selected_notes else None,)
-        return hash((updates_tuple, overwritable_tuple, selected_notes_tuple))
+        return hash((updates_tuple, overwritable_tuple))
 
     @override
     def __repr__(self) -> str:
         """Return a string representation of the FieldUpdates."""
         return (f"FieldUpdates(updates={self._updates}, "
-                f"overwritable_fields={self._overwritable_fields}, "
-                f"selected_notes={self._selected_notes})")
+                f"overwritable_fields={self._overwritable_fields}, ")

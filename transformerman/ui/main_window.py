@@ -578,7 +578,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Check for overwritable fields that will cause data loss
         if self.preview_results.has_overwritable_fields():
-            notes_with_overwritten_content = self.preview_results.get_notes_with_overwritten_content()
+            notes_with_overwritten_content = self.preview_results.get_notes_with_overwritten_content(self.selected_notes.get_note)
 
             if notes_with_overwritten_content:
                 num_notes = len(notes_with_overwritten_content)
