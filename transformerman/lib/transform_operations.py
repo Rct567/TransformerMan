@@ -126,7 +126,6 @@ class NoteTransformer:
         Args:
             selected_notes_batch: Batch of notes to process.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
-            transform_middleware: Transform middleware instance.
             progress_callback: Optional callback for detailed progress.
             should_cancel: Optional callback to check if operation should be canceled.
 

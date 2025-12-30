@@ -245,7 +245,7 @@ class TransformMiddleware:
         Execute all middleware before LM transformation.
 
         Args:
-            prompt: The prompt to be sent to LM.
+            note_transformer: The note transformer used.
         """
         for middleware in self._middleware.values():
             middleware.before_transform(note_transformer)
@@ -255,7 +255,7 @@ class TransformMiddleware:
         Execute all middleware after LM transformation.
 
         Args:
-            response: The response from LM.
+            note_transformer: The note transformer used.
         """
         for middleware in self._middleware.values():
             middleware.after_transform(note_transformer)
