@@ -199,7 +199,7 @@ class SelectedNotes:
         note_type_name: str,
         max_chars: int,
         max_examples: int
-    ) -> list[SelectedNotes]:
+    ) -> list[SelectedNotesBatch]:
         """Batch notes by maximum prompt size."""
 
         if not self.get_ids():
@@ -257,6 +257,26 @@ class SelectedNotes:
             new_card_ids = None
 
         return SelectedNotes(self.col, note_ids, new_card_ids, note_cache=self._note_cache, deck_cache=self._deck_cache)
+
+    def new_selected_notes_batch(self, note_ids: Sequence[NoteId]) -> SelectedNotesBatch:
+        """
+        Get a new SelectedNotesBatch instance containing only the specified note IDs.
+
+        Args:
+            note_ids: Sequence of note IDs.
+
+        Returns:
+            New SelectedNotesBatch instance.
+        """
+
+        selected_notes = self.new_selected_notes(note_ids)
+        return SelectedNotesBatch(
+            self.col,
+            selected_notes.get_ids(),
+            selected_notes.get_selected_card_ids(),
+            note_cache=selected_notes._note_cache,
+            deck_cache=selected_notes._deck_cache
+        )
 
     @staticmethod
     def has_empty_field(note: Note, selected_fields: Sequence[str]) -> bool:
@@ -389,3 +409,7 @@ class SelectedNotes:
     def __len__(self) -> int:
         """Return the number of notes in the selection."""
         return len(self._note_ids)
+
+
+class SelectedNotesBatch(SelectedNotes):
+    pass

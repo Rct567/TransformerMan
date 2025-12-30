@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from .transform_middleware import TransformMiddleware
     from .addon_config import AddonConfig
     from .lm_clients import LMClient
-    from .selected_notes import SelectedNotes
+    from .selected_notes import SelectedNotes, SelectedNotesBatch
 
 
 class TransformResults(NamedTuple):
@@ -115,7 +115,7 @@ class NoteTransformer:
 
     def _get_field_updates_for_batch(
         self,
-        batch_selected_notes: SelectedNotes,
+        selected_notes_batch: SelectedNotesBatch,
         field_selection: FieldSelection,
         progress_callback: Callable[[LmProgressData], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
@@ -124,7 +124,7 @@ class NoteTransformer:
         Get field updates for a single batch of notes using the provided LM client.
 
         Args:
-            batch_selected_notes: Batch of notes to process.
+            selected_notes_batch: Batch of notes to process.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             transform_middleware: Transform middleware instance.
             progress_callback: Optional callback for detailed progress.
@@ -138,7 +138,7 @@ class NoteTransformer:
 
         # Build prompt
         self.prompt = self.prompt_builder.build_prompt(
-            batch_selected_notes,
+            selected_notes_batch,
             field_selection,
             self.addon_config.get_max_examples(),
             self.note_type_name,
@@ -177,7 +177,7 @@ class NoteTransformer:
         response_field_updates = self.response.get_notes_from_xml()
 
         # Collect field updates
-        for note in batch_selected_notes.get_notes():
+        for note in selected_notes_batch.get_notes():
             try:
                 note_field_updates = response_field_updates.get(note.id, {})
 
@@ -238,7 +238,7 @@ class NoteTransformer:
         error: str | None = None
         is_canceled = False
 
-        for batch_idx, batch_selected_notes in enumerate(self.batches):
+        for batch_idx, selected_notes_batch in enumerate(self.batches):
             # Check if operation should be canceled
             if should_cancel and should_cancel():
                 is_canceled = True
@@ -254,7 +254,7 @@ class NoteTransformer:
 
             # Get field updates for batch
             num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
-                batch_selected_notes,
+                selected_notes_batch,
                 self.field_selection,
                 progress_callback=batch_progress_callback,
                 should_cancel=should_cancel,
@@ -276,12 +276,12 @@ class NoteTransformer:
             total_notes_failed += num_notes_failed
             all_field_updates.update(batch_field_updates)
 
-            if len(batch_field_updates) < len(batch_selected_notes):
-                num_fields_updates_missing = len(batch_selected_notes) - len(batch_field_updates)
+            if len(batch_field_updates) < len(selected_notes_batch):
+                num_fields_updates_missing = len(selected_notes_batch) - len(batch_field_updates)
                 if not error:
                     error = (
                         f"{num_fields_updates_missing} field updates appear to be missing from the response "
-                        f"(expected {len(batch_selected_notes)}, but got {len(batch_field_updates)})."
+                        f"(expected {len(selected_notes_batch)}, but got {len(batch_field_updates)})."
                     )
                     break
 

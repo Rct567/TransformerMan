@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     import logging
     from collections.abc import Sequence
     from anki.notes import Note
-    from .selected_notes import SelectedNotes
+    from .selected_notes import SelectedNotes, SelectedNotesBatch
     from ..ui.field_widgets import FieldSelection
     from .prompt_builder import PromptBuilder
 
@@ -150,7 +150,7 @@ def batched_by_prompt_size(
     max_chars: int,
     max_examples: int,
     logger: logging.Logger
-) -> tuple[list[SelectedNotes], BatchingStats]:
+) -> tuple[list[SelectedNotesBatch], BatchingStats]:
     """
     Batch notes by maximum prompt size using adaptive prediction with learning.
 
@@ -188,7 +188,7 @@ def batched_by_prompt_size(
         avg_size = sum(sum(len(note[fields_name]) for fields_name in field_names) for note in sample) // len(sample)
         return avg_size
 
-    batches: list[SelectedNotes] = []
+    batches: list[SelectedNotesBatch] = []
     remaining = notes.copy()
     accuracy_factor = 1.0
     avg_note_size = calc_avg_note_size(remaining, field_selection.selected)
@@ -225,7 +225,7 @@ def batched_by_prompt_size(
         # Create batch
         batch_notes = remaining[:batch_size]
         batch_note_ids = [note.id for note in batch_notes]
-        batches.append(notes_with_fields.new_selected_notes(batch_note_ids))
+        batches.append(notes_with_fields.new_selected_notes_batch(batch_note_ids))
         remaining = remaining[batch_size:]
 
     # Calculate and store stats
