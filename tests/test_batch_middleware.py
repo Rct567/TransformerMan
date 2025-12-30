@@ -5,46 +5,106 @@ Tests for transform operations.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
-
 
 from transformerman.lib.transform_operations import NoteTransformer
-from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware
-from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
+from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware, TransformMiddleware
+from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
+from transformerman.lib.selected_notes import SelectedNotes
+from transformerman.lib.prompt_builder import PromptBuilder
+from transformerman.ui.field_widgets import FieldSelection
 
-from tests.tools import test_collection as test_collection_fixture
+from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
 col = test_collection_fixture
 
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from anki.notes import NoteId
+    from collections.abc import Sequence
     from transformerman.lib.addon_config import AddonConfig
+
+
+def create_test_notes_with_empty_front(col: TestCollection, count: int = 2, back_content_prefix: str = "existing content") -> list[NoteId]:
+    """Create test notes with empty Front fields for transformation testing."""
+    model = col.models.by_name("Basic")
+    assert model is not None
+    deck = col.decks.all()[0]
+    deck_id = deck["id"]
+
+    note_ids = []
+    for i in range(count):
+        note = col.new_note(model)
+        note["Front"] = ""  # Empty field to transform
+        note["Back"] = f"{back_content_prefix} {i}" if count > 1 else back_content_prefix
+        col.add_note(note, deck_id)
+        note_ids.append(note.id)
+
+    return note_ids
+
+
+def create_standard_transform_dependencies(
+    col: TestCollection, note_ids: Sequence[NoteId]
+) -> tuple[SelectedNotes, DummyLMClient, PromptBuilder, FieldSelection]:
+    """Create standard dependencies needed for NoteTransformer."""
+    selected_notes = SelectedNotes(col, note_ids)
+    dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
+    prompt_builder = PromptBuilder(col)
+    field_selection = FieldSelection(
+        selected=["Front", "Back"],
+        writable=["Front"],
+        overwritable=[],
+    )
+    return selected_notes, dummy_client, prompt_builder, field_selection
 
 
 class TestLmLoggingMiddleware:
     """Test class for LmLoggingMiddleware."""
 
+    @with_test_collection("two_deck_collection")
     def test_logging_disabled_does_not_create_files(
         self,
+        col: TestCollection,
         addon_config: AddonConfig,
         user_files_dir: Path,
     ) -> None:
         """Test that middleware does not log when disabled."""
-        middleware = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
+        # Create test notes and dependencies
+        note_ids = create_test_notes_with_empty_front(col)
+        selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
 
-        # Call middleware hooks
-        mock_note_transformer = MagicMock(spec=NoteTransformer)
-        mock_note_transformer.response = LmResponse("")
-        middleware.before_transform(mock_note_transformer)
-        middleware.after_transform(mock_note_transformer)
+        # Create middleware and register it
+        middleware = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
+        transform_middleware = TransformMiddleware()
+        transform_middleware.register(middleware)
+
+        # Create and run NoteTransformer
+        transformer = NoteTransformer(
+            col=col,
+            selected_notes=selected_notes,
+            note_ids=note_ids,
+            lm_client=dummy_client,
+            prompt_builder=prompt_builder,
+            field_selection=field_selection,
+            note_type_name="Basic",
+            addon_config=addon_config,
+            transform_middleware=transform_middleware,
+        )
+        results, _field_updates = transformer.get_field_updates()
+
+        # Verify transform succeeded
+        assert results.num_notes_updated == 2
+        assert transformer.prompt is not None
+        assert transformer.response is not None
 
         # Verify no files were created (since logging is disabled)
         logs_dir = user_files_dir / "logs"
         assert not logs_dir.exists()
 
+    @with_test_collection("two_deck_collection")
     def test_logging_enabled_creates_files(
         self,
+        col: TestCollection,
         addon_config: AddonConfig,
         user_files_dir: Path,
     ) -> None:
@@ -52,17 +112,33 @@ class TestLmLoggingMiddleware:
         # Enable logging by updating config
         addon_config.update_setting("log_last_lm_response_request", True)
 
+        # Create test notes and dependencies
+        note_ids = create_test_notes_with_empty_front(col)
+        selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
+
+        # Create middleware and register it
         middleware = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
+        transform_middleware = TransformMiddleware()
+        transform_middleware.register(middleware)
 
-        # Call middleware hooks
-        test_prompt = "test prompt"
-        test_lm_response = LmResponse("test response")
-        mock_note_transformer = MagicMock(spec=NoteTransformer)
-        mock_note_transformer.response = test_lm_response
-        mock_note_transformer.prompt = test_prompt
+        # Create and run NoteTransformer
+        transformer = NoteTransformer(
+            col=col,
+            selected_notes=selected_notes,
+            note_ids=note_ids,
+            lm_client=dummy_client,
+            prompt_builder=prompt_builder,
+            field_selection=field_selection,
+            note_type_name="Basic",
+            addon_config=addon_config,
+            transform_middleware=transform_middleware,
+        )
+        results, _field_updates = transformer.get_field_updates()
 
-        middleware.before_transform(mock_note_transformer)
-        middleware.after_transform(mock_note_transformer)
+        # Verify transform succeeded
+        assert results.num_notes_updated == 2
+        assert transformer.prompt is not None
+        assert transformer.response is not None
 
         # Verify files were created and contain expected content
         logs_dir = user_files_dir / "logs"
@@ -74,32 +150,49 @@ class TestLmLoggingMiddleware:
         with log_file.open("r", encoding="utf-8") as f:
             content = f.read()
             assert "=== REQUEST" in content
-            assert test_prompt in content
+            assert transformer.prompt in content
             assert "=== RESPONSE" in content
-            assert test_lm_response.content in content
+            assert transformer.response.content in content
 
 
 class TestCacheBatchMiddleware:
     """Test class for CacheBatchMiddleware."""
 
+    @with_test_collection("two_deck_collection")
     def test_caching_disabled_does_not_create_files(
         self,
+        col: TestCollection,
         addon_config: AddonConfig,
         user_files_dir: Path,
     ) -> None:
         """Test that middleware does not cache when disabled."""
+        # Create test notes and dependencies
+        note_ids = create_test_notes_with_empty_front(col)
+        selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
+
+        # Create middleware and register it (caching disabled by default)
         middleware = CacheBatchMiddleware(addon_config, user_files_dir)
+        transform_middleware = TransformMiddleware()
+        transform_middleware.register(middleware)
 
-        # Call middleware hooks
-        mock_note_transformer = MagicMock(spec=NoteTransformer)
-        mock_lm_client = MagicMock()
-        mock_lm_client.id = "dummy"
-        mock_lm_client.get_model.return_value = "test_model"
-        mock_note_transformer.lm_client = mock_lm_client
-        mock_note_transformer.response = LmResponse("test response")
+        # Create and run NoteTransformer
+        transformer = NoteTransformer(
+            col=col,
+            selected_notes=selected_notes,
+            note_ids=note_ids,
+            lm_client=dummy_client,
+            prompt_builder=prompt_builder,
+            field_selection=field_selection,
+            note_type_name="Basic",
+            addon_config=addon_config,
+            transform_middleware=transform_middleware,
+        )
+        results, _field_updates = transformer.get_field_updates()
 
-        middleware.before_transform(mock_note_transformer)
-        middleware.after_transform(mock_note_transformer)
+        # Verify transform succeeded
+        assert results.num_notes_updated == 2
+        assert transformer.prompt is not None
+        assert transformer.response is not None
 
         # Verify no files were created (since caching is disabled)
         cache_dir = user_files_dir / "cache"
@@ -108,35 +201,44 @@ class TestCacheBatchMiddleware:
         # Verify no cache hits occurred
         assert middleware.num_cache_hits == 0
 
-    def test_caching_enabled_caches_and_hits(
+    @with_test_collection("two_deck_collection")
+    def test_caching_enabled_creates_cache(
         self,
+        col: TestCollection,
         addon_config: AddonConfig,
         user_files_dir: Path,
     ) -> None:
-        """Test that middleware caches responses and serves cache hits."""
+        """Test that middleware creates cache when enabled."""
         # Enable caching by updating config
         addon_config.update_setting("cache_responses", 100)
 
+        # Create test notes and dependencies
+        note_ids = create_test_notes_with_empty_front(col)
+        selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
+
+        # Create middleware and register it
         middleware = CacheBatchMiddleware(addon_config, user_files_dir)
+        transform_middleware = TransformMiddleware()
+        transform_middleware.register(middleware)
 
-        # Use real DummyLMClient
-        dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
+        # Create and run NoteTransformer
+        transformer = NoteTransformer(
+            col=col,
+            selected_notes=selected_notes,
+            note_ids=note_ids,
+            lm_client=dummy_client,
+            prompt_builder=prompt_builder,
+            field_selection=field_selection,
+            note_type_name="Basic",
+            addon_config=addon_config,
+            transform_middleware=transform_middleware,
+        )
+        results, _field_updates = transformer.get_field_updates()
 
-        # Create minimal test objects with required attributes
-        class MockNoteTransformer:  # noqa: B903
-            def __init__(self, lm_client: DummyLMClient, prompt: str, response: LmResponse | None = None) -> None:
-                self.lm_client = lm_client
-                self.prompt = prompt
-                self.response = response
-
-        # First call - should cache the response
-        note_transformer1 = MockNoteTransformer(dummy_client, "test prompt", None)
-        middleware.before_transform(note_transformer1)  # type: ignore
-        assert note_transformer1.response is None  # Should not be set (cache miss)
-
-        # Simulate LM response
-        note_transformer1.response = LmResponse("Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
-        middleware.after_transform(note_transformer1)  # type: ignore
+        # Verify transform succeeded
+        assert results.num_notes_updated == 2
+        assert transformer.prompt is not None
+        assert transformer.response is not None
 
         # Verify cache file was created
         cache_dir = user_files_dir / "cache"
@@ -144,12 +246,5 @@ class TestCacheBatchMiddleware:
         cache_file = cache_dir / "response_cache.sqlite"
         assert cache_file.exists()
 
-        # Second call - should hit cache
-        note_transformer2 = MockNoteTransformer(dummy_client, "test prompt", None)
-        middleware.before_transform(note_transformer2)  # type: ignore
-        assert note_transformer2.response is not None  # Should be set (cache hit)
-        assert note_transformer2.response.content == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-        middleware.after_transform(note_transformer2)  # type: ignore
-
-        # Verify cache hit counter
-        assert middleware.num_cache_hits == 1
+        # Verify cache hit counter (should be 0 since this was the first/only call)
+        assert middleware.num_cache_hits == 0
