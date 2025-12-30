@@ -245,6 +245,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         Args:
             clear_preview_results: Whether to clear existing preview results.
             update_preview_table: Whether to update the preview table display.
+            reload_notes: Whether to reload the notes from Anki (avoiding cached results).
         """
         if clear_preview_results:
             self.preview_results = None

@@ -26,6 +26,7 @@ class TransformerManBaseDialog(QDialog):
 
         Args:
             parent: Parent widget (typically the main Anki window).
+            is_dark_mode: Whether the UI is in dark mode.
         """
         super().__init__(parent)
         # Set the TransformerMan icon

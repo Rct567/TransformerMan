@@ -264,7 +264,7 @@ class PromptBuilder:
             note_type: Note type to select examples from.
             target_notes: SelectedNotes instance (to avoid selecting them as examples).
             selected_fields: Sequence of field names to consider.
-
+            max_examples: Maximum number of example notes to produce.
         Returns:
             List of example notes.
         """
@@ -390,6 +390,7 @@ class PromptBuilder:
             notes: List of notes to format.
             note_type: Note type of the notes.
             fields_included: Sequence of field names to include.
+            leave_empty: Included field names to leave empty (optional).
 
         Returns:
             XML-like string representation.

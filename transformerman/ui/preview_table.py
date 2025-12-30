@@ -149,6 +149,7 @@ class PreviewTable(QTableWidget):
         Args:
             parent: Parent widget.
             is_dark_mode: Whether the application is in dark mode.
+            get_notes: Function to get notes by ID.
         """
         super().__init__(parent)
         self.is_dark_mode = is_dark_mode
