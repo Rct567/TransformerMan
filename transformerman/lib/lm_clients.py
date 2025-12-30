@@ -500,7 +500,7 @@ class LmStudio(OpenAILMClient):
         return []
 
 
-class Groq(OpenAILMClient):
+class GroqLMClient(OpenAILMClient):
     id = "groq"
     name = "Groq"
 
@@ -709,7 +709,7 @@ LM_CLIENTS_CLASSES = [
     ClaudeLMClient,
     GeminiLMClient,
     DeepSeekLMClient,
-    Groq,
+    GroqLMClient,
     GrokLMClient,
     LmStudio,
     CustomOpenAi,
