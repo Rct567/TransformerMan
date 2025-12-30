@@ -202,13 +202,13 @@ class TestCacheBatchMiddleware:
         assert middleware.num_cache_hits == 0
 
     @with_test_collection("two_deck_collection")
-    def test_caching_enabled_creates_cache(
+    def test_caching_enabled_caches_and_hits(
         self,
         col: TestCollection,
         addon_config: AddonConfig,
         user_files_dir: Path,
     ) -> None:
-        """Test that middleware creates cache when enabled."""
+        """Test that middleware caches responses and serves cache hits."""
         # Enable caching by updating config
         addon_config.update_setting("cache_responses", 100)
 
@@ -221,7 +221,7 @@ class TestCacheBatchMiddleware:
         transform_middleware = TransformMiddleware()
         transform_middleware.register(middleware)
 
-        # Create and run NoteTransformer
+        # Create NoteTransformer
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes,
@@ -233,10 +233,12 @@ class TestCacheBatchMiddleware:
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
-        results, _field_updates = transformer.get_field_updates()
 
-        # Verify transform succeeded
-        assert results.num_notes_updated == 2
+        # First call - run transform to populate cache
+        results1, _ = transformer.get_field_updates()
+
+        # Verify first transform succeeded
+        assert results1.num_notes_updated == 2
         assert transformer.prompt is not None
         assert transformer.response is not None
 
@@ -246,5 +248,20 @@ class TestCacheBatchMiddleware:
         cache_file = cache_dir / "response_cache.sqlite"
         assert cache_file.exists()
 
-        # Verify cache hit counter (should be 0 since this was the first/only call)
-        assert middleware.num_cache_hits == 0
+        # Reset notes to empty for second call (to test cache hit)
+        for note_id in note_ids:
+            note = col.get_note(note_id)
+            note["Front"] = ""  # Reset to empty
+        col.update_notes([col.get_note(nid) for nid in note_ids])
+
+        # Second call - run transform again on same instance (should hit cache)
+        results2, _ = transformer.get_field_updates()
+
+        # Verify second transform succeeded via cache
+        assert results2.num_notes_updated == 2
+        # Same prompt should have been generated
+        assert transformer.prompt is not None
+        assert transformer.response is not None
+
+        # Verify cache hit occurred
+        assert middleware.num_cache_hits == 1
