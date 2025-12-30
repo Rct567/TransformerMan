@@ -5,7 +5,7 @@ Tests for prompt_builder module.
 from __future__ import annotations
 
 from transformerman.lib.prompt_builder import PromptBuilder
-from transformerman.lib.selected_notes import SelectedNotes
+from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.ui.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
@@ -34,6 +34,9 @@ class TestPromptBuilder:
         selected_notes = SelectedNotes(col, note_ids)
         builder = PromptBuilder(col)
 
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
         prompt_with_writeable_fields = builder.build_prompt(
             target_notes=selected_notes,
             field_selection=FieldSelection(
@@ -41,7 +44,7 @@ class TestPromptBuilder:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=note_type,
             max_examples=3
         )
 
@@ -52,7 +55,7 @@ class TestPromptBuilder:
                 writable=[],
                 overwritable=["Front"],
             ),
-            note_type_name="Basic",
+            note_type=note_type,
             max_examples=3,
         )
 
@@ -99,6 +102,9 @@ class TestPromptBuilder:
         instructions = {"Front": "Provide a concise question", "Back": "Provide detailed answer"}
         builder.update_field_instructions(instructions)
 
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
         # Build prompt
         prompt = builder.build_prompt(
             target_notes=selected_notes,
@@ -107,7 +113,7 @@ class TestPromptBuilder:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=note_type,
             max_examples=3
         )
 
@@ -154,7 +160,7 @@ class TestPromptBuilder:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             max_examples=3
         )
 
@@ -206,7 +212,7 @@ class TestPromptBuilder:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             max_examples=10
         )
 

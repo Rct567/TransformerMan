@@ -111,25 +111,21 @@ class SelectedNotes:
         """Return the card IDs in the selection, or None if not available."""
         return self._card_ids
 
-    def filter_by_note_type(self, note_type_name: str) -> Sequence[NoteId]:
+    def filter_by_note_type(self, note_type: NoteModel) -> Sequence[NoteId]:
         """
         Filter notes by note type name.
 
         Args:
-            note_type_name: Name of the note type to filter by.
+            note_type: Note type to filter by.
 
         Returns:
             List of note IDs matching the note type.
         """
-        model = NoteModel.by_name(self.col, note_type_name)
-        if not model:
-            return []
-
         filtered_note_ids: list[NoteId] = []
 
         for nid in self._note_ids:
             note = self.get_note(nid)
-            if note.mid == model.id:
+            if note.mid == note_type.id:
                 filtered_note_ids.append(nid)
 
         return filtered_note_ids
@@ -196,7 +192,7 @@ class SelectedNotes:
         self,
         prompt_builder: PromptBuilder,
         field_selection: FieldSelection,
-        note_type_name: str,
+        note_type: NoteModel,
         max_chars: int,
         max_examples: int
     ) -> list[SelectedNotesBatch]:
@@ -211,7 +207,7 @@ class SelectedNotes:
             return []
 
         batches, self.batching_stats = batched_by_prompt_size(
-            notes_with_fields, prompt_builder, field_selection, note_type_name, max_chars, max_examples, self.logger
+            notes_with_fields, prompt_builder, field_selection, note_type, max_chars, max_examples, self.logger
         )
 
         self.logger.info(self.batching_stats)

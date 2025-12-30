@@ -270,7 +270,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             num_api_calls_needed = 0
             overwritable_fields = []
         else:
-            filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
+            filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model)
             total_count = len(filtered_note_ids)
             field_selection = self.field_widgets.get_field_selection()
             num_notes_empty_field = (
@@ -279,7 +279,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             )
 
             num_api_calls_needed = self.transformer.get_num_api_calls_needed(
-                self.current_note_model.name, field_selection, filtered_note_ids
+                self.current_note_model, field_selection, filtered_note_ids
             )
             overwritable_fields = field_selection.overwritable
 
@@ -399,7 +399,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Get selected fields
         selected_fields = self.field_widgets.get_field_selection().selected
         # Get filtered note IDs
-        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
+        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model)
         # Update the preview table
         self.preview_table.show_notes(filtered_note_ids, selected_fields)
 
@@ -408,7 +408,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Preview button conditions
         preview_enabled = False
         if self.current_note_model:
-            filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
+            filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model)
 
             # Use helper methods for cleaner logic
             has_fillable_fields = self.field_widgets.has_fillable_fields()
@@ -460,7 +460,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Get filtered note IDs
         if not self.current_note_model:
             return
-        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
+        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model)
 
         if not filtered_note_ids:
             showInfo("No notes to transform.", parent=self)
@@ -472,7 +472,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Calculate API calls needed using transformer method
         # Note: transformer should already have latest field instructions from _update_state calls
-        transform_args = (self.current_note_model.name, field_selection, filtered_note_ids)
+        transform_args = (self.current_note_model, field_selection, filtered_note_ids)
         api_calls_needed = self.transformer.get_num_api_calls_needed(*transform_args)
 
         if api_calls_needed == 0 and not self.transformer.is_cached(*transform_args):
@@ -565,7 +565,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         self.transformer.transform(
             note_ids=filtered_note_ids,
-            note_type_name=self.current_note_model.name,
+            note_type=self.current_note_model,
             field_selection=field_selection,
             on_success=on_transform_success,
         )
@@ -648,6 +648,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Get selected fields
         selected_fields = self.field_widgets.get_field_selection().selected
         # Get filtered note IDs
-        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model.name)
+        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model)
         # Update the preview table with field updates for highlighting
         self.preview_table.show_notes(filtered_note_ids, selected_fields, field_updates)

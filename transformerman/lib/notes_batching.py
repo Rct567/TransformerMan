@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     import logging
     from collections.abc import Sequence
     from anki.notes import Note
-    from .selected_notes import SelectedNotes, SelectedNotesBatch
+    from .selected_notes import SelectedNotes, SelectedNotesBatch, NoteModel
     from ..ui.field_widgets import FieldSelection
     from .prompt_builder import PromptBuilder
 
@@ -146,7 +146,7 @@ def batched_by_prompt_size(
     notes_with_fields: SelectedNotes,
     prompt_builder: PromptBuilder,
     field_selection: FieldSelection,
-    note_type_name: str,
+    note_type: NoteModel,
     max_chars: int,
     max_examples: int,
     logger: logging.Logger
@@ -169,7 +169,7 @@ def batched_by_prompt_size(
             target_notes=test_selected_notes,
             field_selection=field_selection,
             max_examples=max_examples,
-            note_type_name=note_type_name,
+            note_type=note_type,
         )
 
     def create_validator(notes_list: Sequence[Note]) -> Callable[[int], bool]:

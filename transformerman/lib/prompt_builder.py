@@ -159,38 +159,6 @@ class PromptBuilder:
         card = self._get_card(card_ids[0])
         return self._get_deck_name(card.did)
 
-    def _format_note_as_xml(self, note: Note, fields_included: Sequence[str], leave_empty: Sequence[str] | None) -> str:
-        """Format a single note as XML with caching."""
-        # Create cache key
-        cache_key = (note.id, tuple(fields_included), tuple(leave_empty or []))
-
-        # Check cache
-        if cache_key in self.note_xml_cache:
-            return self.note_xml_cache[cache_key]
-
-        # Get deck name
-        deck_name = self._get_deck_name_for_note(note)
-
-        # Build XML lines for this note
-        lines = [f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">']
-
-        # Add included fields
-        for field_name in fields_included:
-            if field_name in note:
-                field_value = note[field_name]
-                if leave_empty and field_name in leave_empty:
-                    escaped_value = ""
-                else:
-                    escaped_value = escape_xml_content(field_value)
-                lines.append(f'    <field name="{escape_xml_content(field_name)}">{escaped_value}</field>')
-
-        lines.append("  </note>")
-
-        # Join lines and cache
-        result = "\n".join(lines)
-        self.note_xml_cache[cache_key] = result
-        return result
-
     def _get_card(self, card_id: CardId) -> Card:
         """Get a card from cache or collection."""
         if card_id in self.card_cache:
@@ -216,9 +184,9 @@ class PromptBuilder:
     def build_prompt(
         self,
         target_notes: SelectedNotes,
+        note_type: NoteModel,
         field_selection: FieldSelection,
         max_examples: int,
-        note_type_name: str = "",
     ) -> str:
         """
         Build a complete prompt for the LM including examples and target notes.
@@ -244,7 +212,7 @@ class PromptBuilder:
             raise ValueError("No writable or overwritable fields specified")
 
         # Get example notes
-        example_notes = self._select_example_notes(target_notes, field_selection.selected, note_type_name, max_examples)
+        example_notes = self._select_example_notes(note_type, target_notes, field_selection.selected, max_examples)
 
         # Get target notes and filter to include:
         # 1. Notes with empty fields in writable_fields
@@ -262,10 +230,10 @@ class PromptBuilder:
             raise ValueError("No notes with empty writable fields or overwritable fields found")
 
         # Format XML for sections
-        formatted_examples_xml = self._format_notes_as_xml(example_notes, note_type_name, field_selection.selected) if example_notes else ""
+        formatted_examples_xml = self._format_notes_as_xml(example_notes, note_type, field_selection.selected) if example_notes else ""
 
         formatted_target_notes_xml = self._format_notes_as_xml(
-            notes_to_include, note_type_name, field_selection.selected, field_selection.overwritable
+            notes_to_include, note_type, field_selection.selected, field_selection.overwritable
         )
 
         prompt = PromptTemplate(
@@ -279,9 +247,9 @@ class PromptBuilder:
 
     def _select_example_notes(
         self,
+        note_type: NoteModel,
         target_notes: SelectedNotes,
         selected_fields: Sequence[str],
-        note_type_name: str,
         max_examples: int,
     ) -> Sequence[Note]:
         """
@@ -293,9 +261,9 @@ class PromptBuilder:
         3. Preference for notes from the same deck as target notes
 
         Args:
+            note_type: Note type to select examples from.
             target_notes: SelectedNotes instance (to avoid selecting them as examples).
             selected_fields: Sequence of field names to consider.
-            note_type_name: Name of the note type.
 
         Returns:
             List of example notes.
@@ -304,7 +272,7 @@ class PromptBuilder:
         target_note_ids = set(target_notes.get_ids())
 
         # Find the note type
-        model = NoteModel.by_name(self.col, note_type_name)
+        model = NoteModel.by_name(self.col, note_type.name)
         if not model:
             return []
 
@@ -313,7 +281,7 @@ class PromptBuilder:
             # Filter out target notes
             return [nid for nid in note_ids if nid not in target_note_ids]
 
-        refined_query_parts = [f'"note:{note_type_name}"']
+        refined_query_parts = [f'"note:{note_type.name}"']
         for field in selected_fields:
             refined_query_parts.append(f'-"{field}:"')  # filter out notes with empty selected fields
         refined_query = " ".join(refined_query_parts)
@@ -340,7 +308,7 @@ class PromptBuilder:
         if len(candidate_note_ids) < max_examples:
             existing_ids = set(candidate_note_ids)
             # Get all note IDs of this type
-            for note_id in find_candidate_notes(f'"note:{note_type_name}"'):
+            for note_id in find_candidate_notes(f'"note:{note_type.name}"'):
                 if note_id not in existing_ids:
                     candidate_note_ids.append(note_id)
 
@@ -376,10 +344,42 @@ class PromptBuilder:
         # Return top examples
         return [note for _, _, note in scored_candidates[:max_examples]]
 
+    def _format_note_as_xml(self, note: Note, fields_included: Sequence[str], leave_empty: Sequence[str] | None) -> str:
+        """Format a single note as XML with caching."""
+        # Create cache key
+        cache_key = (note.id, tuple(fields_included), tuple(leave_empty or []))
+
+        # Check cache
+        if cache_key in self.note_xml_cache:
+            return self.note_xml_cache[cache_key]
+
+        # Get deck name
+        deck_name = self._get_deck_name_for_note(note)
+
+        # Build XML lines for this note
+        lines = [f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">']
+
+        # Add included fields
+        for field_name in fields_included:
+            if field_name in note:
+                field_value = note[field_name]
+                if leave_empty and field_name in leave_empty:
+                    escaped_value = ""
+                else:
+                    escaped_value = escape_xml_content(field_value)
+                lines.append(f'    <field name="{escape_xml_content(field_name)}">{escaped_value}</field>')
+
+        lines.append("  </note>")
+
+        # Join lines and cache
+        result = "\n".join(lines)
+        self.note_xml_cache[cache_key] = result
+        return result
+
     def _format_notes_as_xml(
         self,
         notes: Sequence[Note],
-        note_type_name: str,
+        note_type: NoteModel,
         fields_included: Sequence[str],
         leave_empty: Sequence[str] | None = None,
     ) -> str:
@@ -388,7 +388,7 @@ class PromptBuilder:
 
         Args:
             notes: List of notes to format.
-            note_type_name: Name of the note type.
+            note_type: Note type of the notes.
             fields_included: Sequence of field names to include.
 
         Returns:
@@ -397,7 +397,7 @@ class PromptBuilder:
 
         assert not leave_empty or all(field in fields_included for field in leave_empty)
 
-        lines = [f'<notes model="{escape_xml_content(note_type_name)}">']
+        lines = [f'<notes model="{escape_xml_content(note_type.name)}">']
 
         for note in notes:
             lines.append(self._format_note_as_xml(note, fields_included, leave_empty))

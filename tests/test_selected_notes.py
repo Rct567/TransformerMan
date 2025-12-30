@@ -60,9 +60,11 @@ class TestSelectedNotes:
         # Get all note IDs
         all_note_ids = col.find_notes("")
         selected_notes = SelectedNotes(col, all_note_ids)
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
 
         # Filter by "Basic" note type (should exist in test collection)
-        basic_note_ids = selected_notes.filter_by_note_type("Basic")
+        basic_note_ids = selected_notes.filter_by_note_type(note_type)
         assert basic_note_ids
 
         # Verify all filtered notes are actually "Basic" type
@@ -73,7 +75,9 @@ class TestSelectedNotes:
             assert notetype["name"] == "Basic"
 
         # Filter by non-existent note type
-        non_existent_note_ids = selected_notes.filter_by_note_type("NonExistentType")
+        non_existing_note_type = NoteModel.by_name(col, "Basic (type in the answer)")
+        assert non_existing_note_type is not None
+        non_existent_note_ids = selected_notes.filter_by_note_type(non_existing_note_type)
         assert len(non_existent_note_ids) == 0
 
     @with_test_collection("two_deck_collection")
@@ -248,6 +252,8 @@ class TestSelectedNotes:
         """Test batched_by_prompt_size with empty note IDs."""
         selected_notes = SelectedNotes(col, [])
         prompt_builder = PromptBuilder(col)
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
 
         batches = selected_notes.batched_by_prompt_size(
             prompt_builder=prompt_builder,
@@ -256,7 +262,7 @@ class TestSelectedNotes:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=note_type,
             max_chars=1000,
             max_examples=10,
         )
@@ -293,7 +299,7 @@ class TestSelectedNotes:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             max_chars=1000,
             max_examples=10
         )
@@ -331,7 +337,7 @@ class TestSelectedNotes:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             max_chars=500000,  # Very large
             max_examples=10,
         )
@@ -385,7 +391,7 @@ class TestSelectedNotes:
                     writable=["Front"],
                     overwritable=[],
                 ),
-                note_type_name="Basic",
+                note_type=NoteModel(col, model),
                 max_chars=max_chars,
                 max_examples=10,
             )
@@ -411,7 +417,7 @@ class TestSelectedNotes:
                         overwritable=[],
                     ),
                     max_examples=10,
-                    note_type_name="Basic",
+                    note_type=NoteModel(col, model),
                 )
                 assert len(prompt) <= max_chars, (
                     f"Batch {i} exceeds max_chars ({len(prompt)} > {max_chars})"
@@ -462,7 +468,7 @@ class TestSelectedNotes:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             max_chars=10,  # Extremely small
             max_examples=3,
         )
@@ -473,7 +479,7 @@ class TestSelectedNotes:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
             max_examples=3,
         )
@@ -484,7 +490,7 @@ class TestSelectedNotes:
                 writable=["Front", "Back"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
             max_examples=3,
         )

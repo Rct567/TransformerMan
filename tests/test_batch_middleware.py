@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware, TransformMiddleware
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
-from transformerman.lib.selected_notes import SelectedNotes
+from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.lib.prompt_builder import PromptBuilder
 from transformerman.ui.field_widgets import FieldSelection
 
@@ -45,7 +45,7 @@ def create_test_notes_with_empty_front(col: TestCollection, count: int = 2, back
 
 def create_standard_transform_dependencies(
     col: TestCollection, note_ids: Sequence[NoteId]
-) -> tuple[SelectedNotes, DummyLMClient, PromptBuilder, FieldSelection]:
+) -> tuple[SelectedNotes, DummyLMClient, PromptBuilder, FieldSelection, NoteModel]:
     """Create standard dependencies needed for NoteTransformer."""
     selected_notes = SelectedNotes(col, note_ids)
     dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
@@ -55,7 +55,9 @@ def create_standard_transform_dependencies(
         writable=["Front"],
         overwritable=[],
     )
-    return selected_notes, dummy_client, prompt_builder, field_selection
+    note_type = NoteModel.by_name(col, "Basic")
+    assert note_type
+    return selected_notes, dummy_client, prompt_builder, field_selection, note_type
 
 
 class TestLmLoggingMiddleware:
@@ -71,7 +73,7 @@ class TestLmLoggingMiddleware:
         """Test that middleware does not log when disabled."""
         # Create test notes and dependencies
         note_ids = create_test_notes_with_empty_front(col)
-        selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
+        selected_notes, dummy_client, prompt_builder, field_selection, note_type = create_standard_transform_dependencies(col, note_ids)
 
         # Create middleware and register it
         middleware = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
@@ -86,7 +88,7 @@ class TestLmLoggingMiddleware:
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=field_selection,
-            note_type_name="Basic",
+            note_type=note_type,
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -114,7 +116,7 @@ class TestLmLoggingMiddleware:
 
         # Create test notes and dependencies
         note_ids = create_test_notes_with_empty_front(col)
-        selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
+        selected_notes, dummy_client, prompt_builder, field_selection, note_type = create_standard_transform_dependencies(col, note_ids)
 
         # Create middleware and register it
         middleware = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
@@ -129,7 +131,7 @@ class TestLmLoggingMiddleware:
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=field_selection,
-            note_type_name="Basic",
+            note_type=note_type,
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -168,7 +170,7 @@ class TestCacheBatchMiddleware:
         """Test that middleware does not cache when disabled."""
         # Create test notes and dependencies
         note_ids = create_test_notes_with_empty_front(col)
-        selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
+        selected_notes, dummy_client, prompt_builder, field_selection, note_type = create_standard_transform_dependencies(col, note_ids)
 
         # Create middleware and register it (caching disabled by default)
         middleware = CacheBatchMiddleware(addon_config, user_files_dir)
@@ -183,7 +185,7 @@ class TestCacheBatchMiddleware:
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=field_selection,
-            note_type_name="Basic",
+            note_type=note_type,
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -214,7 +216,7 @@ class TestCacheBatchMiddleware:
 
         # Create test notes and dependencies
         note_ids = create_test_notes_with_empty_front(col)
-        selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
+        selected_notes, dummy_client, prompt_builder, field_selection, note_type = create_standard_transform_dependencies(col, note_ids)
 
         # Create middleware and register it
         middleware = CacheBatchMiddleware(addon_config, user_files_dir)
@@ -229,7 +231,7 @@ class TestCacheBatchMiddleware:
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=field_selection,
-            note_type_name="Basic",
+            note_type=note_type,
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from .transform_middleware import TransformMiddleware
     from .addon_config import AddonConfig
     from .lm_clients import LMClient
-    from .selected_notes import SelectedNotes, SelectedNotesBatch
+    from .selected_notes import SelectedNotes, SelectedNotesBatch, NoteModel
 
 
 class TransformResults(NamedTuple):
@@ -58,7 +58,7 @@ class NoteTransformer:
         lm_client: LMClient,
         prompt_builder: PromptBuilder,
         field_selection: FieldSelection,
-        note_type_name: str,
+        note_type: NoteModel,
         addon_config: AddonConfig,
         transform_middleware: TransformMiddleware,
     ) -> None:
@@ -72,7 +72,7 @@ class NoteTransformer:
             lm_client: LM client instance.
             prompt_builder: PromptBuilder instance.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
-            note_type_name: Name of note type.
+            note_type: Note type of the notes.
             addon_config: Addon configuration.
             transform_middleware: Transform middleware instance.
         """
@@ -82,7 +82,7 @@ class NoteTransformer:
         self.lm_client = lm_client
         self.prompt_builder = prompt_builder
         self.field_selection = field_selection
-        self.note_type_name = note_type_name
+        self.note_type = note_type
         self.addon_config = addon_config
         self.transform_middleware = transform_middleware
         self.logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ class NoteTransformer:
         self.batches = filtered_notes.batched_by_prompt_size(
             prompt_builder=self.prompt_builder,
             field_selection=self.field_selection,
-            note_type_name=self.note_type_name,
+            note_type=self.note_type,
             max_chars=self.addon_config.get_max_prompt_size(),
             max_examples=self.addon_config.get_max_examples(),
         )
@@ -139,9 +139,9 @@ class NoteTransformer:
         # Build prompt
         self.prompt = self.prompt_builder.build_prompt(
             selected_notes_batch,
+            self.note_type,
             field_selection,
             self.addon_config.get_max_examples(),
-            self.note_type_name,
         )
 
         # Initial response

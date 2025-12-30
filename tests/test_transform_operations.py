@@ -11,7 +11,7 @@ import pytest
 from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.ui.transform_notes import apply_field_updates_with_operation
 from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, TransformMiddleware
-from transformerman.lib.selected_notes import SelectedNotes
+from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.prompt_builder import PromptBuilder
 from transformerman.lib.field_updates import FieldUpdates
@@ -59,6 +59,10 @@ class TestNoteTransformer:
         # Create a real PromptBuilder
         prompt_builder = PromptBuilder(col)
 
+        # Note type
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
         # The collection's notes have no empty fields in "Front" or "Back"
         # So validation should raise ValueError
         with pytest.raises(ValueError, match="No notes with empty writable fields found"):
@@ -73,7 +77,7 @@ class TestNoteTransformer:
                     writable=["Front"],
                     overwritable=[],
                 ),
-                note_type_name="Basic",
+                note_type=note_type,
                 addon_config=addon_config,
                 transform_middleware=transform_middleware,
             )
@@ -123,7 +127,7 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -195,7 +199,7 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -258,7 +262,7 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -329,7 +333,7 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -394,7 +398,7 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type_name="Basic",
+            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )

@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from ..lib.transform_middleware import TransformMiddleware
     from ..lib.addon_config import AddonConfig
     from ..lib.lm_clients import LMClient
-    from ..lib.selected_notes import SelectedNotes
+    from ..lib.selected_notes import SelectedNotes, NoteModel
 
 
 class TransformProgressDialog(QProgressDialog):
@@ -251,7 +251,7 @@ class TransformNotesWithProgress:
 
     def _get_cache_key(
         self,
-        note_type_name: str,
+        note_type: NoteModel,
         field_selection: FieldSelection,
         note_ids: Sequence[NoteId],
     ) -> CacheKey:
@@ -263,7 +263,7 @@ class TransformNotesWithProgress:
 
         return CacheKey(
             client_id=self.lm_client.id,
-            note_type_name=note_type_name,
+            note_type_name=note_type.name,
             selected_fields=tuple(field_selection.selected),
             writable_fields=tuple(field_selection.writable),
             overwritable_fields=tuple(field_selection.overwritable),
@@ -274,7 +274,7 @@ class TransformNotesWithProgress:
 
     def is_cached(
         self,
-        note_type_name: str,
+        note_type: NoteModel,
         field_selection: FieldSelection,
         note_ids: Sequence[NoteId],
     ) -> bool:
@@ -282,19 +282,19 @@ class TransformNotesWithProgress:
         Check if transformation results are cached.
 
         Args:
-            note_type_name: Name of the note type.
+            note_type: Note type of the notes to transform.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             note_ids: List of note IDs to transform.
 
         Returns:
             True if results are cached, False otherwise.
         """
-        cache_key = self._get_cache_key(note_type_name, field_selection, note_ids)
+        cache_key = self._get_cache_key(note_type, field_selection, note_ids)
         return cache_key in self._cache
 
     def get_num_api_calls_needed(
         self,
-        note_type_name: str,
+        note_type: NoteModel,
         field_selection: FieldSelection,
         note_ids: Sequence[NoteId],
     ) -> int:
@@ -304,7 +304,7 @@ class TransformNotesWithProgress:
         actual prompt batching.
 
         Args:
-            note_type_name: Name of the note type.
+            note_type: Note type of the notes to transform.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             note_ids: List of note IDs to transform.
 
@@ -312,14 +312,14 @@ class TransformNotesWithProgress:
             Number of API calls needed.
         """
         # If cached, no API calls needed
-        if self.is_cached(note_type_name, field_selection, note_ids):
+        if self.is_cached(note_type, field_selection, note_ids):
             return 0
 
         if not field_selection.writable and not field_selection.overwritable:
             return 0
 
         # Filter by note type first - filter_by_note_type returns a list of NoteIds
-        filtered_note_ids_by_type = self.selected_notes.filter_by_note_type(note_type_name)
+        filtered_note_ids_by_type = self.selected_notes.filter_by_note_type(note_type)
 
         # Intersect with provided note_ids
         filtered_note_ids = [nid for nid in note_ids if nid in filtered_note_ids_by_type]
@@ -339,7 +339,7 @@ class TransformNotesWithProgress:
         batches = notes_with_fields.batched_by_prompt_size(
             prompt_builder=self._prompt_builder,
             field_selection=field_selection,
-            note_type_name=note_type_name,
+            note_type=note_type,
             max_chars=self.addon_config.get_max_prompt_size(),
             max_examples=self.addon_config.get_max_examples(),
         )
@@ -349,7 +349,7 @@ class TransformNotesWithProgress:
     def transform(
         self,
         note_ids: Sequence[NoteId],
-        note_type_name: str,
+        note_type: NoteModel,
         field_selection: FieldSelection,
         on_success: Callable[[TransformResults, FieldUpdates], None],
     ) -> None:
@@ -361,13 +361,13 @@ class TransformNotesWithProgress:
 
         Args:
             note_ids: List of note IDs to transform.
-            note_type_name: Name of the note type.
+            note_type: Note type of the notes to transform.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             on_success: Callback for transformation success.
                 Called with (results, field_updates) when transformation completes successfully.
         """
         # Check cache first
-        cache_key = self._get_cache_key(note_type_name, field_selection, note_ids)
+        cache_key = self._get_cache_key(note_type, field_selection, note_ids)
         if cache_key in self._cache:
             results, field_updates = self._cache[cache_key]
             on_success(results, field_updates)
@@ -381,7 +381,7 @@ class TransformNotesWithProgress:
             lm_client=self.lm_client,
             prompt_builder=self._prompt_builder,
             field_selection=field_selection,
-            note_type_name=note_type_name,
+            note_type=note_type,
             addon_config=self.addon_config,
             transform_middleware=self.transform_middleware,
         )
