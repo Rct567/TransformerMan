@@ -30,7 +30,7 @@ class PromptSection:
 
 
 class IntroductionSection(PromptSection):
-    def __init__(self, field_instructions: dict[str, str], fields_to_fill: list[str], has_examples: bool) -> None:
+    def __init__(self, field_instructions: dict[str, str], fields_to_fill: Sequence[str], has_examples: bool) -> None:
         self.parts = [
             "You are an Anki note assistant. Your task is to fill empty fields in notes based on context.",
             "",
@@ -71,8 +71,28 @@ class ExamplesSection(PromptSection):
             ]
 
 
+class PromptTemplate:
+    def __init__(
+        self,
+        field_instructions: dict[str, str],
+        fields_to_fill: Sequence[str],
+        formatted_examples_xml: str,
+        formatted_target_notes_xml: str,
+    ) -> None:
+        has_examples = bool(formatted_examples_xml)
+        self.parts = [
+            IntroductionSection(field_instructions, fields_to_fill, has_examples),
+            ExamplesSection(formatted_examples_xml),
+            TargetNotesSection(fields_to_fill, formatted_target_notes_xml),
+        ]
+
+    @override
+    def __str__(self) -> str:
+        return "\n".join(str(part) for part in self.parts)
+
+
 class TargetNotesSection(PromptSection):
-    def __init__(self, fields_to_fill: list[str], formatted_target_notes_xml: str) -> None:
+    def __init__(self, fields_to_fill: Sequence[str], formatted_target_notes_xml: str) -> None:
         if fields_to_fill:
             if len(fields_to_fill) == 1:
                 instruction = (
@@ -152,9 +172,7 @@ class PromptBuilder:
         deck_name = self._get_deck_name_for_note(note)
 
         # Build XML lines for this note
-        lines = [
-            f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">'
-        ]
+        lines = [f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">']
 
         # Add included fields
         for field_name in fields_included:
@@ -216,9 +234,7 @@ class PromptBuilder:
         # Check precondition: notes with empty writable fields OR notes with overwritable fields
         has_empty_writable = target_notes.has_note_with_empty_field(target_fields)
         has_overwritable = field_selection.overwritable and any(
-            field in note
-            for note in target_notes.get_notes()
-            for field in field_selection.overwritable
+            field in note for note in target_notes.get_notes() for field in field_selection.overwritable
         )
         if not has_empty_writable and not has_overwritable:
             raise ValueError("No notes with empty writable fields found and no notes with overwritable fields")
@@ -246,26 +262,20 @@ class PromptBuilder:
             raise ValueError("No notes with empty writable fields or overwritable fields found")
 
         # Format XML for sections
-        formatted_examples_xml = (
-            self._format_notes_as_xml(example_notes, note_type_name, field_selection.selected)
-            if example_notes else ""
-        )
+        formatted_examples_xml = self._format_notes_as_xml(example_notes, note_type_name, field_selection.selected) if example_notes else ""
 
         formatted_target_notes_xml = self._format_notes_as_xml(
-            notes_to_include,
-            note_type_name,
-            field_selection.selected,
-            field_selection.overwritable
+            notes_to_include, note_type_name, field_selection.selected, field_selection.overwritable
         )
 
-        # Create prompt sections
-        sections: list[PromptSection] = [
-            IntroductionSection(self.field_instructions, list(fields_to_fill), bool(example_notes)),
-            ExamplesSection(formatted_examples_xml),
-            TargetNotesSection(list(fields_to_fill), formatted_target_notes_xml),
-        ]
+        prompt = PromptTemplate(
+            self.field_instructions,
+            fields_to_fill,
+            formatted_examples_xml,
+            formatted_target_notes_xml
+        )
 
-        return "\n".join(str(section) for section in sections)
+        return str(prompt)
 
     def _select_example_notes(
         self,
