@@ -58,6 +58,7 @@ class DocstringChecker(ast.NodeVisitor):
 
         doc_params = self._parse_documented_params(docstring)
         doc_has_return = self._documents_return(docstring)
+        doc_has_args = self._documents_args_section(docstring)
 
         # Check for documented parameters that don't exist
         for param in doc_params - actual_params:
@@ -80,6 +81,22 @@ class DocstringChecker(ast.NodeVisitor):
                     message="documents a return value but doesn't return anything",
                 )
             )
+
+        # Check for undocumented parameters when Args section is present
+        if doc_has_args:
+            undocumented_params = actual_params - doc_params
+            if undocumented_params:
+                # Filter out 'self' parameter for methods
+                undocumented_params = {p for p in undocumented_params if p != "self"}
+                if undocumented_params:
+                    self.errors.append(
+                        DocstringError(
+                            filepath=self.filepath,
+                            line=node.lineno,
+                            function_name=node.name,
+                            message=f"has undocumented parameter(s): {', '.join(sorted(undocumented_params))}",
+                        )
+                    )
 
     def _extract_parameters(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
         """Extract all parameter names from function signature."""
@@ -144,6 +161,11 @@ class DocstringChecker(ast.NodeVisitor):
         """Check if docstring documents a return value."""
         lower = docstring.lower()
         return any(marker in lower for marker in ["returns:", "return:", ":returns:", ":return:"])
+
+    def _documents_args_section(self, docstring: str) -> bool:
+        """Check if docstring has an Args section."""
+        lower = docstring.lower()
+        return "args:" in lower
 
 
 def check_file(filepath: Path) -> list[DocstringError]:
