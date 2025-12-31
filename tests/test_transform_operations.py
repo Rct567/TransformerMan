@@ -98,13 +98,13 @@ class TestNoteTransformer:
         deck_id = col.decks.id_for_name("Default")
         assert deck_id
 
-        note_ids = []
-        for _ in range(4):
-            note = col.new_note(model)
+        note_ids = col.find_notes("")[:4]
+
+        for note_id in note_ids:
+            note = col.get_note(note_id)
             note["Front"] = ""  # Empty field
             note["Back"] = "some back"
-            col.add_note(note, deck_id)
-            note_ids.append(note.id)
+            col.update_note(note)
 
         # Use real SelectedNotes instance
         selected_notes = SelectedNotes(col, note_ids)
