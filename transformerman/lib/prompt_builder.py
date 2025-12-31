@@ -205,7 +205,7 @@ class PromptBuilder:
             field in note for note in target_notes.get_notes() for field in field_selection.overwritable
         )
         if not has_empty_writable and not has_overwritable:
-            raise ValueError("No notes with empty writable fields found and no notes with overwritable fields")
+            raise ValueError("Target notes does not have any notes with empty writable fields or overwritable fields")
 
         fields_to_fill = field_selection.overwritable if field_selection.overwritable else field_selection.writable
         if not fields_to_fill:
@@ -217,23 +217,23 @@ class PromptBuilder:
         # Get target notes and filter to include:
         # 1. Notes with empty fields in writable_fields
         # 2. Notes with fields in overwritable_fields (regardless of emptiness)
-        notes_to_include = []
+        target_notes_to_include = []
         for note in target_notes.get_notes():
             # Check if note has empty field in writable_fields
             if SelectedNotes.has_empty_field(note, target_fields):
-                notes_to_include.append(note)
+                target_notes_to_include.append(note)
             # Check if note has field in overwritable_fields
             elif field_selection.overwritable and any(field in note for field in field_selection.overwritable):
-                notes_to_include.append(note)
+                target_notes_to_include.append(note)
 
-        if not notes_to_include:
-            raise ValueError("No notes with empty writable fields or overwritable fields found")
+        if not target_notes_to_include:
+            raise ValueError("No target notes with empty writable fields or overwritable fields found")
 
         # Format XML for sections
         formatted_examples_xml = self._format_notes_as_xml(example_notes, note_type, field_selection.selected) if example_notes else ""
 
         formatted_target_notes_xml = self._format_notes_as_xml(
-            notes_to_include, note_type, field_selection.selected, field_selection.overwritable
+            target_notes_to_include, note_type, field_selection.selected, field_selection.overwritable
         )
 
         prompt = PromptTemplate(

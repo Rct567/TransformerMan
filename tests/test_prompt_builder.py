@@ -4,6 +4,8 @@ Tests for prompt_builder module.
 
 from __future__ import annotations
 
+import pytest
+
 from transformerman.lib.prompt_builder import PromptBuilder
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.ui.field_widgets import FieldSelection
@@ -128,6 +130,67 @@ class TestPromptBuilder:
         assert f'<field name="Back">{note["Back"]}</field>' in prompt
 
         col.lock_and_assert_result("test_build_prompt_with_field_instructions", prompt)
+
+    @with_test_collection("two_deck_collection")
+    def test_build_prompt_exception_trigger_scenario(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test if the ValueError exception in build_prompt can be triggered."""
+
+        # Create a scenario where:
+        # 1. At least one note has empty writable fields (so precondition passes)
+        # 2. But one note has neither empty writable fields nor overwritable fields
+
+        model = col.models.by_name("Basic")
+        assert model is not None
+        note_ids = sorted(col.find_notes("note:Basic"))
+        assert len(note_ids) >= 1
+
+        # Create note 1: has empty writable field (Front)
+        note1 = col.get_note(note_ids[0])
+        note1["Front"] = ""  # Empty field
+        note1["Back"] = "Note 1 back content"
+        col.update_note(note1)
+
+        # Create note 2: has neither empty writable fields nor overwritable fields
+        note2 = col.get_note(note_ids[1])
+        note2["Front"] = "Note 2 front content"  # Not empty
+        note2["Back"] = "Note 2 back content"
+        col.update_note(note2)
+
+        # Prompt builder
+        builder = PromptBuilder(col)
+        note_type = NoteModel(col, model)
+
+        # Check with both notes (should be ok, note1 satisfies the precondition)
+        prompt = builder.build_prompt(
+            target_notes=SelectedNotes(col, [note1.id, note2.id]),
+            field_selection=FieldSelection(
+                selected=["Front", "Back"],
+                writable=["Front"],  # Only Front is writable
+                overwritable=[],     # No overwritable fields
+            ),
+            note_type=note_type,
+            max_examples=2
+        )
+
+        col.lock_and_assert_result("test_build_prompt_exception_trigger_scenario", prompt)
+
+        # Try to build prompt with non-overwritable writable fields that is not empty
+        # This should trigger an exception
+
+        with pytest.raises(ValueError, match=f"Target notes does not have any notes with empty writable fields or overwritable fields"):
+            builder.build_prompt(
+                target_notes=SelectedNotes(col, [note2.id]),  # Only note2, meaning there are not valid target notes
+                field_selection=FieldSelection(
+                    selected=["Front", "Back"],
+                    writable=["Front"],
+                    overwritable=[],
+                ),
+                note_type=note_type,
+                max_examples=2
+            )
 
     @with_test_collection("two_deck_collection")
     def test_build_prompt_includes_deck_name(
