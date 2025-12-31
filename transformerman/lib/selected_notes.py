@@ -355,7 +355,10 @@ class SelectedNotes:
         )
 
     def _get_all_card_ids(self) -> Sequence[CardId]:
-        """Get all card IDs for the selected notes."""
+        """Get all card IDs for the selected notes (independent of selected cards)."""
+
+        if self.get_selected_card_ids():
+            raise ValueError("Are you sure you don't need to use get_selected_card_ids()?")
 
         return self._get_card_ids_from_notes(self._note_ids)
 
