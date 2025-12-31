@@ -521,7 +521,8 @@ def apply_field_updates_with_operation(
 
     def transform_operation(col: Collection) -> OpChanges:
         """Update notes and create undo entry."""
-        pos = col.add_custom_undo_entry("Transforming fields")
+        num_notes_txt = "1 note" if len(notes_to_update) == 1 else f"{len(notes_to_update)} notes"
+        pos = col.add_custom_undo_entry("Transforming fields ({})".format(num_notes_txt))
         col.update_notes(notes_to_update)
         return col.merge_undo_entries(pos)
 
