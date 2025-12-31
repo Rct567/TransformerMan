@@ -155,10 +155,10 @@ class TestTransformerManMainWindow:
         # Create notes with different note types
         basic_model = col.models.by_name("Basic")
         cloze_model = col.models.by_name("Cloze")
+        deck_id = col.decks.id_for_name("Default")
         assert basic_model is not None
         assert cloze_model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        assert deck_id is not None
 
         note_ids = []
 
@@ -385,9 +385,9 @@ class TestTransformerManMainWindow:
         """Test that preview button click triggers transformation process."""
         # Add some notes to the collection
         model = col.models.by_name("Basic")
+        deck_id = col.decks.id_for_name("Default")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        assert deck_id is not None
 
         note_ids = []
         # Add 2 Basic notes, one with empty Front field
@@ -454,10 +454,10 @@ class TestTransformerManMainWindow:
         # Create notes with different note types
         basic_model = col.models.by_name("Basic")
         cloze_model = col.models.by_name("Cloze")
+        deck_id = col.decks.id_for_name("Default")
         assert basic_model is not None
         assert cloze_model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        assert deck_id is not None
 
         note_ids = []
 
@@ -527,9 +527,9 @@ class TestTransformerManMainWindow:
 
         # Add some notes to the collection
         model = col.models.by_name("Basic")
+        deck_id = col.decks.id_for_name("Default")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        assert deck_id is not None
 
         note_ids = []
         # Add 2 Basic notes

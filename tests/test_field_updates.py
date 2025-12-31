@@ -48,8 +48,8 @@ class TestFieldUpdates:
         # Create real notes in the collection first
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         note1 = col.new_note(model)
         note1["Front"] = "old_front1"

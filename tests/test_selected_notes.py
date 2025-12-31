@@ -80,7 +80,7 @@ class TestSelectedNotes:
         non_existent_note_ids = selected_notes.filter_by_note_type(non_existing_note_type)
         assert len(non_existent_note_ids) == 0
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_get_note_type_counts(
         self,
         col: TestCollection,
@@ -92,8 +92,8 @@ class TestSelectedNotes:
         assert basic_model is not None
         assert cloze_model is not None
 
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Add some Basic notes
         basic_note_ids = []
@@ -132,7 +132,7 @@ class TestSelectedNotes:
         assert counts_list[1][0] == "Cloze"
         assert counts_list[1][1] == 2
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_has_empty_field_static(
         self,
         col: TestCollection,
@@ -140,8 +140,9 @@ class TestSelectedNotes:
         """Test static method has_empty_field with various field states."""
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Create note with empty field
         note1 = col.new_note(model)
@@ -167,7 +168,7 @@ class TestSelectedNotes:
         # Test with field that doesn't exist (should not crash)
         assert SelectedNotes.has_empty_field(note1, ["NonExistentField"]) is False
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_has_note_with_empty_field(
         self,
         col: TestCollection,
@@ -175,8 +176,8 @@ class TestSelectedNotes:
         """Test has_note_with_empty_field returns True/False appropriately."""
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Create notes: one with empty field, one without
         note1 = col.new_note(model)
@@ -204,7 +205,7 @@ class TestSelectedNotes:
         assert selected_notes3.has_note_with_empty_field(["Front"]) is True
         assert selected_notes3.has_note_with_empty_field(["Back"]) is False
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_filter_by_empty_field(
         self,
         col: TestCollection,
@@ -212,8 +213,8 @@ class TestSelectedNotes:
         """Test filter_by_empty_field returns only notes with empty fields."""
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Create notes with mixed empty/non-empty fields
         note_ids = []
@@ -244,7 +245,7 @@ class TestSelectedNotes:
         filtered2 = selected_notes.filter_by_empty_field(["Back"])
         assert len(filtered2) == 0
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_batched_by_prompt_size_empty_selection(
         self,
         col: TestCollection,
@@ -269,7 +270,7 @@ class TestSelectedNotes:
 
         assert batches == []
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_batched_by_prompt_size_no_empty_fields(
         self,
         col: TestCollection,
@@ -277,8 +278,8 @@ class TestSelectedNotes:
         """Test batched_by_prompt_size when no notes have empty fields."""
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Create notes with no empty fields
         note_ids = []
@@ -306,7 +307,7 @@ class TestSelectedNotes:
 
         assert batches == []
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_batched_by_prompt_size_single_batch(
         self,
         col: TestCollection,
@@ -314,8 +315,8 @@ class TestSelectedNotes:
         """Test batched_by_prompt_size when all notes fit in one batch."""
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Create notes with empty fields
         note_ids = []
@@ -356,8 +357,8 @@ class TestSelectedNotes:
         """Test batched_by_prompt_size when notes require multiple batches."""
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Create many notes with empty fields
         note_ids = []
@@ -439,7 +440,7 @@ class TestSelectedNotes:
         assert num_prompts_tried[2] <= 21
         assert num_prompts_tried[3] <= 81
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_batched_by_prompt_size_single_note_exceeds_limit(
         self,
         col: TestCollection,
@@ -447,8 +448,8 @@ class TestSelectedNotes:
         """Test batched_by_prompt_size when single note exceeds max size."""
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Create a note with empty field
         note = col.new_note(model)
@@ -507,8 +508,9 @@ class TestSelectedNotes:
     ) -> None:
         """Test get_notes returns correct Note objects."""
         # Get some real note IDs
-        note_ids = col.find_notes("")[:3]
+        note_ids = col.find_notes("")
         selected_notes = SelectedNotes(col, note_ids)
+        assert len(selected_notes) == len(note_ids) == 16
 
         # Get notes with default (all notes)
         notes = selected_notes.get_notes()
@@ -604,7 +606,7 @@ class TestSelectedNotes:
         note_from_parent2 = parent_notes.get_note(all_note_ids[1])
         assert note_from_child2.id == note_from_parent2.id
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_empty_field_detection_with_multiple_fields(
         self,
         col: TestCollection,
@@ -612,8 +614,8 @@ class TestSelectedNotes:
         """Test empty field detection with multiple selected fields."""
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Create notes with various empty field combinations
         note1 = col.new_note(model)

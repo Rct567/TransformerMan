@@ -233,7 +233,7 @@ class TestPromptBuilder:
         assert prompt.count('<field name="Front">') == 4
         assert prompt.count('<field name="Front"></field>') == 1
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_build_prompt_with_examples_section(
         self,
         col: TestCollection,
@@ -241,13 +241,8 @@ class TestPromptBuilder:
         """Test build_prompt includes examples section when example notes are available."""
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
-
-        # Clear any existing notes to have a clean state
-        existing_note_ids = col.find_notes('"note:Basic"')
-        if existing_note_ids:
-            col.remove_notes(existing_note_ids)
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         # Create example notes (non-empty Front field)
         example_note_ids = []

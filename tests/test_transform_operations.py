@@ -95,8 +95,8 @@ class TestNoteTransformer:
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         note_ids = []
         for _ in range(4):
@@ -156,7 +156,7 @@ class TestNoteTransformer:
             # Back field unchanged
             assert note["Back"] == "some back"
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_get_field_updates_with_progress_callback(
         self,
         col: TestCollection,
@@ -167,8 +167,8 @@ class TestNoteTransformer:
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
 
         note_ids = []
         for _ in range(4):
@@ -228,18 +228,17 @@ class TestNoteTransformer:
     ) -> None:
         """Test that get_field_updates respects cancellation."""
         # Create 4 new notes with empty fields
-        model = col.models.by_name("Basic")
-        assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        note_ids = col.find_notes("")
+        assert len(note_ids) > 10
 
-        note_ids = []
-        for _ in range(4):
-            note = col.new_note(model)
+        model = col.models.by_name("Basic")
+        assert model
+
+        for i in range(4):
+            note = col.get_note(note_ids[i])
             note["Front"] = ""  # Empty field
             note["Back"] = "some back"
-            col.add_note(note, deck_id)
-            note_ids.append(note.id)
+            col.update_note(note)
 
         # Use real SelectedNotes instance
         selected_notes = SelectedNotes(col, note_ids)
@@ -283,7 +282,7 @@ class TestNoteTransformer:
         for nid in note_ids:
             assert nid not in field_updates
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_get_field_updates_handles_batch_errors(
         self,
         col: TestCollection,
@@ -293,9 +292,9 @@ class TestNoteTransformer:
         """Test that get_field_updates handles batch processing errors gracefully."""
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
+        deck_id = col.decks.id_for_name("Default")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        assert deck_id is not None
 
         note_ids = []
         for _ in range(4):
@@ -352,7 +351,7 @@ class TestNoteTransformer:
         for nid in note_ids:
             assert nid not in field_updates
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_get_field_updates_only_returns_updates_for_empty_fields(
         self,
         col: TestCollection,
@@ -362,9 +361,9 @@ class TestNoteTransformer:
         """Test that get_field_updates only returns updates for empty fields."""
         # Create 4 new notes with mixed empty/non-empty fields
         model = col.models.by_name("Basic")
+        deck_id = col.decks.id_for_name("Default")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        assert deck_id is not None
 
         note_ids = []
         for i in range(4):
@@ -427,7 +426,7 @@ class TestNoteTransformer:
 class TestApplyFieldUpdatesWithOperation:
     """Test class for apply_field_updates_with_operation function."""
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_apply_field_updates_with_operation_applies_updates(
         self,
         col: TestCollection,
@@ -435,9 +434,9 @@ class TestApplyFieldUpdatesWithOperation:
         """Test that apply_field_updates_with_operation applies field updates."""
         # Create 4 new notes with empty fields
         model = col.models.by_name("Basic")
+        deck_id = col.decks.id_for_name("Default")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        assert deck_id is not None
 
         note_ids = []
         for i in range(4):
@@ -495,7 +494,7 @@ class TestApplyFieldUpdatesWithOperation:
         assert success_results[0]["updated"] == 4
         assert success_results[0]["failed"] == 0
 
-    @with_test_collection("two_deck_collection")
+    @with_test_collection("empty_collection")
     def test_apply_field_updates_with_operation_handles_nonexistent_fields(
         self,
         col: TestCollection,
@@ -503,9 +502,9 @@ class TestApplyFieldUpdatesWithOperation:
         """Test that apply_field_updates_with_operation handles nonexistent fields."""
         # Create a new note
         model = col.models.by_name("Basic")
+        deck_id = col.decks.id_for_name("Default")
         assert model is not None
-        deck = col.decks.all()[0]
-        deck_id = deck["id"]
+        assert deck_id is not None
 
         note = col.new_note(model)
         note["Front"] = ""  # Empty field

@@ -26,18 +26,18 @@ if TYPE_CHECKING:
 
 
 def create_test_notes_with_empty_front(col: TestCollection, count: int = 2, back_content_prefix: str = "existing content") -> list[NoteId]:
-    """Create test notes with empty Front fields for transformation testing."""
-    model = col.models.by_name("Basic")
-    assert model is not None
-    deck = col.decks.all()[0]
-    deck_id = deck["id"]
+    """Get existing test notes and modify them to have empty Front fields for transformation testing."""
+    # Find existing notes
+    existing_note_ids = col.find_notes("")
+    assert len(existing_note_ids) >= count, f"Need at least {count} existing notes, found {len(existing_note_ids)}"
 
     note_ids = []
     for i in range(count):
-        note = col.new_note(model)
+        note_id = existing_note_ids[i]
+        note = col.get_note(note_id)
         note["Front"] = ""  # Empty field to transform
         note["Back"] = f"{back_content_prefix} {i}" if count > 1 else back_content_prefix
-        col.add_note(note, deck_id)
+        col.update_note(note)
         note_ids.append(note.id)
 
     return note_ids
