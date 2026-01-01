@@ -146,6 +146,17 @@ class TestCollection(Collection):
         # init anki collection
         super().__init__(str(temp_collection_path))
 
+        # optimize for speed
+        assert self.db
+        pragmas = [
+            "PRAGMA journal_mode = OFF",
+            "PRAGMA synchronous = OFF",
+            "PRAGMA locking_mode = EXCLUSIVE",
+            "PRAGMA temp_store = MEMORY",
+        ]
+        for p in pragmas:
+            self.db.execute(p)
+
     def __get_lock_file_path(self, lock_name: str, lock_dir: str) -> Path:
         assert lock_name != ""
         order_file_dir = self.collection_dir / lock_dir
