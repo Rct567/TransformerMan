@@ -304,8 +304,6 @@ class DummyLMClient(LMClient):
                 )
                 if self.get_model() == "lorem_ipsum_network":
                     time.sleep(random.uniform(0.01, 0.2))  # Delay to simulate network
-                else:
-                    time.sleep(0.01)  # Small delay for local processing
 
                 if should_cancel and should_cancel():
                     return LmResponse("", is_canceled=True)
