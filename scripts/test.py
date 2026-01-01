@@ -362,11 +362,13 @@ def main() -> NoReturn:
 
     start_time = time.perf_counter()
 
-    check_python_version()
-    install_dev_requirements()
-
     # Parse CLI arguments early so flags like --staged are set before running checks
     selected_options = parse_cli_args()
+
+    check_python_version()
+
+    if not ("staged" in selected_options and "pytest" in selected_options):
+        install_dev_requirements()
 
     run_ruff(selected_options)
     run_pyright(selected_options)
