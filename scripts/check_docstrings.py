@@ -3,7 +3,7 @@
 Check for incorrect docstrings (parameters/returns that don't match code).
 Ignores missing docstrings - only flags when documented items are wrong.
 
-Usage: python check_docstrings.py [directory]
+Usage: python check_docstrings.py [path ...]
 """
 
 from __future__ import annotations
@@ -166,6 +166,35 @@ class DocstringChecker(ast.NodeVisitor):
         return "args:" in lower
 
 
+def get_python_files(search_path: Path) -> list[Path]:
+    """Get Python files respecting .gitignore if in a git repo."""
+    if search_path.is_file():
+        return [search_path] if search_path.suffix == ".py" else []
+
+    try:
+        result: subprocess.CompletedProcess[str] = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "*.py"],
+            cwd=search_path,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+
+        files: list[Path] = [search_path / line for line in result.stdout.strip().splitlines() if line.strip()]
+        return [f for f in files if f.exists()]
+
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        return _fallback_file_search(search_path)
+
+
+def _fallback_file_search(search_path: Path) -> list[Path]:
+    """Fallback file search when git is unavailable."""
+    if search_path.is_file():
+        return [search_path] if search_path.suffix == ".py" else []
+    return list(search_path.rglob("*.py"))
+
+
 def check_file(filepath: Path) -> list[DocstringError]:
     """Analyze a Python file for docstring inconsistencies."""
     try:
@@ -182,48 +211,18 @@ def check_file(filepath: Path) -> list[DocstringError]:
         return [DocstringError(filepath, 0, "", f"Error processing: {e}")]
 
 
-def get_python_files(search_path: Path) -> list[Path]:
-    """Get Python files respecting .gitignore if in a git repo."""
-    try:
-        result: subprocess.CompletedProcess[str] = subprocess.run(
-            ["git", "ls-files", "*.py"],
-            cwd=search_path if search_path.is_dir() else search_path.parent,
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=5,
-        )
-
-        base_dir: Path = search_path if search_path.is_dir() else search_path.parent
-        files: list[Path] = [base_dir / line for line in result.stdout.strip().splitlines() if line.strip()]
-
-        # Filter to search path
-        if search_path.is_dir():
-            files = [f for f in files if f.is_relative_to(search_path) and f.exists()]
-
-        return files if files else _fallback_file_search(search_path)
-
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-        print("⚠ Not in a git repo, scanning all .py files", file=sys.stderr)
-        return _fallback_file_search(search_path)
-
-
-def _fallback_file_search(search_path: Path) -> list[Path]:
-    """Fallback file search when git is unavailable."""
-    if search_path.is_file():
-        return [search_path]
-    return list(search_path.rglob("*.py"))
-
-
 def main() -> NoReturn:
     """Main entry point."""
-    search_path: Path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.cwd()
+    paths: list[Path] = [Path(p) for p in sys.argv[1:]] if len(sys.argv) > 1 else [Path.cwd()]
 
-    if not search_path.exists():
-        print(f"❌ Error: Path '{search_path}' does not exist", file=sys.stderr)
-        sys.exit(1)
+    all_python_files: set[Path] = set()
+    for path in paths:
+        if not path.exists():
+            print(f"❌ Error: Path '{path}' does not exist", file=sys.stderr)
+            sys.exit(1)
+        all_python_files.update(get_python_files(path))
 
-    python_files: list[Path] = get_python_files(search_path)
+    python_files = sorted(all_python_files)
 
     if not python_files:
         print("⚠ No Python files found", file=sys.stderr)
