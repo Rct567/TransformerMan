@@ -6,7 +6,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from anki.utils import ids2str
 
@@ -56,6 +56,9 @@ class NoteModel:
     @property
     def name(self) -> str:
         return self.data["name"]
+
+
+T = TypeVar("T", bound="SelectedNotes")
 
 
 class SelectedNotes:
@@ -245,14 +248,7 @@ class SelectedNotes:
         Returns:
             New SelectedNotes instance.
         """
-
-        if self._card_ids:
-            original_card_ids_set = set(self._card_ids)
-            new_card_ids = [card_id for card_id in self._get_card_ids_from_notes(note_ids) if card_id in original_card_ids_set]
-        else:
-            new_card_ids = None
-
-        return SelectedNotes(self.col, note_ids, new_card_ids, note_cache=self._note_cache, deck_cache=self._deck_cache)
+        return SelectedNotes._new_sub_selection(self, note_ids)
 
     def new_selected_notes_batch(self, note_ids: Sequence[NoteId]) -> SelectedNotesBatch:
         """
@@ -265,11 +261,30 @@ class SelectedNotes:
             New SelectedNotesBatch instance.
         """
 
-        selected_notes = self.new_selected_notes(note_ids)
-        return SelectedNotesBatch(
-            self.col,
-            selected_notes.get_ids(),
-            selected_notes.get_selected_card_ids(),
+        return SelectedNotesBatch._new_sub_selection(self, note_ids)
+
+    @classmethod
+    def _new_sub_selection(cls: type[T], selected_notes: SelectedNotes, note_ids: Sequence[NoteId]) -> T:
+        """
+        Create a new instance of the class from an existing SelectedNotes instance and a list of note IDs.
+
+        Args:
+            selected_notes: The existing SelectedNotes instance.
+            note_ids: The list of note IDs to include in the new sub selection instance.
+
+        Returns:
+            A new instance of the class.
+        """
+        assert len(note_ids) <= len(selected_notes._note_ids)
+        if selected_notes._card_ids:
+            original_card_ids_set = set(selected_notes._card_ids)
+            new_card_ids = [card_id for card_id in selected_notes._get_card_ids_from_notes(note_ids) if card_id in original_card_ids_set]
+        else:
+            new_card_ids = None
+        return cls(
+            selected_notes.col,
+            note_ids,
+            new_card_ids,
             note_cache=selected_notes._note_cache,
             deck_cache=selected_notes._deck_cache
         )
