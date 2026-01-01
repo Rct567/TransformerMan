@@ -245,6 +245,21 @@ def run_pyright(options: Sequence[str]) -> None:
     print(f"{GREEN} Pyright was successful! ({elapsed_time:.0f} seconds){RESET}")
 
 
+def check_docstrings(options: Sequence[str]) -> None:
+    """Check docstrings using pydocstyle."""
+    print("=" * 60)
+    print("Checking docstrings...")
+    start_time = time.perf_counter()
+
+    if "staged" in options:
+        check_staged_files(["python", "./scripts/check_docstrings.py"], "check_docstrings.py")
+    else:
+        run_and_print_on_failure(["python", "./scripts/check_docstrings.py"] + things_to_type_check(), "check_docstrings.py")
+
+    elapsed_time = time.perf_counter() - start_time
+    print(f"{GREEN} Docstring check was successful! ({elapsed_time:.0f} seconds){RESET}")
+
+
 def run_vulture(options: Sequence[str]) -> None:
     """Run vulture."""
     print("=" * 60)
@@ -378,6 +393,7 @@ def main() -> NoReturn:
 
     run_vulture(selected_options)
     check_code_duplication()
+    check_docstrings(selected_options)
 
     selected_menu_options = [option for option in get_test_menu_options() if option.is_available() and option.key in selected_options]
 

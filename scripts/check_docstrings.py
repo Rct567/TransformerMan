@@ -218,14 +218,14 @@ def main() -> NoReturn:
     all_python_files: set[Path] = set()
     for path in paths:
         if not path.exists():
-            print(f"❌ Error: Path '{path}' does not exist", file=sys.stderr)
+            print(f"Error: Path '{path}' does not exist", file=sys.stderr)
             sys.exit(1)
         all_python_files.update(get_python_files(path))
 
     python_files = sorted(all_python_files)
 
     if not python_files:
-        print("⚠ No Python files found", file=sys.stderr)
+        print("No Python files found", file=sys.stderr)
         sys.exit(0)
 
     all_errors: list[DocstringError] = [error for filepath in python_files for error in check_file(filepath)]
@@ -235,7 +235,7 @@ def main() -> NoReturn:
             print(error)
         sys.exit(1)
 
-    print(f"✓ No incorrect docstrings found in {len(python_files)} files")
+    print(f"No incorrect docstrings found in {len(python_files)} files")
     sys.exit(0)
 
 
