@@ -85,18 +85,16 @@ class DocstringChecker(ast.NodeVisitor):
         # Check for undocumented parameters when Args section is present
         if doc_has_args:
             undocumented_params = actual_params - doc_params
+            undocumented_params -= {"self", "cls"}
             if undocumented_params:
-                # Filter out 'self' parameter for methods
-                undocumented_params = {p for p in undocumented_params if p != "self"}
-                if undocumented_params:
-                    self.errors.append(
-                        DocstringError(
-                            filepath=self.filepath,
-                            line=node.lineno,
-                            function_name=node.name,
-                            message=f"has undocumented parameter(s): {', '.join(sorted(undocumented_params))}",
-                        )
+                self.errors.append(
+                    DocstringError(
+                        filepath=self.filepath,
+                        line=node.lineno,
+                        function_name=node.name,
+                        message=f"has undocumented parameter(s): {', '.join(sorted(undocumented_params))}",
                     )
+                )
 
     def _extract_parameters(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
         """Extract all parameter names from function signature."""
