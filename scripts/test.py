@@ -48,6 +48,7 @@ def get_staged_python_files() -> list[str]:
 def install_dev_requirements() -> None:
     """Install dev requirements from requirements-dev.txt."""
     print("="*60)
+    start_time = time.perf_counter()
     try:
         with open("requirements-dev.txt", "r", encoding="utf-8"):
             print("Found requirements-dev.txt, installing dependencies...")
@@ -57,12 +58,13 @@ def install_dev_requirements() -> None:
                 capture_output=True,
                 text=True
             )
+            elapsed_time = time.perf_counter() - start_time
             if "installed" in result.stdout:
-                print(f"{GREEN} Installation successful.{RESET}")
+                print(f"{GREEN} Installation successful. ({elapsed_time:.0f} seconds){RESET}")
                 if result.stdout:
                     print(result.stdout)
             else:
-                print(" Nothing to install.")
+                print(f" Nothing to install. ({elapsed_time:.0f} seconds)")
     except FileNotFoundError:
         print(" No requirements-dev.txt found.")
         sys.exit(1)
