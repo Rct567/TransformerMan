@@ -783,3 +783,98 @@ class TestSelectedNotes:
         filtered_no_cards = selected_notes_no_cards.new_selected_notes(subset_note_ids)
         assert set(filtered_no_cards.get_ids()) == set(subset_note_ids)
         assert filtered_no_cards.get_selected_card_ids() is None  # Should remain None when original has None
+
+    @with_test_collection("empty_collection")
+    def test_card_ids_filtered_to_note_subset(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that card_ids are filtered to only include cards from the note subset.
+
+        This tests the logic in new_selected_notes where:
+        - If card_ids are defined, they should be filtered to only include cards
+          from the subset of notes being selected
+        - This ensures that when note_ids is a sub-selection, card_ids is also
+          a corresponding sub-selection
+        """
+        # Create deck and model
+        deck_id = col.decks.id("TestDeck")
+        assert deck_id is not None
+        model = col.models.by_name("Basic")
+        assert model is not None
+
+        # Create 5 notes with their card IDs
+        note_ids: list[NoteId] = []
+        all_card_ids: list[CardId] = []
+        note_to_cards_map: dict[NoteId, list[CardId]] = {}
+
+        for i in range(5):
+            note = col.new_note(model)
+            note["Front"] = f"Front {i}"
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
+            cards = list(note.card_ids())
+            all_card_ids.extend(cards)
+            note_to_cards_map[note.id] = cards
+
+        # Create SelectedNotes with all notes and all cards
+        selected_notes = SelectedNotes(col, note_ids, card_ids=all_card_ids)
+        assert selected_notes.get_selected_card_ids() == all_card_ids
+
+        # Test 1: Create subset with first 3 notes using new_selected_notes
+        subset_note_ids = note_ids[:3]
+        subset_selected_notes = selected_notes.new_selected_notes(subset_note_ids)
+
+        # Expected card IDs should only be from the subset of notes
+        expected_card_ids = []
+        for nid in subset_note_ids:
+            expected_card_ids.extend(note_to_cards_map[nid])
+
+        # Verify card_ids are filtered correctly
+        filtered_card_ids = subset_selected_notes.get_selected_card_ids()
+        assert filtered_card_ids is not None
+        assert set(filtered_card_ids) == set(expected_card_ids)
+
+        # Verify no cards from excluded notes are present
+        excluded_note_ids = note_ids[3:]
+        excluded_card_ids = []
+        for nid in excluded_note_ids:
+            excluded_card_ids.extend(note_to_cards_map[nid])
+
+        assert filtered_card_ids is not None
+        for card_id in excluded_card_ids:
+            assert card_id not in filtered_card_ids
+
+        # Test 2: Create subset with different notes (last 2) using new_selected_notes
+        subset_note_ids_2 = note_ids[3:]
+        subset_selected_notes_2 = selected_notes.new_selected_notes(subset_note_ids_2)
+
+        expected_card_ids_2 = []
+        for nid in subset_note_ids_2:
+            expected_card_ids_2.extend(note_to_cards_map[nid])
+
+        filtered_card_ids_2 = subset_selected_notes_2.get_selected_card_ids()
+        assert filtered_card_ids_2 is not None
+        assert set(filtered_card_ids_2) == set(expected_card_ids_2)
+
+        # Test 3: Create subset using new_selected_notes_batch
+        subset_note_ids_3 = note_ids[1:4]
+        subset_batch = selected_notes.new_selected_notes_batch(subset_note_ids_3)
+
+        expected_card_ids_3 = []
+        for nid in subset_note_ids_3:
+            expected_card_ids_3.extend(note_to_cards_map[nid])
+
+        batch_card_ids = subset_batch.get_selected_card_ids()
+        assert batch_card_ids is not None
+        assert set(batch_card_ids) == set(expected_card_ids_3)
+
+        # Test 4: Verify edge case with single note
+        subset_note_ids_4 = [note_ids[0]]
+        subset_single = selected_notes.new_selected_notes(subset_note_ids_4)
+
+        expected_card_ids_4 = note_to_cards_map[note_ids[0]]
+        single_card_ids = subset_single.get_selected_card_ids()
+        assert single_card_ids is not None
+        assert set(single_card_ids) == set(expected_card_ids_4)
