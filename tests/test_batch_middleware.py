@@ -84,7 +84,6 @@ class TestLmLoggingMiddleware:
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes,
-            note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=field_selection,
@@ -126,7 +125,6 @@ class TestLmLoggingMiddleware:
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes,
-            note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=field_selection,
@@ -179,7 +177,6 @@ class TestCacheBatchMiddleware:
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes,
-            note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=field_selection,
@@ -224,7 +221,6 @@ class TestCacheBatchMiddleware:
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes,
-            note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=field_selection,

@@ -69,7 +69,6 @@ class TestNoteTransformer:
             NoteTransformer(
                 col=col,
                 selected_notes=selected_notes.filter_by_note_type(note_type),
-                note_ids=note_ids,
                 lm_client=dummy_client,
                 prompt_builder=prompt_builder,
                 field_selection=FieldSelection(
@@ -118,7 +117,6 @@ class TestNoteTransformer:
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
-            note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
@@ -189,7 +187,6 @@ class TestNoteTransformer:
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
-            note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
@@ -250,7 +247,6 @@ class TestNoteTransformer:
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
-            note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
@@ -320,7 +316,6 @@ class TestNoteTransformer:
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
-            note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
@@ -384,7 +379,6 @@ class TestNoteTransformer:
         transformer = NoteTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
-            note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(

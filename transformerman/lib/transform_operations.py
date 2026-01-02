@@ -52,11 +52,13 @@ class CacheKey(NamedTuple):
 class NoteTransformer:
     """Transforms notes in batches (UI-agnostic)."""
 
+    target_notes: SelectedNotesFromType
+    batches: Sequence[SelectedNotesBatch]
+
     def __init__(
         self,
         col: Collection,
         selected_notes: SelectedNotesFromType,
-        note_ids: Sequence[NoteId],
         lm_client: LMClient,
         prompt_builder: PromptBuilder,
         field_selection: FieldSelection,
@@ -68,8 +70,7 @@ class NoteTransformer:
 
         Args:
             col: Anki collection.
-            selected_notes: SelectedNotesFromType instance.
-            note_ids: Note IDs to transform.
+            selected_notes: Selected notes to transform (only those who match the criteria set by field_selection).
             lm_client: LM client instance.
             prompt_builder: PromptBuilder instance.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
@@ -78,7 +79,6 @@ class NoteTransformer:
         """
         self.col = col
         self.selected_notes = selected_notes
-        self.note_ids = note_ids
         self.lm_client = lm_client
         self.prompt_builder = prompt_builder
         self.field_selection = field_selection
@@ -87,7 +87,7 @@ class NoteTransformer:
         self.logger = logging.getLogger(__name__)
 
         # Validate that we have notes with empty fields in writable_fields OR notes with overwritable_fields
-        notes_to_transform = self.selected_notes.new_selected_notes(self.note_ids)
+        notes_to_transform = self.selected_notes
         has_empty_writable = notes_to_transform.has_note_with_empty_field(self.field_selection.writable)
         has_overwritable = bool(self.field_selection.overwritable)
 
@@ -95,15 +95,12 @@ class NoteTransformer:
             raise ValueError("No notes with empty writable fields found and no overwritable fields selected")
 
         # Filter to notes with empty fields in writable_fields OR notes with fields in overwritable_fields
-        self.filtered_notes = notes_to_transform.filter_by_writable_or_overwritable(
+        self.target_notes = notes_to_transform.filter_by_writable_or_overwritable(
             self.field_selection.writable, self.field_selection.overwritable
         )
 
-        # Update note_ids to filtered IDs
-        self.note_ids = self.filtered_notes.get_ids()
-
         # Create batches based on prompt size
-        self.batches = self.filtered_notes.batched_by_prompt_size(
+        self.batches = self.target_notes.batched_by_prompt_size(
             prompt_builder=self.prompt_builder,
             field_selection=self.field_selection,
             max_chars=self.addon_config.get_max_prompt_size(),
@@ -232,7 +229,7 @@ class NoteTransformer:
 
         # Prompt builder
         render_prompt = self.prompt_builder.get_prompt_renderer(
-            self.filtered_notes,
+            self.target_notes,
             self.field_selection,
             self.addon_config.get_max_examples(),
         )

@@ -356,7 +356,6 @@ class TransformNotesWithProgress:
         transformer = NoteTransformer(
             col=self.col,
             selected_notes=selected_notes,
-            note_ids=selected_notes.get_ids(),
             lm_client=self.lm_client,
             prompt_builder=self._prompt_builder,
             field_selection=field_selection,
