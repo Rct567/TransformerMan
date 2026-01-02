@@ -849,7 +849,8 @@ class TestSelectedNotes:
 
         # Test 3: Create subset using new_selected_notes_batch
         subset_note_ids_3 = note_ids[1:4]
-        subset_batch = selected_notes.new_selected_notes_batch(subset_note_ids_3)
+        selected_notes_by_type = selected_notes.filter_by_note_type(NoteModel(col, model))
+        subset_batch = selected_notes_by_type.new_selected_notes_batch(subset_note_ids_3)
 
         expected_card_ids_3 = []
         for nid in subset_note_ids_3:

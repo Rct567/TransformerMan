@@ -223,19 +223,6 @@ class SelectedNotes:
         """
         return self._new_sub_selection(self, note_ids)
 
-    def new_selected_notes_batch(self, note_ids: Sequence[NoteId]) -> SelectedNotesBatch:
-        """
-        Get a new SelectedNotesBatch instance containing only the specified note IDs.
-
-        Args:
-            note_ids: Sequence of note IDs.
-
-        Returns:
-            New SelectedNotesBatch instance.
-        """
-
-        return SelectedNotesBatch._new_sub_selection(self, note_ids)
-
     @classmethod
     def _new_sub_selection(cls, selected_notes: SelectedNotes, note_ids: Sequence[NoteId]) -> Self:
         """
@@ -416,20 +403,13 @@ class SelectedNotesFromType(SelectedNotes):
     @override
     def new_selected_notes(self, note_ids: Sequence[NoteId]) -> SelectedNotesFromType:
         """Override to preserve note_type when creating sub-selections."""
-        base = super().new_selected_notes(note_ids)
-        return SelectedNotesFromType(
-            base.col,
-            base.get_ids(),
-            self.note_type,
-            base.get_selected_card_ids(),
-            base._note_cache,
-            base._deck_cache,
-        )
+        base = SelectedNotesFromType._new_sub_selection(self, note_ids)
+        base.note_type = self.note_type
+        return base
 
-    @override
     def new_selected_notes_batch(self, note_ids: Sequence[NoteId]) -> SelectedNotesBatch:
-        """Create batch - note_type is not needed for batches."""
-        return super().new_selected_notes_batch(note_ids)
+        """Get a new batch containing only the specified note IDs. (note_type is not needed for batches)"""
+        return SelectedNotesBatch._new_sub_selection(self, note_ids)
 
     def batched_by_prompt_size(
         self,
