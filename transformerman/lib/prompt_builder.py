@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from .utilities import override
 from .xml_parser import escape_xml_content
-from .selected_notes import SelectedNotes, NoteModel
+from .selected_notes import SelectedNotes, NoteModel, SelectedNotesFromNoteType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -183,8 +183,7 @@ class PromptBuilder:
 
     def build_prompt(
         self,
-        target_notes: SelectedNotes,
-        note_type: NoteModel,
+        target_notes: SelectedNotesFromNoteType,
         field_selection: FieldSelection,
         max_examples: int,
     ) -> str:
@@ -212,7 +211,7 @@ class PromptBuilder:
             raise ValueError("No writable or overwritable fields specified")
 
         # Get example notes
-        example_notes = self._select_example_notes(note_type, target_notes, field_selection.selected, max_examples)
+        example_notes = self._select_example_notes(target_notes.note_type, target_notes, field_selection.selected, max_examples)
 
         # Get target notes and filter to include:
         # 1. Notes with empty fields in writable_fields
@@ -230,18 +229,15 @@ class PromptBuilder:
             raise ValueError("No target notes with empty writable fields or overwritable fields found")
 
         # Format XML for sections
-        formatted_examples_xml = self._format_notes_as_xml(example_notes, note_type, field_selection.selected) if example_notes else ""
+        formatted_examples_xml = (
+            self._format_notes_as_xml(example_notes, target_notes.note_type, field_selection.selected) if example_notes else ""
+        )
 
         formatted_target_notes_xml = self._format_notes_as_xml(
-            target_notes_to_include, note_type, field_selection.selected, field_selection.overwritable
+            target_notes_to_include, target_notes.note_type, field_selection.selected, field_selection.overwritable
         )
 
-        prompt = PromptTemplate(
-            self.field_instructions,
-            fields_to_fill,
-            formatted_examples_xml,
-            formatted_target_notes_xml
-        )
+        prompt = PromptTemplate(self.field_instructions, fields_to_fill, formatted_examples_xml, formatted_target_notes_xml)
 
         return str(prompt)
 

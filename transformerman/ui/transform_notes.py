@@ -20,15 +20,13 @@ from ..lib.prompt_builder import PromptBuilder
 from ..lib.http_utils import LmRequestStage, LmProgressData
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from anki.collection import Collection, OpChanges
-    from anki.notes import NoteId
     from ..lib.field_updates import FieldUpdates
     from ..ui.field_widgets import FieldSelection
     from ..lib.transform_middleware import TransformMiddleware
     from ..lib.addon_config import AddonConfig
     from ..lib.lm_clients import LMClient
-    from ..lib.selected_notes import SelectedNotes, NoteModel
+    from ..lib.selected_notes import SelectedNotes, SelectedNotesFromNoteType
 
 
 class TransformProgressDialog(QProgressDialog):
@@ -251,9 +249,8 @@ class TransformNotesWithProgress:
 
     def _get_cache_key(
         self,
-        note_type: NoteModel,
+        selected_notes: SelectedNotesFromNoteType,
         field_selection: FieldSelection,
-        note_ids: Sequence[NoteId],
     ) -> CacheKey:
         """Generate a cache key for the given transformation parameters."""
         # Create a hash of field_instructions for cache key
@@ -263,40 +260,37 @@ class TransformNotesWithProgress:
 
         return CacheKey(
             client_id=self.lm_client.id,
-            note_type_name=note_type.name,
+            note_type_name=selected_notes.note_type.name,
             selected_fields=tuple(field_selection.selected),
             writable_fields=tuple(field_selection.writable),
             overwritable_fields=tuple(field_selection.overwritable),
-            note_ids=tuple(note_ids),
+            note_ids=tuple(selected_notes.get_ids()),
             max_prompt_size=self.addon_config.get_max_prompt_size(),
             field_instructions_hash=field_instructions_hash,
         )
 
     def is_cached(
         self,
-        note_type: NoteModel,
+        selected_notes: SelectedNotesFromNoteType,
         field_selection: FieldSelection,
-        note_ids: Sequence[NoteId],
     ) -> bool:
         """
         Check if transformation results are cached.
 
         Args:
-            note_type: Note type of the notes to transform.
+            selected_notes: SelectedNotesFromNoteType instance containing notes and note type.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
-            note_ids: List of note IDs to transform.
 
         Returns:
             True if results are cached, False otherwise.
         """
-        cache_key = self._get_cache_key(note_type, field_selection, note_ids)
+        cache_key = self._get_cache_key(selected_notes, field_selection)
         return cache_key in self._cache
 
     def get_num_api_calls_needed(
         self,
-        note_type: NoteModel,
+        selected_notes: SelectedNotesFromNoteType,
         field_selection: FieldSelection,
-        note_ids: Sequence[NoteId],
     ) -> int:
         """
         Calculate the number of API calls needed for the given parameters.
@@ -304,33 +298,21 @@ class TransformNotesWithProgress:
         actual prompt batching.
 
         Args:
-            note_type: Note type of the notes to transform.
+            selected_notes: SelectedNotesFromNoteType instance containing notes and note type.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
-            note_ids: List of note IDs to transform.
 
         Returns:
             Number of API calls needed.
         """
         # If cached, no API calls needed
-        if self.is_cached(note_type, field_selection, note_ids):
+        if self.is_cached(selected_notes, field_selection):
             return 0
 
         if not field_selection.writable and not field_selection.overwritable:
             return 0
 
-        # Filter by note type first - filter_by_note_type returns a list of NoteIds
-        filtered_note_ids_by_type = self.selected_notes.filter_by_note_type(note_type)
-
-        # Intersect with provided note_ids
-        filtered_note_ids = [nid for nid in note_ids if nid in filtered_note_ids_by_type]
-
-        if not filtered_note_ids:
-            return 0
-
         # Get notes with empty fields in writable_fields OR notes with fields in overwritable_fields
-        notes_with_fields = self.selected_notes.new_selected_notes(filtered_note_ids).filter_by_writable_or_overwritable(
-            field_selection.writable, field_selection.overwritable
-        )
+        notes_with_fields = selected_notes.filter_by_writable_or_overwritable(field_selection.writable, field_selection.overwritable)
 
         if not notes_with_fields:
             return 0
@@ -339,7 +321,6 @@ class TransformNotesWithProgress:
         batches = notes_with_fields.batched_by_prompt_size(
             prompt_builder=self._prompt_builder,
             field_selection=field_selection,
-            note_type=note_type,
             max_chars=self.addon_config.get_max_prompt_size(),
             max_examples=self.addon_config.get_max_examples(),
         )
@@ -348,8 +329,7 @@ class TransformNotesWithProgress:
 
     def transform(
         self,
-        note_ids: Sequence[NoteId],
-        note_type: NoteModel,
+        selected_notes: SelectedNotesFromNoteType,
         field_selection: FieldSelection,
         on_success: Callable[[TransformResults, FieldUpdates], None],
     ) -> None:
@@ -360,14 +340,13 @@ class TransformNotesWithProgress:
         Results are cached for future calls with the same parameters.
 
         Args:
-            note_ids: List of note IDs to transform.
-            note_type: Note type of the notes to transform.
+            selected_notes: SelectedNotesFromNoteType instance containing notes and note type.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             on_success: Callback for transformation success.
                 Called with (results, field_updates) when transformation completes successfully.
         """
         # Check cache first
-        cache_key = self._get_cache_key(note_type, field_selection, note_ids)
+        cache_key = self._get_cache_key(selected_notes, field_selection)
         if cache_key in self._cache:
             results, field_updates = self._cache[cache_key]
             on_success(results, field_updates)
@@ -376,12 +355,11 @@ class TransformNotesWithProgress:
         # Create NoteTransformer (UI-agnostic)
         transformer = NoteTransformer(
             col=self.col,
-            selected_notes=self.selected_notes,
-            note_ids=note_ids,
+            selected_notes=selected_notes,
+            note_ids=selected_notes.get_ids(),
             lm_client=self.lm_client,
             prompt_builder=self._prompt_builder,
             field_selection=field_selection,
-            note_type=note_type,
             addon_config=self.addon_config,
             transform_middleware=self.transform_middleware,
         )

@@ -7,7 +7,7 @@ Follows project guideline: "Use pytest fixtures, but try to use the real thing w
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
@@ -15,11 +15,9 @@ import pytest
 from aqt.qt import QWidget, QMessageBox
 
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
-from transformerman.lib.field_updates import FieldUpdates
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
-    from anki.notes import NoteId
 
 
 # Patch restoreGeom and saveGeom at the module level where they're used
@@ -62,12 +60,6 @@ def parent_widget(qtbot: QtBot) -> QWidget:
 
 
 @pytest.fixture
-def test_note_ids() -> list[NoteId]:
-    """Test note IDs for testing."""
-    return [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
-
-
-@pytest.fixture
 def dummy_lm_client() -> DummyLMClient:
     """Real DummyLMClient instance for testing."""
     return DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
@@ -77,24 +69,3 @@ def dummy_lm_client() -> DummyLMClient:
 def is_dark_mode() -> bool:
     """Fixture for dark mode setting."""
     return False
-
-
-@pytest.fixture
-def test_field_updates() -> FieldUpdates:
-    """Test field updates for preview highlighting."""
-    return FieldUpdates({
-        cast("NoteId", 123): {"Front": "Updated Front 1", "Back": "Updated Back 1"},
-        cast("NoteId", 456): {"Front": "Updated Front 2", "Back": "Updated Back 2"},
-    })
-
-
-@pytest.fixture
-def test_selected_fields() -> set[str]:
-    """Test selected fields set."""
-    return {"Front", "Back"}
-
-
-@pytest.fixture
-def test_note_type_name() -> str:
-    """Test note type name."""
-    return "Basic"

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from anki.models import NotetypeId
 
-from transformerman.lib.selected_notes import SelectedNotes, NoteModel
+from transformerman.lib.selected_notes import SelectedNotes, NoteModel, SelectedNotesFromNoteType
 from transformerman.ui.field_widgets import FieldSelection
 from transformerman.lib.prompt_builder import PromptBuilder
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
@@ -64,7 +64,7 @@ class TestSelectedNotes:
         assert note_type
 
         # Filter by "Basic" note type (should exist in test collection)
-        basic_note_ids = selected_notes.filter_by_note_type(note_type)
+        basic_note_ids = selected_notes.filter_by_note_type(note_type).get_ids()
         assert basic_note_ids
 
         # Verify all filtered notes are actually "Basic" type
@@ -256,14 +256,13 @@ class TestSelectedNotes:
         note_type = NoteModel.by_name(col, "Basic")
         assert note_type
 
-        batches = selected_notes.batched_by_prompt_size(
+        batches = selected_notes.filter_by_note_type(note_type).batched_by_prompt_size(
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
                 selected=["Front"],
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=note_type,
             max_chars=1000,
             max_examples=10,
         )
@@ -293,16 +292,15 @@ class TestSelectedNotes:
         selected_notes = SelectedNotes(col, note_ids)
         prompt_builder = PromptBuilder(col)
 
-        batches = selected_notes.batched_by_prompt_size(
+        batches = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
                 selected=["Front"],
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             max_chars=1000,
-            max_examples=10
+            max_examples=10,
         )
 
         assert batches == []
@@ -331,14 +329,13 @@ class TestSelectedNotes:
         prompt_builder = PromptBuilder(col)
 
         # Use large max_chars to ensure single batch
-        batches = selected_notes.batched_by_prompt_size(
+        batches = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
                 selected=["Front"],
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             max_chars=500000,  # Very large
             max_examples=10,
         )
@@ -384,23 +381,21 @@ class TestSelectedNotes:
 
         num_prompts_tried = []
         for max_chars, min_batches, max_batches in test_cases:
-
-            batches = selected_notes.batched_by_prompt_size(
+            selected_notes_from_note = selected_notes.filter_by_note_type(NoteModel(col, model))
+            batches = selected_notes_from_note.batched_by_prompt_size(
                 prompt_builder=prompt_builder,
                 field_selection=FieldSelection(
                     selected=["Front", "Back"],
                     writable=["Front"],
                     overwritable=[],
                 ),
-                note_type=NoteModel(col, model),
                 max_chars=max_chars,
                 max_examples=10,
             )
 
             # Verify batch count is reasonable
             assert min_batches <= len(batches) <= max_batches, (
-                f"Expected {min_batches}-{max_batches} batches "
-                f"for max_chars={max_chars}, got {len(batches)}"
+                f"Expected {min_batches}-{max_batches} batches for max_chars={max_chars}, got {len(batches)}"
             )
 
             # Verify all notes are included
@@ -411,23 +406,20 @@ class TestSelectedNotes:
             for i, batch in enumerate(batches[:3]):  # Check first 3 batches
                 # Build prompt for this batch
                 prompt = prompt_builder.build_prompt(
-                    target_notes=batch,
+                    target_notes=batch.filter_by_note_type(NoteModel(col, model)),
                     field_selection=FieldSelection(
                         selected=["Front", "Back"],
                         writable=["Front"],
                         overwritable=[],
                     ),
                     max_examples=10,
-                    note_type=NoteModel(col, model),
                 )
-                assert len(prompt) <= max_chars, (
-                    f"Batch {i} exceeds max_chars ({len(prompt)} > {max_chars})"
-                )
+                assert len(prompt) <= max_chars, f"Batch {i} exceeds max_chars ({len(prompt)} > {max_chars})"
 
-            assert selected_notes.batching_stats
-            assert selected_notes.batching_stats.num_prompts_tried <= 50
+            assert selected_notes_from_note.batching_stats
+            assert selected_notes_from_note.batching_stats.num_prompts_tried <= 50
 
-            num_prompts_tried.append(selected_notes.batching_stats.num_prompts_tried)
+            num_prompts_tried.append(selected_notes_from_note.batching_stats.num_prompts_tried)
 
             # Verify no note appears in multiple batches
             all_batch_note_ids: list[int] = []
@@ -462,36 +454,33 @@ class TestSelectedNotes:
         prompt_builder = PromptBuilder(col)
 
         # Use tiny max_chars so even single note exceeds limit
-        batches = selected_notes.batched_by_prompt_size(
+        batches = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
                 selected=["Front"],
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             max_chars=10,  # Extremely small
             max_examples=3,
         )
-        batches_increased_max_chars = selected_notes.batched_by_prompt_size(
+        batches_increased_max_chars = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
                 selected=["Front"],
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
             max_examples=3,
         )
-        batches_increased_max_chars_with_large_field = selected_notes.batched_by_prompt_size(
+        batches_increased_max_chars_with_large_field = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
             prompt_builder=prompt_builder,
             field_selection=FieldSelection(
                 selected=["Front", "Back"],
                 writable=["Front", "Back"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
             max_examples=3,
         )
@@ -620,12 +609,12 @@ class TestSelectedNotes:
         # Create notes with various empty field combinations
         note1 = col.new_note(model)
         note1["Front"] = ""  # Empty
-        note1["Back"] = ""   # Empty
+        note1["Back"] = ""  # Empty
         col.add_note(note1, deck_id)
 
         note2 = col.new_note(model)
         note2["Front"] = "Filled"
-        note2["Back"] = ""   # Empty
+        note2["Back"] = ""  # Empty
         col.add_note(note2, deck_id)
 
         note3 = col.new_note(model)
@@ -831,7 +820,7 @@ class TestSelectedNotes:
         for nid in subset_note_ids:
             expected_card_ids.extend(note_to_cards_map[nid])
 
-        # Verify card_ids are filtered correctly
+        # Verify card IDs are filtered correctly
         filtered_card_ids = subset_selected_notes.get_selected_card_ids()
         assert filtered_card_ids is not None
         assert set(filtered_card_ids) == set(expected_card_ids)
@@ -878,3 +867,41 @@ class TestSelectedNotes:
         single_card_ids = subset_single.get_selected_card_ids()
         assert single_card_ids is not None
         assert set(single_card_ids) == set(expected_card_ids_4)
+
+
+class TestSelectedNotesFromNote:
+    """Test class for SelectedNotesFromNote."""
+
+    @with_test_collection("two_deck_collection")
+    def test_factory_method_and_preservation(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that filter_by_note_type creates SelectedNotesFromNoteType and sub-selections preserve note_type."""
+        # Get note IDs
+        note_ids = col.find_notes("")[:4]
+        selected_notes = SelectedNotes(col, note_ids)
+
+        # Get note type
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
+        # Test factory method
+        selected_from_note = selected_notes.filter_by_note_type(note_type)
+        assert isinstance(selected_from_note, SelectedNotesFromNoteType)
+        assert selected_from_note.note_type == note_type
+        assert list(selected_from_note.get_ids()) == list(note_ids)
+
+        # Test sub-selection preserves note_type
+        subset_ids = note_ids[:2]
+        subset = selected_from_note.new_selected_notes(subset_ids)
+
+        assert isinstance(subset, SelectedNotesFromNoteType)
+        assert subset.note_type == note_type
+        assert list(subset.get_ids()) == list(subset_ids)
+
+        # Test batch creation (should be SelectedNotesBatch, not SelectedNotesFromNote)
+        batch = selected_from_note.new_selected_notes_batch(subset_ids)
+        # Note: SelectedNotesBatch doesn't inherit from SelectedNotesFromNote, but from SelectedNotes
+        # So it won't have note_type, which is correct as per implementation
+        assert not isinstance(batch, SelectedNotesFromNoteType)

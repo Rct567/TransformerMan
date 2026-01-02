@@ -271,17 +271,14 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             num_api_calls_needed = 0
             overwritable_fields = []
         else:
-            filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model)
-            total_count = len(filtered_note_ids)
+            selected_notes_from_note = self.selected_notes.filter_by_note_type(self.current_note_model)
+            total_count = len(selected_notes_from_note)
             field_selection = self.field_widgets.get_field_selection()
             num_notes_empty_field = (
-                len(self.selected_notes.filter_by_empty_field(field_selection.writable))
-                if field_selection.writable else 0
+                len(self.selected_notes.filter_by_empty_field(field_selection.writable)) if field_selection.writable else 0
             )
 
-            num_api_calls_needed = self.transformer.get_num_api_calls_needed(
-                self.current_note_model, field_selection, filtered_note_ids
-            )
+            num_api_calls_needed = self.transformer.get_num_api_calls_needed(selected_notes_from_note, field_selection)
             overwritable_fields = field_selection.overwritable
 
         note_text = "note" if total_count == 1 else "notes"
@@ -400,9 +397,9 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Get selected fields
         selected_fields = self.field_widgets.get_field_selection().selected
         # Get filtered note IDs
-        filtered_note_ids = self.selected_notes.filter_by_note_type(self.current_note_model)
+        filtered_notes = self.selected_notes.filter_by_note_type(self.current_note_model)
         # Update the preview table
-        self.preview_table.show_notes(filtered_note_ids, selected_fields)
+        self.preview_table.show_notes(filtered_notes, selected_fields)
 
     def update_buttons_state(self) -> None:
         """Update the enabled/disabled state of all buttons based on current state."""
@@ -473,10 +470,13 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Calculate API calls needed using transformer method
         # Note: transformer should already have latest field instructions from _update_state calls
-        transform_args = (self.current_note_model, field_selection, filtered_note_ids)
+        # selected_notes_from_note = self.selected_notes.new_selected_notes(filtered_note_ids).with_note_type(self.current_note_model)
+        selected_notes_from_note = self.selected_notes.filter_by_note_type(self.current_note_model)
+
+        transform_args = (selected_notes_from_note, field_selection)
         api_calls_needed = self.transformer.get_num_api_calls_needed(*transform_args)
 
-        if api_calls_needed == 0 and not self.transformer.is_cached(*transform_args):
+        if api_calls_needed == 0 and not self.transformer.is_cached(selected_notes_from_note, field_selection):
             showWarning("No API calls possible with on the current selection and configuration (check prompt size limit).", parent=self)
             self.update_buttons_state()
             return
@@ -485,8 +485,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         if api_calls_needed > 10:
             # Need to get empty count for warning message
             num_notes_empty_field = (
-                len(self.selected_notes.filter_by_empty_field(field_selection.writable))
-                if field_selection.writable else 0
+                len(self.selected_notes.filter_by_empty_field(field_selection.writable)) if field_selection.writable else 0
             )
             max_prompt_size = self.addon_config.get_max_prompt_size()
 
@@ -565,8 +564,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             showInfo("\n".join(result_info_text), parent=self)
 
         self.transformer.transform(
-            note_ids=filtered_note_ids,
-            note_type=self.current_note_model,
+            selected_notes=selected_notes_from_note,
             field_selection=field_selection,
             on_success=on_transform_success,
         )

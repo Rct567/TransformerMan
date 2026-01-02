@@ -40,24 +40,22 @@ class TestPromptBuilder:
         assert note_type
 
         prompt_with_writeable_fields = builder.build_prompt(
-            target_notes=selected_notes,
+            target_notes=selected_notes.filter_by_note_type(note_type),
             field_selection=FieldSelection(
                 selected=["Front", "Back"],
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=note_type,
-            max_examples=3
+            max_examples=3,
         )
 
         prompt_with_overwritable_fields = builder.build_prompt(
-            target_notes=selected_notes,
+            target_notes=selected_notes.filter_by_note_type(note_type),
             field_selection=FieldSelection(
                 selected=["Front", "Back"],
                 writable=[],
                 overwritable=["Front"],
             ),
-            note_type=note_type,
             max_examples=3,
         )
 
@@ -109,14 +107,13 @@ class TestPromptBuilder:
 
         # Build prompt
         prompt = builder.build_prompt(
-            target_notes=selected_notes,
+            target_notes=selected_notes.filter_by_note_type(note_type),
             field_selection=FieldSelection(
                 selected=["Front", "Back"],
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=note_type,
-            max_examples=3
+            max_examples=3,
         )
 
         # Strategic assertions
@@ -165,14 +162,13 @@ class TestPromptBuilder:
 
         # Check with both notes (should be ok, note1 satisfies the precondition)
         prompt = builder.build_prompt(
-            target_notes=SelectedNotes(col, [note1.id, note2.id]),
+            target_notes=SelectedNotes(col, [note1.id, note2.id]).filter_by_note_type(note_type),
             field_selection=FieldSelection(
                 selected=["Front", "Back"],
                 writable=["Front"],  # Only Front is writable
-                overwritable=[],     # No overwritable fields
+                overwritable=[],  # No overwritable fields
             ),
-            note_type=note_type,
-            max_examples=2
+            max_examples=2,
         )
 
         col.lock_and_assert_result("test_build_prompt_exception_trigger_scenario", prompt)
@@ -182,14 +178,15 @@ class TestPromptBuilder:
 
         with pytest.raises(ValueError, match=f"Target notes does not have any notes with empty writable fields or overwritable fields"):
             builder.build_prompt(
-                target_notes=SelectedNotes(col, [note2.id]),  # Only note2, meaning there are not valid target notes
+                target_notes=SelectedNotes(col, [note2.id]).filter_by_note_type(
+                    note_type
+                ),  # Only note2, meaning there are not valid target notes
                 field_selection=FieldSelection(
                     selected=["Front", "Back"],
                     writable=["Front"],
                     overwritable=[],
                 ),
-                note_type=note_type,
-                max_examples=2
+                max_examples=2,
             )
 
     @with_test_collection("two_deck_collection")
@@ -217,14 +214,13 @@ class TestPromptBuilder:
 
         # Build prompt
         prompt = builder.build_prompt(
-            target_notes=selected_notes,
+            target_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             field_selection=FieldSelection(
                 selected=["Front"],
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
-            max_examples=3
+            max_examples=3,
         )
 
         # Strategic assertions
@@ -264,14 +260,13 @@ class TestPromptBuilder:
 
         # Build prompt
         prompt = builder.build_prompt(
-            target_notes=selected_notes,
+            target_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             field_selection=FieldSelection(
                 selected=["Front"],
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
-            max_examples=10
+            max_examples=10,
         )
 
         # Strategic assertions

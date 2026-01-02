@@ -21,11 +21,12 @@ if TYPE_CHECKING:
     from .transform_middleware import TransformMiddleware
     from .addon_config import AddonConfig
     from .lm_clients import LMClient
-    from .selected_notes import SelectedNotes, SelectedNotesBatch, NoteModel
+    from .selected_notes import SelectedNotesBatch, SelectedNotesFromNoteType
 
 
 class TransformResults(NamedTuple):
     """Type definition for transformation results."""
+
     num_notes_updated: int
     num_notes_failed: int
     num_batches_requested: int
@@ -37,6 +38,7 @@ class TransformResults(NamedTuple):
 
 class CacheKey(NamedTuple):
     """Cache key for transformation results."""
+
     client_id: str
     note_type_name: str
     selected_fields: tuple[str, ...]
@@ -53,12 +55,11 @@ class NoteTransformer:
     def __init__(  # noqa: PLR0913
         self,
         col: Collection,
-        selected_notes: SelectedNotes,
+        selected_notes: SelectedNotesFromNoteType,
         note_ids: Sequence[NoteId],
         lm_client: LMClient,
         prompt_builder: PromptBuilder,
         field_selection: FieldSelection,
-        note_type: NoteModel,
         addon_config: AddonConfig,
         transform_middleware: TransformMiddleware,
     ) -> None:
@@ -67,12 +68,11 @@ class NoteTransformer:
 
         Args:
             col: Anki collection.
-            selected_notes: SelectedNotes instance.
+            selected_notes: SelectedNotesFromNoteType instance.
             note_ids: Note IDs to transform.
             lm_client: LM client instance.
             prompt_builder: PromptBuilder instance.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
-            note_type: Note type of the notes.
             addon_config: Addon configuration.
             transform_middleware: Transform middleware instance.
         """
@@ -82,7 +82,6 @@ class NoteTransformer:
         self.lm_client = lm_client
         self.prompt_builder = prompt_builder
         self.field_selection = field_selection
-        self.note_type = note_type
         self.addon_config = addon_config
         self.transform_middleware = transform_middleware
         self.logger = logging.getLogger(__name__)
@@ -107,7 +106,6 @@ class NoteTransformer:
         self.batches = filtered_notes.batched_by_prompt_size(
             prompt_builder=self.prompt_builder,
             field_selection=self.field_selection,
-            note_type=self.note_type,
             max_chars=self.addon_config.get_max_prompt_size(),
             max_examples=self.addon_config.get_max_examples(),
         )
@@ -137,8 +135,7 @@ class NoteTransformer:
 
         # Build prompt
         self.prompt = self.prompt_builder.build_prompt(
-            selected_notes_batch,
-            self.note_type,
+            selected_notes_batch.filter_by_note_type(self.selected_notes.note_type),
             field_selection,
             self.addon_config.get_max_examples(),
         )

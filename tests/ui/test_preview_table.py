@@ -11,11 +11,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast, Any
 from unittest.mock import Mock, patch
 
+import pytest
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
     from anki.notes import NoteId
     from collections.abc import Sequence
-    from transformerman.lib.field_updates import FieldUpdates
 
 from aqt.qt import QWidget, QColor
 
@@ -24,10 +25,24 @@ from transformerman.ui.preview_table import (
     DARK_MODE_HIGHLIGHT_COLOR,
     LIGHT_MODE_HIGHLIGHT_COLOR,
 )
+from transformerman.lib.field_updates import FieldUpdates
 from transformerman.lib.selected_notes import SelectedNotes
 from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
 
 col = test_collection_fixture
+
+
+@pytest.fixture
+def test_selected_fields() -> set[str]:
+    return {"Front", "Back"}
+
+
+@pytest.fixture
+def test_field_updates() -> FieldUpdates:
+    return FieldUpdates({
+        cast("NoteId", 123): {"Front": "Updated Front 1", "Back": "Updated Back 1"},
+        cast("NoteId", 456): {"Front": "Updated Front 2", "Back": "Updated Back 2"},
+    })
 
 
 class TestPreviewTable:
@@ -76,13 +91,13 @@ class TestPreviewTable:
         qtbot.addWidget(table)
 
         # Test with empty note IDs
-        table.show_notes([], ["Front", "Back"])
+        table.show_notes(selected_notes, ["Front", "Back"])
 
         assert table.rowCount() == 0
         assert table.columnCount() == 0
 
         # Test with empty selected fields
-        table.show_notes([cast("NoteId", 123)], [])
+        table.show_notes(SelectedNotes(col, [cast("NoteId", 123)]), [])
 
         assert table.rowCount() == 0
         assert table.columnCount() == 0
@@ -96,7 +111,6 @@ class TestPreviewTable:
         parent_widget: QWidget,
         is_dark_mode: bool,
         col: TestCollection,
-        test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
     ) -> None:
         """Test that table headers are set correctly."""
@@ -114,7 +128,8 @@ class TestPreviewTable:
         # Convert set to list for consistent ordering
         selected_fields_list = list(test_selected_fields)
 
-        table.show_notes(test_note_ids, selected_fields_list)
+        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
+        table.show_notes(SelectedNotes(col, test_note_ids), selected_fields_list)
 
         # Should have correct number of columns
         assert table.columnCount() == len(selected_fields_list)
@@ -135,7 +150,6 @@ class TestPreviewTable:
         parent_widget: QWidget,
         is_dark_mode: bool,
         col: TestCollection,
-        test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
         test_field_updates: FieldUpdates,
     ) -> None:
@@ -165,9 +179,11 @@ class TestPreviewTable:
 
         mock_query_op.side_effect = mock_query_op_constructor
 
+        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
+
         # Set up table with field updates
         table.show_notes(
-            test_note_ids,
+            SelectedNotes(col, test_note_ids),
             selected_fields_list,
             test_field_updates
         )
@@ -257,8 +273,10 @@ class TestPreviewTable:
         mock_query_op.reset_mock()
         mock_query_op.side_effect = mock_query_op_constructor2
 
+        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
+
         table2.show_notes(
-            test_note_ids,
+            SelectedNotes(col, test_note_ids),
             selected_fields_list,
             None  # No field updates
         )
@@ -282,7 +300,6 @@ class TestPreviewTable:
         parent_widget: QWidget,
         is_dark_mode: bool,
         col: TestCollection,
-        test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
     ) -> None:
         """Test that background loading is set up correctly."""
@@ -299,10 +316,12 @@ class TestPreviewTable:
         mock_op_instance.run_in_background.return_value = None
         mock_query_op.return_value = mock_op_instance
 
+        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
+
         # We can't easily test the full background loading without
         # complex mocking, but we can verify the method doesn't crash
         table.show_notes(
-            test_note_ids,
+            SelectedNotes(col, test_note_ids),
             selected_fields_list,
             None  # No field updates
         )
@@ -323,7 +342,6 @@ class TestPreviewTable:
         parent_widget: QWidget,
         is_dark_mode: bool,
         col: TestCollection,
-        test_note_ids: list[NoteId],
         test_selected_fields: Sequence[str],
         test_field_updates: FieldUpdates,
     ) -> None:
@@ -341,9 +359,11 @@ class TestPreviewTable:
         mock_op_instance.run_in_background.return_value = None
         mock_query_op.return_value = mock_op_instance
 
+        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
+
         # Set up table with field updates
         table.show_notes(
-            test_note_ids,
+            SelectedNotes(col, test_note_ids),
             selected_fields_list,
             test_field_updates
         )

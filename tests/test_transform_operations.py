@@ -68,7 +68,7 @@ class TestNoteTransformer:
         with pytest.raises(ValueError, match="No notes with empty writable fields found"):
             NoteTransformer(
                 col=col,
-                selected_notes=selected_notes,
+                selected_notes=selected_notes.filter_by_note_type(note_type),
                 note_ids=note_ids,
                 lm_client=dummy_client,
                 prompt_builder=prompt_builder,
@@ -77,7 +77,6 @@ class TestNoteTransformer:
                     writable=["Front"],
                     overwritable=[],
                 ),
-                note_type=note_type,
                 addon_config=addon_config,
                 transform_middleware=transform_middleware,
             )
@@ -118,7 +117,7 @@ class TestNoteTransformer:
         # Create NoteTransformer with max prompt size of 1000
         transformer = NoteTransformer(
             col=col,
-            selected_notes=selected_notes,
+            selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
@@ -127,7 +126,6 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -190,7 +188,7 @@ class TestNoteTransformer:
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
             col=col,
-            selected_notes=selected_notes,
+            selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
@@ -199,7 +197,6 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -252,7 +249,7 @@ class TestNoteTransformer:
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
             col=col,
-            selected_notes=selected_notes,
+            selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
@@ -261,7 +258,6 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -323,7 +319,7 @@ class TestNoteTransformer:
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
             col=col,
-            selected_notes=selected_notes,
+            selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
@@ -332,7 +328,6 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -388,7 +383,7 @@ class TestNoteTransformer:
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
             col=col,
-            selected_notes=selected_notes,
+            selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             note_ids=note_ids,
             lm_client=dummy_client,
             prompt_builder=prompt_builder,
@@ -397,7 +392,6 @@ class TestNoteTransformer:
                 writable=["Front"],
                 overwritable=[],
             ),
-            note_type=NoteModel(col, model),
             addon_config=addon_config,
             transform_middleware=transform_middleware,
         )
@@ -486,7 +480,7 @@ class TestApplyFieldUpdatesWithOperation:
         # Verify notes were updated in the collection
         for i, nid in enumerate(note_ids):
             note = col.get_note(nid)
-            assert note["Front"] == f"Updated content {i+1}"
+            assert note["Front"] == f"Updated content {i + 1}"
             assert note["Back"] == f"back {i}"
 
         # Verify success callback was called

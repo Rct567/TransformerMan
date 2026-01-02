@@ -6,11 +6,12 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
+from typing_extensions import Self
 
 from anki.utils import ids2str
 
-from .utilities import evenly_spaced_sample
+from .utilities import evenly_spaced_sample, override
 
 from .notes_batching import BatchingStats, batched_by_prompt_size
 
@@ -56,9 +57,6 @@ class NoteModel:
     @property
     def name(self) -> str:
         return self.data["name"]
-
-
-T = TypeVar("T", bound="SelectedNotes")
 
 
 class SelectedNotes:
@@ -114,7 +112,7 @@ class SelectedNotes:
         """Return the card IDs in the selection, or None if not available."""
         return self._card_ids
 
-    def filter_by_note_type(self, note_type: NoteModel) -> Sequence[NoteId]:
+    def filter_by_note_type(self, note_type: NoteModel) -> SelectedNotesFromNoteType:
         """
         Filter notes by note type name.
 
@@ -122,7 +120,7 @@ class SelectedNotes:
             note_type: Note type to filter by.
 
         Returns:
-            List of note IDs matching the note type.
+            SelectedNotesFromNoteType containing only notes of the specified note type.
         """
         filtered_note_ids: list[NoteId] = []
 
@@ -131,7 +129,14 @@ class SelectedNotes:
             if note.mid == note_type.id:
                 filtered_note_ids.append(nid)
 
-        return filtered_note_ids
+        return SelectedNotesFromNoteType(
+            self.col,
+            filtered_note_ids,
+            note_type,
+            self._card_ids,
+            self._note_cache,
+            self._deck_cache,
+        )
 
     def get_note_type_counts(self) -> dict[str, int]:
         """
@@ -156,7 +161,7 @@ class SelectedNotes:
         self,
         writable_fields: Sequence[str],
         overwritable_fields: Sequence[str],
-    ) -> SelectedNotes:
+    ) -> Self:
         """
         Return a new SelectedNotes instance containing only notes that have:
         1. At least one empty field among writable_fields, OR
@@ -176,46 +181,14 @@ class SelectedNotes:
         for nid in self._note_ids:
             note = self.get_note(nid)
             # Check if note has empty field in writable_fields
-            has_empty_writable = any(
-                field in note and not note[field].strip()
-                for field in writable_set
-            )
+            has_empty_writable = any(field in note and not note[field].strip() for field in writable_set)
             # Check if note has field in overwritable_fields
-            has_overwritable = any(
-                field in note
-                for field in overwritable_set
-            )
+            has_overwritable = any(field in note for field in overwritable_set)
 
             if has_empty_writable or has_overwritable:
                 filtered_note_ids.append(nid)
 
         return self.new_selected_notes(filtered_note_ids)
-
-    def batched_by_prompt_size(
-        self,
-        prompt_builder: PromptBuilder,
-        field_selection: FieldSelection,
-        note_type: NoteModel,
-        max_chars: int,
-        max_examples: int
-    ) -> list[SelectedNotesBatch]:
-        """Batch notes by maximum prompt size."""
-
-        if not self.get_ids():
-            return []
-
-        # Filter to notes with empty fields in writable_fields OR notes with fields in overwritable_fields
-        notes_with_fields = self.filter_by_writable_or_overwritable(field_selection.writable, field_selection.overwritable)
-        if not notes_with_fields:
-            return []
-
-        batches, self.batching_stats = batched_by_prompt_size(
-            notes_with_fields, prompt_builder, field_selection, note_type, max_chars, max_examples, self.logger
-        )
-
-        self.logger.info(self.batching_stats)
-
-        return batches
 
     def get_notes(self, note_ids: Sequence[NoteId] | None = None) -> Sequence[Note]:
         """
@@ -238,7 +211,7 @@ class SelectedNotes:
 
         return notes
 
-    def new_selected_notes(self, note_ids: Sequence[NoteId]) -> SelectedNotes:
+    def new_selected_notes(self, note_ids: Sequence[NoteId]) -> Self:
         """
         Get a new SelectedNotes instance containing only the specified note IDs.
 
@@ -248,7 +221,7 @@ class SelectedNotes:
         Returns:
             New SelectedNotes instance.
         """
-        return SelectedNotes._new_sub_selection(self, note_ids)
+        return self._new_sub_selection(self, note_ids)
 
     def new_selected_notes_batch(self, note_ids: Sequence[NoteId]) -> SelectedNotesBatch:
         """
@@ -264,7 +237,7 @@ class SelectedNotes:
         return SelectedNotesBatch._new_sub_selection(self, note_ids)
 
     @classmethod
-    def _new_sub_selection(cls: type[T], selected_notes: SelectedNotes, note_ids: Sequence[NoteId]) -> T:
+    def _new_sub_selection(cls, selected_notes: SelectedNotes, note_ids: Sequence[NoteId]) -> Self:
         """
         Create a new instance of the class from an existing SelectedNotes instance and a list of note IDs.
 
@@ -281,13 +254,7 @@ class SelectedNotes:
             new_card_ids = [card_id for card_id in selected_notes._get_card_ids_from_notes(note_ids) if card_id in original_card_ids_set]
         else:
             new_card_ids = None
-        return cls(
-            selected_notes.col,
-            note_ids,
-            new_card_ids,
-            note_cache=selected_notes._note_cache,
-            deck_cache=selected_notes._deck_cache
-        )
+        return cls(selected_notes.col, note_ids, new_card_ids, note_cache=selected_notes._note_cache, deck_cache=selected_notes._deck_cache)
 
     @staticmethod
     def has_empty_field(note: Note, selected_fields: Sequence[str]) -> bool:
@@ -320,7 +287,7 @@ class SelectedNotes:
                 return True
         return False
 
-    def filter_by_empty_field(self, selected_fields: Sequence[str]) -> SelectedNotes:
+    def filter_by_empty_field(self, selected_fields: Sequence[str]) -> Self:
         """
         Return a new SelectedNotes instance containing only notes that have at least one empty field among selected_fields.
 
@@ -365,9 +332,7 @@ class SelectedNotes:
 
         assert self.col.db
 
-        return self.col.db.list(
-            f"SELECT id FROM cards WHERE nid IN {ids2str(note_ids)}"
-        )
+        return self.col.db.list(f"SELECT id FROM cards WHERE nid IN {ids2str(note_ids)}")
 
     def _get_all_card_ids(self) -> Sequence[CardId]:
         """Get all card IDs for the selected notes (independent of selected cards)."""
@@ -427,3 +392,66 @@ class SelectedNotes:
 
 class SelectedNotesBatch(SelectedNotes):
     pass
+
+
+class SelectedNotesFromNoteType(SelectedNotes):
+    """SelectedNotes that also contains the NoteModel.
+
+    This class is useful when you need to pass both note_type and selected_notes
+    together, eliminating the need for two separate parameters.
+    """
+
+    def __init__(
+        self,
+        col: Collection,
+        note_ids: Sequence[NoteId],
+        note_type: NoteModel,
+        card_ids: Sequence[CardId] | None = None,
+        note_cache: dict[NoteId, Note] | None = None,
+        deck_cache: dict[CardId, str] | None = None,
+    ) -> None:
+        super().__init__(col, note_ids, card_ids, note_cache, deck_cache)
+        self.note_type = note_type
+
+    @override
+    def new_selected_notes(self, note_ids: Sequence[NoteId]) -> SelectedNotesFromNoteType:
+        """Override to preserve note_type when creating sub-selections."""
+        base = super().new_selected_notes(note_ids)
+        return SelectedNotesFromNoteType(
+            base.col,
+            base.get_ids(),
+            self.note_type,
+            base.get_selected_card_ids(),
+            base._note_cache,
+            base._deck_cache,
+        )
+
+    @override
+    def new_selected_notes_batch(self, note_ids: Sequence[NoteId]) -> SelectedNotesBatch:
+        """Create batch - note_type is not needed for batches."""
+        return super().new_selected_notes_batch(note_ids)
+
+    def batched_by_prompt_size(
+        self,
+        prompt_builder: PromptBuilder,
+        field_selection: FieldSelection,
+        max_chars: int,
+        max_examples: int,
+    ) -> list[SelectedNotesBatch]:
+        """Batch notes by maximum prompt size."""
+
+        if not self.get_ids():
+            return []
+
+        # Filter to notes with empty fields in writable_fields OR notes with fields in overwritable_fields
+        notes_with_fields = self.filter_by_writable_or_overwritable(field_selection.writable, field_selection.overwritable)
+        if not notes_with_fields:
+            return []
+
+        batches, self.batching_stats = batched_by_prompt_size(
+            notes_with_fields, prompt_builder, field_selection, max_chars, max_examples, self.logger
+        )
+
+        self.logger.info(self.batching_stats)
+
+        return batches

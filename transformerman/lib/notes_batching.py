@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     import logging
     from collections.abc import Sequence
     from anki.notes import Note
-    from .selected_notes import SelectedNotes, SelectedNotesBatch, NoteModel
+    from .selected_notes import SelectedNotesBatch, SelectedNotesFromNoteType
     from ..ui.field_widgets import FieldSelection
     from .prompt_builder import PromptBuilder
 
@@ -143,13 +143,12 @@ def find_adaptive_batch_size(
 
 
 def batched_by_prompt_size(
-    notes_with_fields: SelectedNotes,
+    notes_with_fields: SelectedNotesFromNoteType,
     prompt_builder: PromptBuilder,
     field_selection: FieldSelection,
-    note_type: NoteModel,
     max_chars: int,
     max_examples: int,
-    logger: logging.Logger
+    logger: logging.Logger,
 ) -> tuple[list[SelectedNotesBatch], BatchingStats]:
     """
     Batch notes by maximum prompt size using adaptive prediction with learning.
@@ -162,14 +161,13 @@ def batched_by_prompt_size(
 
     num_prompts_tried = 0
 
-    def build_prompt(test_selected_notes: SelectedNotes) -> str:
+    def build_prompt(test_selected_notes: SelectedNotesFromNoteType) -> str:
         nonlocal num_prompts_tried
         num_prompts_tried += 1
         return prompt_builder.build_prompt(
             target_notes=test_selected_notes,
             field_selection=field_selection,
             max_examples=max_examples,
-            note_type=note_type,
         )
 
     def create_validator(notes_list: Sequence[Note]) -> Callable[[int], bool]:

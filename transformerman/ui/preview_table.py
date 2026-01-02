@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence, Callable
     from anki.collection import Collection
     from anki.notes import NoteId, Note
+    from ..lib.selected_notes import SelectedNotes
 
 
 # Constants for content display
@@ -201,7 +202,7 @@ class PreviewTable(QTableWidget):
 
     def show_notes(
         self,
-        note_ids: Sequence[NoteId],
+        selected_notes: SelectedNotes,
         selected_fields: Sequence[str],
         field_updates: FieldUpdates | None = None,
     ) -> None:
@@ -209,18 +210,18 @@ class PreviewTable(QTableWidget):
         Display notes in the table with selected fields and optional highlighting.
 
         Args:
-            note_ids: List of note IDs to display.
+            selected_notes: SelectedNotes instance containing notes to display.
             selected_fields: Sequence of note fields to show (column headers).
             field_updates: Optional FieldUpdates instance for highlighting.
         """
-        if not note_ids or not selected_fields:
+        if not selected_notes or not selected_fields:
             self.clear()
             self.setColumnCount(0)
             self.setRowCount(0)
             return
 
         # Store current display parameters
-        self.current_note_ids = list(note_ids)
+        self.current_note_ids = list(selected_notes.get_ids())
         self.current_selected_fields = list(selected_fields)
         self.current_field_updates = field_updates
 
@@ -233,7 +234,7 @@ class PreviewTable(QTableWidget):
         self.setHorizontalHeaderLabels(selected_fields)
 
         # Set row count
-        self.setRowCount(len(note_ids))
+        self.setRowCount(len(selected_notes))
 
         # Make the last column stretch to fill remaining space
         horizontal_header = self.horizontalHeader()
