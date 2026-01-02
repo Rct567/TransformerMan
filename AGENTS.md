@@ -68,7 +68,12 @@
 ### Test Collections
 
 - **TestCollection is a real Anki collection**: The `TestCollection` class in `tests/tools.py` inherits from `anki.collection.Collection` and provides real (temporary) collection instances for testing.
-- **Available collections**: See `tests/data/collections/README.md` for details on available test collections (e.g., `empty_collection`, `two_deck_collection`).
+- **Available collections**: See `tests/data/collections/test_collections.md` for details on available test collections (e.g., `empty_collection`, `two_deck_collection`).
+
+#### When to Use Which Collection
+
+- **If a test needs notes to exist**: Use `two_deck_collection`. It has 16 notes with stable IDs. Update existing notes via API (e.g., `note['Front'] = 'new value'`).
+- **If a test does not require notes at all**: Use `empty_collection`, but keep in mind: Creating new notes here gives them random IDs every test run, which can be problematic.
 
 ## Root Directory Structure
 
