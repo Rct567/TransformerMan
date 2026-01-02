@@ -11,7 +11,7 @@ from .xml_parser import escape_xml_content
 from .selected_notes import SelectedNotes, NoteModel, SelectedNotesFromType
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Sequence, Callable
     from anki.collection import Collection
     from anki.notes import Note, NoteId
     from anki.cards import Card, CardId
@@ -175,16 +175,14 @@ class PromptBuilder:
         """Update the field instructions for this prompt builder."""
         self.field_instructions = field_instructions
 
-    def build_prompt(
+    def get_prompt_renderer(
         self,
         target_notes: SelectedNotesFromType,
         field_selection: FieldSelection,
         max_examples: int,
-    ) -> str:
+    ) -> Callable[[SelectedNotesFromType | None], str]:
         """
-        Build a complete prompt for the LM including examples and target notes.
-        Precondition: `target_notes` must contain at least one note with an empty field in writable_fields
-        OR at least one note with a field in overwritable_fields.
+        Get a function that renders the prompt for the given target notes and field selection.
         """
 
         if not field_selection.writable:
@@ -214,7 +212,7 @@ class PromptBuilder:
         prompt = PromptTemplate(self.field_instructions, fields_to_fill, formatted_examples_xml)
         prompt_template_str = prompt.render("{target_notes_xml}")  # Prompt is rendered, but with placeholder for target notes
 
-        def create_prompt_string(provided_target_notes: SelectedNotesFromType | None = None) -> str:
+        def render_prompt(provided_target_notes: SelectedNotesFromType | None = None) -> str:
 
             if provided_target_notes is None:
                 provided_target_notes = target_notes
@@ -240,7 +238,7 @@ class PromptBuilder:
 
             return prompt_template_str.replace("{target_notes_xml}", formatted_target_notes_xml)
 
-        return create_prompt_string(target_notes)
+        return render_prompt
 
     def _select_example_notes(
         self,

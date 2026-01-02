@@ -39,7 +39,7 @@ class TestPromptBuilder:
         note_type = NoteModel.by_name(col, "Basic")
         assert note_type
 
-        prompt_with_writeable_fields = builder.build_prompt(
+        prompt_with_writeable_fields = builder.get_prompt_renderer(
             target_notes=selected_notes.filter_by_note_type(note_type),
             field_selection=FieldSelection(
                 selected=["Front", "Back"],
@@ -47,9 +47,9 @@ class TestPromptBuilder:
                 overwritable=[],
             ),
             max_examples=3,
-        )
+        )(None)
 
-        prompt_with_overwritable_fields = builder.build_prompt(
+        prompt_with_overwritable_fields = builder.get_prompt_renderer(
             target_notes=selected_notes.filter_by_note_type(note_type),
             field_selection=FieldSelection(
                 selected=["Front", "Back"],
@@ -57,7 +57,7 @@ class TestPromptBuilder:
                 overwritable=["Front"],
             ),
             max_examples=3,
-        )
+        )(None)
 
         def check_prompt(prompt: str):
 
@@ -106,7 +106,7 @@ class TestPromptBuilder:
         assert note_type
 
         # Build prompt
-        prompt = builder.build_prompt(
+        prompt = builder.get_prompt_renderer(
             target_notes=selected_notes.filter_by_note_type(note_type),
             field_selection=FieldSelection(
                 selected=["Front", "Back"],
@@ -114,7 +114,7 @@ class TestPromptBuilder:
                 overwritable=[],
             ),
             max_examples=3,
-        )
+        )(None)
 
         # Strategic assertions
         assert prompt.count("For field 'Front': Provide a concise question") == 1
@@ -161,7 +161,7 @@ class TestPromptBuilder:
         note_type = NoteModel(col, model)
 
         # Check with both notes (should be ok, note1 satisfies the precondition)
-        prompt = builder.build_prompt(
+        prompt = builder.get_prompt_renderer(
             target_notes=SelectedNotes(col, [note1.id, note2.id]).filter_by_note_type(note_type),
             field_selection=FieldSelection(
                 selected=["Front", "Back"],
@@ -169,7 +169,7 @@ class TestPromptBuilder:
                 overwritable=[],  # No overwritable fields
             ),
             max_examples=2,
-        )
+        )(None)
 
         col.lock_and_assert_result("test_build_prompt_exception_trigger_scenario", prompt)
 
@@ -177,7 +177,7 @@ class TestPromptBuilder:
         # This should trigger an exception
 
         with pytest.raises(ValueError, match=f"Target notes does not have any notes with empty writable fields or overwritable fields"):
-            builder.build_prompt(
+            builder.get_prompt_renderer(
                 target_notes=SelectedNotes(col, [note2.id]).filter_by_note_type(
                     note_type
                 ),  # Only note2, meaning there are not valid target notes
@@ -213,7 +213,7 @@ class TestPromptBuilder:
         builder = PromptBuilder(col)
 
         # Build prompt
-        prompt = builder.build_prompt(
+        prompt = builder.get_prompt_renderer(
             target_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             field_selection=FieldSelection(
                 selected=["Front"],
@@ -221,7 +221,7 @@ class TestPromptBuilder:
                 overwritable=[],
             ),
             max_examples=3,
-        )
+        )(None)
 
         # Strategic assertions
         assert prompt.count(f'deck="{deck_name}"') == 1  # Our note should have the deck name exactly once
@@ -259,7 +259,7 @@ class TestPromptBuilder:
         builder = PromptBuilder(col)
 
         # Build prompt
-        prompt = builder.build_prompt(
+        prompt = builder.get_prompt_renderer(
             target_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             field_selection=FieldSelection(
                 selected=["Front"],
@@ -267,7 +267,7 @@ class TestPromptBuilder:
                 overwritable=[],
             ),
             max_examples=10,
-        )
+        )(None)
 
         # Strategic assertions
         assert prompt.count("Here are some example notes") == 1  # Examples section should be present exactly once

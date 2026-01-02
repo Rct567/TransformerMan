@@ -95,15 +95,15 @@ class NoteTransformer:
             raise ValueError("No notes with empty writable fields found and no overwritable fields selected")
 
         # Filter to notes with empty fields in writable_fields OR notes with fields in overwritable_fields
-        filtered_notes = notes_to_transform.filter_by_writable_or_overwritable(
+        self.filtered_notes = notes_to_transform.filter_by_writable_or_overwritable(
             self.field_selection.writable, self.field_selection.overwritable
         )
 
         # Update note_ids to filtered IDs
-        self.note_ids = filtered_notes.get_ids()
+        self.note_ids = self.filtered_notes.get_ids()
 
         # Create batches based on prompt size
-        self.batches = filtered_notes.batched_by_prompt_size(
+        self.batches = self.filtered_notes.batched_by_prompt_size(
             prompt_builder=self.prompt_builder,
             field_selection=self.field_selection,
             max_chars=self.addon_config.get_max_prompt_size(),
@@ -113,8 +113,8 @@ class NoteTransformer:
 
     def _get_field_updates_for_batch(
         self,
+        render_prompt: Callable[[SelectedNotesBatch], str],
         selected_notes_batch: SelectedNotesBatch,
-        field_selection: FieldSelection,
         progress_callback: Callable[[LmProgressData], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
     ) -> tuple[int, int, FieldUpdates, str | None]:
@@ -122,8 +122,8 @@ class NoteTransformer:
         Get field updates for a single batch of notes using the provided LM client.
 
         Args:
+            render_prompt: Function to render the prompt for the given batch.
             selected_notes_batch: Batch of notes to process.
-            field_selection: FieldSelection containing selected, writable, and overwritable fields.
             progress_callback: Optional callback for detailed progress.
             should_cancel: Optional callback to check if operation should be canceled.
 
@@ -134,11 +134,7 @@ class NoteTransformer:
         """
 
         # Build prompt
-        self.prompt = self.prompt_builder.build_prompt(
-            selected_notes_batch.filter_by_note_type(self.selected_notes.note_type),
-            field_selection,
-            self.addon_config.get_max_examples(),
-        )
+        self.prompt = render_prompt(selected_notes_batch)
 
         # Initial response
         self.response = None
@@ -234,6 +230,13 @@ class NoteTransformer:
         error: str | None = None
         is_canceled = False
 
+        # Prompt builder
+        render_prompt = self.prompt_builder.get_prompt_renderer(
+            self.filtered_notes,
+            self.field_selection,
+            self.addon_config.get_max_examples(),
+        )
+
         for batch_idx, selected_notes_batch in enumerate(self.batches):
             # Check if operation should be canceled
             if should_cancel and should_cancel():
@@ -250,8 +253,8 @@ class NoteTransformer:
 
             # Get field updates for batch
             num_notes_updated, num_notes_failed, batch_field_updates, batch_error = self._get_field_updates_for_batch(
+                render_prompt,
                 selected_notes_batch,
-                self.field_selection,
                 progress_callback=batch_progress_callback,
                 should_cancel=should_cancel,
             )

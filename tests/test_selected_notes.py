@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from anki.models import NotetypeId
 
-from transformerman.lib.selected_notes import SelectedNotes, NoteModel, SelectedNotesFromType
+from transformerman.lib.selected_notes import SelectedNotes, NoteModel, SelectedNotesFromType, SelectedNotesBatch
 from transformerman.ui.field_widgets import FieldSelection
 from transformerman.lib.prompt_builder import PromptBuilder
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
@@ -405,7 +405,7 @@ class TestSelectedNotes:
             # Verify each batch fits within max_chars (sample a few)
             for i, batch in enumerate(batches[:3]):  # Check first 3 batches
                 # Build prompt for this batch
-                prompt = prompt_builder.build_prompt(
+                prompt = prompt_builder.get_prompt_renderer(
                     target_notes=batch.filter_by_note_type(NoteModel(col, model)),
                     field_selection=FieldSelection(
                         selected=["Front", "Back"],
@@ -413,7 +413,7 @@ class TestSelectedNotes:
                         overwritable=[],
                     ),
                     max_examples=10,
-                )
+                )(None)
                 assert len(prompt) <= max_chars, f"Batch {i} exceeds max_chars ({len(prompt)} > {max_chars})"
 
             assert selected_notes_from_note.batching_stats
@@ -850,6 +850,7 @@ class TestSelectedNotes:
         # Test 3: Create subset using new_selected_notes_batch
         subset_note_ids_3 = note_ids[1:4]
         selected_notes_by_type = selected_notes.filter_by_note_type(NoteModel(col, model))
+        assert selected_notes_by_type.get_selected_card_ids()
         subset_batch = selected_notes_by_type.new_selected_notes_batch(subset_note_ids_3)
 
         expected_card_ids_3 = []
@@ -901,11 +902,10 @@ class TestSelectedNotesFromNote:
         assert subset.note_type == note_type
         assert list(subset.get_ids()) == list(subset_ids)
 
-        # Test batch creation (should be SelectedNotesBatch, not SelectedNotesFromNote)
+        # Test batch creation
         batch = selected_from_note.new_selected_notes_batch(subset_ids)
-        # Note: SelectedNotesBatch doesn't inherit from SelectedNotesFromNote, but from SelectedNotes
-        # So it won't have note_type, which is correct as per implementation
-        assert not isinstance(batch, SelectedNotesFromType)
+        assert isinstance(batch, SelectedNotesFromType)
+        assert isinstance(batch, SelectedNotesBatch)
 
 
 class SelectedNotesParent:

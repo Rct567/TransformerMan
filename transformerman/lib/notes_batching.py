@@ -164,11 +164,11 @@ def batched_by_prompt_size(
     def build_prompt(test_selected_notes: SelectedNotesFromType) -> str:
         nonlocal num_prompts_tried
         num_prompts_tried += 1
-        return prompt_builder.build_prompt(
+        return prompt_builder.get_prompt_renderer(
             target_notes=test_selected_notes,
             field_selection=field_selection,
             max_examples=max_examples,
-        )
+        )(None)
 
     def create_validator(notes_list: Sequence[Note]) -> Callable[[int], bool]:
         def validate(size: int) -> bool:
