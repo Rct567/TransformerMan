@@ -226,6 +226,13 @@ class SelectedNotes:
         """
         return self._new_sub_selection(self, note_ids)
 
+    def _calculate_sub_selection_card_ids(self, note_ids: Sequence[NoteId]) -> Sequence[CardId] | None:
+        """Calculate card IDs for a sub-selection of notes."""
+        if self._card_ids:
+            original_card_ids_set = set(self._card_ids)
+            return [card_id for card_id in self._get_card_ids_from_notes(note_ids) if card_id in original_card_ids_set]
+        return None
+
     @classmethod
     def _new_sub_selection(cls, selected_notes: SelectedNotes, note_ids: Sequence[NoteId]) -> Self:
         """
@@ -234,17 +241,13 @@ class SelectedNotes:
         Args:
             selected_notes: The existing SelectedNotes instance.
             note_ids: The list of note IDs to include in the new sub selection instance.
-            _parent: Optional parent selection. If None, uses selected_notes.
 
         Returns:
             A new instance of the class.
         """
         assert len(note_ids) <= len(selected_notes._note_ids)
-        if selected_notes._card_ids:
-            original_card_ids_set = set(selected_notes._card_ids)
-            new_card_ids = [card_id for card_id in selected_notes._get_card_ids_from_notes(note_ids) if card_id in original_card_ids_set]
-        else:
-            new_card_ids = None
+        new_card_ids = selected_notes._calculate_sub_selection_card_ids(note_ids)
+
         return cls(
             selected_notes.col,
             note_ids,
@@ -392,10 +395,6 @@ class SelectedNotes:
         return len(self._note_ids)
 
 
-class SelectedNotesBatch(SelectedNotes):
-    pass
-
-
 class SelectedNotesFromType(SelectedNotes):
     """SelectedNotes that also contains the NoteModel.
 
@@ -417,14 +416,30 @@ class SelectedNotesFromType(SelectedNotes):
         self.note_type = note_type
 
     @override
+    @classmethod
+    def _new_sub_selection(cls, selected_notes: SelectedNotes, note_ids: Sequence[NoteId]) -> Self:
+        """Override to preserve note_type when creating sub-selections."""
+        assert isinstance(selected_notes, SelectedNotesFromType)
+        assert len(note_ids) <= len(selected_notes._note_ids)
+        new_card_ids = selected_notes._calculate_sub_selection_card_ids(note_ids)
+
+        return cls(
+            selected_notes.col,
+            note_ids,
+            selected_notes.note_type,
+            new_card_ids,
+            note_cache=selected_notes._note_cache,
+            deck_cache=selected_notes._deck_cache,
+            _parent=selected_notes,
+        )
+
+    @override
     def new_selected_notes(self, note_ids: Sequence[NoteId]) -> SelectedNotesFromType:
         """Override to preserve note_type when creating sub-selections."""
-        base = SelectedNotesFromType._new_sub_selection(self, note_ids)
-        base.note_type = self.note_type
-        return base
+        return SelectedNotesFromType._new_sub_selection(self, note_ids)
 
     def new_selected_notes_batch(self, note_ids: Sequence[NoteId]) -> SelectedNotesBatch:
-        """Get a new batch containing only the specified note IDs. (note_type is not needed for batches)"""
+        """Get a new batch containing only the specified note IDs."""
         return SelectedNotesBatch._new_sub_selection(self, note_ids)
 
     def batched_by_prompt_size(
@@ -455,3 +470,7 @@ class SelectedNotesFromType(SelectedNotes):
         self.logger.info(self.batching_stats)
 
         return batches
+
+
+class SelectedNotesBatch(SelectedNotesFromType):
+    pass
