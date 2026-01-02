@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from .transform_middleware import TransformMiddleware
     from .addon_config import AddonConfig
     from .lm_clients import LMClient
-    from .selected_notes import SelectedNotesBatch, SelectedNotesFromNoteType
+    from .selected_notes import SelectedNotesBatch, SelectedNotesFromType
 
 
 class TransformResults(NamedTuple):
@@ -55,7 +55,7 @@ class NoteTransformer:
     def __init__(  # noqa: PLR0913
         self,
         col: Collection,
-        selected_notes: SelectedNotesFromNoteType,
+        selected_notes: SelectedNotesFromType,
         note_ids: Sequence[NoteId],
         lm_client: LMClient,
         prompt_builder: PromptBuilder,
@@ -68,7 +68,7 @@ class NoteTransformer:
 
         Args:
             col: Anki collection.
-            selected_notes: SelectedNotesFromNoteType instance.
+            selected_notes: SelectedNotesFromType instance.
             note_ids: Note IDs to transform.
             lm_client: LM client instance.
             prompt_builder: PromptBuilder instance.

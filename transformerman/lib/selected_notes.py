@@ -112,15 +112,15 @@ class SelectedNotes:
         """Return the card IDs in the selection, or None if not available."""
         return self._card_ids
 
-    def filter_by_note_type(self, note_type: NoteModel) -> SelectedNotesFromNoteType:
+    def filter_by_note_type(self, note_type: NoteModel) -> SelectedNotesFromType:
         """
-        Filter notes by note type name.
+        Filter notes by note type.
 
         Args:
             note_type: Note type to filter by.
 
         Returns:
-            SelectedNotesFromNoteType containing only notes of the specified note type.
+            SelectedNotesFromType containing only notes of the specified note type.
         """
         filtered_note_ids: list[NoteId] = []
 
@@ -129,7 +129,7 @@ class SelectedNotes:
             if note.mid == note_type.id:
                 filtered_note_ids.append(nid)
 
-        return SelectedNotesFromNoteType(
+        return SelectedNotesFromType(
             self.col,
             filtered_note_ids,
             note_type,
@@ -394,7 +394,7 @@ class SelectedNotesBatch(SelectedNotes):
     pass
 
 
-class SelectedNotesFromNoteType(SelectedNotes):
+class SelectedNotesFromType(SelectedNotes):
     """SelectedNotes that also contains the NoteModel.
 
     This class is useful when you need to pass both note_type and selected_notes
@@ -414,10 +414,10 @@ class SelectedNotesFromNoteType(SelectedNotes):
         self.note_type = note_type
 
     @override
-    def new_selected_notes(self, note_ids: Sequence[NoteId]) -> SelectedNotesFromNoteType:
+    def new_selected_notes(self, note_ids: Sequence[NoteId]) -> SelectedNotesFromType:
         """Override to preserve note_type when creating sub-selections."""
         base = super().new_selected_notes(note_ids)
-        return SelectedNotesFromNoteType(
+        return SelectedNotesFromType(
             base.col,
             base.get_ids(),
             self.note_type,

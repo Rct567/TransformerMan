@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from .utilities import override
 from .xml_parser import escape_xml_content
-from .selected_notes import SelectedNotes, NoteModel, SelectedNotesFromNoteType
+from .selected_notes import SelectedNotes, NoteModel, SelectedNotesFromType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -183,7 +183,7 @@ class PromptBuilder:
 
     def build_prompt(
         self,
-        target_notes: SelectedNotesFromNoteType,
+        target_notes: SelectedNotesFromType,
         field_selection: FieldSelection,
         max_examples: int,
     ) -> str:

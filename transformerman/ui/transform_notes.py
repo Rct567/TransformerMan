@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from ..lib.transform_middleware import TransformMiddleware
     from ..lib.addon_config import AddonConfig
     from ..lib.lm_clients import LMClient
-    from ..lib.selected_notes import SelectedNotes, SelectedNotesFromNoteType
+    from ..lib.selected_notes import SelectedNotes, SelectedNotesFromType
 
 
 class TransformProgressDialog(QProgressDialog):
@@ -249,7 +249,7 @@ class TransformNotesWithProgress:
 
     def _get_cache_key(
         self,
-        selected_notes: SelectedNotesFromNoteType,
+        selected_notes: SelectedNotesFromType,
         field_selection: FieldSelection,
     ) -> CacheKey:
         """Generate a cache key for the given transformation parameters."""
@@ -271,14 +271,14 @@ class TransformNotesWithProgress:
 
     def is_cached(
         self,
-        selected_notes: SelectedNotesFromNoteType,
+        selected_notes: SelectedNotesFromType,
         field_selection: FieldSelection,
     ) -> bool:
         """
         Check if transformation results are cached.
 
         Args:
-            selected_notes: SelectedNotesFromNoteType instance containing notes and note type.
+            selected_notes: SelectedNotesFromType instance containing notes and note type.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
 
         Returns:
@@ -289,7 +289,7 @@ class TransformNotesWithProgress:
 
     def get_num_api_calls_needed(
         self,
-        selected_notes: SelectedNotesFromNoteType,
+        selected_notes: SelectedNotesFromType,
         field_selection: FieldSelection,
     ) -> int:
         """
@@ -298,7 +298,7 @@ class TransformNotesWithProgress:
         actual prompt batching.
 
         Args:
-            selected_notes: SelectedNotesFromNoteType instance containing notes and note type.
+            selected_notes: SelectedNotesFromType instance containing notes and note type.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
 
         Returns:
@@ -329,7 +329,7 @@ class TransformNotesWithProgress:
 
     def transform(
         self,
-        selected_notes: SelectedNotesFromNoteType,
+        selected_notes: SelectedNotesFromType,
         field_selection: FieldSelection,
         on_success: Callable[[TransformResults, FieldUpdates], None],
     ) -> None:
@@ -340,7 +340,7 @@ class TransformNotesWithProgress:
         Results are cached for future calls with the same parameters.
 
         Args:
-            selected_notes: SelectedNotesFromNoteType instance containing notes and note type.
+            selected_notes: SelectedNotesFromType instance containing notes and note type.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             on_success: Callback for transformation success.
                 Called with (results, field_updates) when transformation completes successfully.

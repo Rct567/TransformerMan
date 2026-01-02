@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware, TransformMiddleware
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
-from transformerman.lib.selected_notes import NoteModel, SelectedNotes, SelectedNotesFromNoteType
+from transformerman.lib.selected_notes import NoteModel, SelectedNotes, SelectedNotesFromType
 from transformerman.lib.prompt_builder import PromptBuilder
 from transformerman.ui.field_widgets import FieldSelection
 
@@ -45,7 +45,7 @@ def create_test_notes_with_empty_front(col: TestCollection, count: int = 2, back
 
 def create_standard_transform_dependencies(
     col: TestCollection, note_ids: Sequence[NoteId]
-) -> tuple[SelectedNotesFromNoteType, DummyLMClient, PromptBuilder, FieldSelection]:
+) -> tuple[SelectedNotesFromType, DummyLMClient, PromptBuilder, FieldSelection]:
     """Create standard dependencies needed for NoteTransformer."""
     selected_notes = SelectedNotes(col, note_ids)
     dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))

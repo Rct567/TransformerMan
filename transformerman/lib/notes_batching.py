@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     import logging
     from collections.abc import Sequence
     from anki.notes import Note
-    from .selected_notes import SelectedNotesBatch, SelectedNotesFromNoteType
+    from .selected_notes import SelectedNotesBatch, SelectedNotesFromType
     from ..ui.field_widgets import FieldSelection
     from .prompt_builder import PromptBuilder
 
@@ -143,7 +143,7 @@ def find_adaptive_batch_size(
 
 
 def batched_by_prompt_size(
-    notes_with_fields: SelectedNotesFromNoteType,
+    notes_with_fields: SelectedNotesFromType,
     prompt_builder: PromptBuilder,
     field_selection: FieldSelection,
     max_chars: int,
@@ -161,7 +161,7 @@ def batched_by_prompt_size(
 
     num_prompts_tried = 0
 
-    def build_prompt(test_selected_notes: SelectedNotesFromNoteType) -> str:
+    def build_prompt(test_selected_notes: SelectedNotesFromType) -> str:
         nonlocal num_prompts_tried
         num_prompts_tried += 1
         return prompt_builder.build_prompt(

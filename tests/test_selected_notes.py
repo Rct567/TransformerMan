@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from anki.models import NotetypeId
 
-from transformerman.lib.selected_notes import SelectedNotes, NoteModel, SelectedNotesFromNoteType
+from transformerman.lib.selected_notes import SelectedNotes, NoteModel, SelectedNotesFromType
 from transformerman.ui.field_widgets import FieldSelection
 from transformerman.lib.prompt_builder import PromptBuilder
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
@@ -877,7 +877,7 @@ class TestSelectedNotesFromNote:
         self,
         col: TestCollection,
     ) -> None:
-        """Test that filter_by_note_type creates SelectedNotesFromNoteType and sub-selections preserve note_type."""
+        """Test that filter_by_note_type creates SelectedNotesFromType and sub-selections preserve note_type."""
         # Get note IDs
         note_ids = col.find_notes("")[:4]
         selected_notes = SelectedNotes(col, note_ids)
@@ -888,7 +888,7 @@ class TestSelectedNotesFromNote:
 
         # Test factory method
         selected_from_note = selected_notes.filter_by_note_type(note_type)
-        assert isinstance(selected_from_note, SelectedNotesFromNoteType)
+        assert isinstance(selected_from_note, SelectedNotesFromType)
         assert selected_from_note.note_type == note_type
         assert list(selected_from_note.get_ids()) == list(note_ids)
 
@@ -896,7 +896,7 @@ class TestSelectedNotesFromNote:
         subset_ids = note_ids[:2]
         subset = selected_from_note.new_selected_notes(subset_ids)
 
-        assert isinstance(subset, SelectedNotesFromNoteType)
+        assert isinstance(subset, SelectedNotesFromType)
         assert subset.note_type == note_type
         assert list(subset.get_ids()) == list(subset_ids)
 
@@ -904,4 +904,4 @@ class TestSelectedNotesFromNote:
         batch = selected_from_note.new_selected_notes_batch(subset_ids)
         # Note: SelectedNotesBatch doesn't inherit from SelectedNotesFromNote, but from SelectedNotes
         # So it won't have note_type, which is correct as per implementation
-        assert not isinstance(batch, SelectedNotesFromNoteType)
+        assert not isinstance(batch, SelectedNotesFromType)
