@@ -1,12 +1,10 @@
-"""
-Tests for preview table.
+"""Tests for preview table.
 
 Tests the PreviewTable widget which displays note previews with background loading
 and highlighting capabilities.
 """
 
 from __future__ import annotations
-
 
 from typing import TYPE_CHECKING, cast, Any
 from unittest.mock import Mock, patch
@@ -16,7 +14,6 @@ import pytest
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
     from anki.notes import NoteId
-    from collections.abc import Sequence
 
 from aqt.qt import QWidget, QColor
 
@@ -33,8 +30,13 @@ col = test_collection_fixture
 
 
 @pytest.fixture
-def test_selected_fields() -> set[str]:
-    return {"Front", "Back"}
+def test_note_ids() -> list[NoteId]:
+    return [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
+
+
+@pytest.fixture
+def test_selected_fields() -> list[str]:
+    return ["Front", "Back"]
 
 
 @pytest.fixture
@@ -43,6 +45,18 @@ def test_field_updates() -> FieldUpdates:
         cast("NoteId", 123): {"Front": "Updated Front 1", "Back": "Updated Back 1"},
         cast("NoteId", 456): {"Front": "Updated Front 2", "Back": "Updated Back 2"},
     })
+
+
+def create_mock_note(note_id: int, field_updates: dict[str, str]) -> Mock:
+    """Create a mock note with field access."""
+    mock_note = Mock()
+    mock_note.id = note_id
+
+    def make_getitem(field_note_id: int) -> Any:
+        return lambda key: f"Original {key} for note {field_note_id}"  # pyright: ignore
+
+    mock_note.__getitem__ = Mock(side_effect=make_getitem(note_id))
+    return mock_note
 
 
 class TestPreviewTable:
@@ -62,17 +76,12 @@ class TestPreviewTable:
         qtbot.addWidget(table)
 
         assert table.parent() is parent_widget
-        assert table.is_dark_mode == is_dark_mode
-
-        # Table should have certain properties set
         assert table.alternatingRowColors()
 
-        # Vertical header should be hidden
         vertical_header = table.verticalHeader()
         if vertical_header:
             assert not vertical_header.isVisible()
 
-        # Should have minimum height
         assert table.minimumHeight() >= 150
         assert table.rowCount() == 0
         assert table.columnCount() == 0
@@ -111,185 +120,139 @@ class TestPreviewTable:
         parent_widget: QWidget,
         is_dark_mode: bool,
         col: TestCollection,
-        test_selected_fields: Sequence[str],
+        test_note_ids: list[NoteId],
+        test_selected_fields: list[str],
     ) -> None:
         """Test that table headers are set correctly."""
         selected_notes = SelectedNotes(col, [])
         table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
         qtbot.addWidget(table)
 
-        # Mock QueryOp to avoid requiring main window
         mock_op_instance = Mock()
         mock_op_instance.success.return_value = mock_op_instance
         mock_op_instance.failure.return_value = mock_op_instance
         mock_op_instance.run_in_background.return_value = None
         mock_query_op.return_value = mock_op_instance
 
-        # Convert set to list for consistent ordering
-        selected_fields_list = list(test_selected_fields)
+        table.show_notes(SelectedNotes(col, test_note_ids), test_selected_fields)
 
-        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
-        table.show_notes(SelectedNotes(col, test_note_ids), selected_fields_list)
-
-        # Should have correct number of columns
-        assert table.columnCount() == len(selected_fields_list)
+        assert table.columnCount() == len(test_selected_fields)
         assert table.rowCount() == len(test_note_ids)
 
-        # Check header labels
-        for i, field in enumerate(selected_fields_list):
+        for i, field in enumerate(test_selected_fields):
             header_item = table.horizontalHeaderItem(i)
             assert header_item is not None
             assert header_item.text() == field
 
     @with_test_collection("empty_collection")
     @patch("transformerman.ui.preview_table.QueryOp")
-    def test_highlighting_with_field_updates(
+    def test_highlighting_mode(
         self,
         mock_query_op: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         is_dark_mode: bool,
         col: TestCollection,
-        test_selected_fields: Sequence[str],
+        test_note_ids: list[NoteId],
+        test_selected_fields: list[str],
         test_field_updates: FieldUpdates,
     ) -> None:
-        """Test that table highlights cells with field updates."""
+        """Test that table enters highlighted mode when field updates are provided."""
         selected_notes = SelectedNotes(col, [])
         table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
         qtbot.addWidget(table)
 
-        selected_fields_list = list(test_selected_fields)
-
-        # We'll capture the success callback to simulate note loading
         success_callback = None
 
-        def mock_query_op_constructor(
-            parent: QWidget,
-            op: Any,  # Callable[[Collection], Any]
-            success: Any,  # Callable[[Any], None]
-        ) -> Mock:
-            nonlocal success_callback
-            success_callback = success
-            # Return a mock that chains methods
-            mock_op_instance = Mock()
-            mock_op_instance.success.return_value = mock_op_instance
-            mock_op_instance.failure.return_value = mock_op_instance
-            mock_op_instance.run_in_background.return_value = None
-            return mock_op_instance
-
-        mock_query_op.side_effect = mock_query_op_constructor
-
-        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
-
-        # Set up table with field updates
-        table.show_notes(
-            SelectedNotes(col, test_note_ids),
-            selected_fields_list,
-            test_field_updates
-        )
-
-        # Verify table is in highlighted mode when field updates are provided
-        assert table.is_highlighted is True
-        assert isinstance(table.highlight_color, QColor)
-
-        # Verify the color is valid (not transparent/empty)
-        assert table.highlight_color.isValid()
-
-        # Verify the correct color is used based on dark mode
-        actual_color = table.highlight_color.getRgb()[:3]  # Get RGB tuple
-        if is_dark_mode:
-            expected_color = DARK_MODE_HIGHLIGHT_COLOR
-        else:
-            expected_color = LIGHT_MODE_HIGHLIGHT_COLOR
-        assert actual_color == expected_color
-
-        # Table structure should be set up
-        assert table.rowCount() == len(test_note_ids)
-        assert table.columnCount() == len(selected_fields_list)
-
-        # QueryOp should have been created
-        mock_query_op.assert_called_once()
-
-        # Simulate note loading by calling the success callback with mock data
-        if success_callback:
-            # Create mock note data that matches the field updates
-            mock_notes_data = []
-            for note_id in test_note_ids:
-                note_updates = test_field_updates.get(note_id, {})
-                # Create a mock note
-                mock_note = Mock()
-                mock_note.id = note_id
-                # Set up field values - each field returns "Original [field_name]"
-
-                def make_getitem(field_note_id: int) -> Any:
-                    return lambda key: f"Original {key} for note {field_note_id}"  # pyright: ignore
-                mock_note.__getitem__ = Mock(side_effect=make_getitem(note_id))
-
-                note_data = {
-                    "note": mock_note,
-                    "note_updates": note_updates,
-                }
-                mock_notes_data.append(note_data)
-
-            # Call the success callback
-            success_callback(mock_notes_data)
-
-            # Now verify that cells with updates are highlighted
-            for row in range(table.rowCount()):
-                for col_idx in range(table.columnCount()):
-                    item = table.item(row, col_idx)
-                    if item:
-                        field_name = selected_fields_list[col_idx]
-                        note_id = test_note_ids[row]
-                        note_updates = test_field_updates.get(note_id, {})
-
-                        if field_name in note_updates:
-                            # Should be highlighted
-                            assert item.background().color() == table.highlight_color
-                        else:
-                            # Should not be highlighted
-                            assert item.background().color() != table.highlight_color
-
-        # Also test that without field updates, table is not in highlighted mode
-        table2 = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
-        qtbot.addWidget(table2)
-
-        # Reset mock for second test
-        success_callback2 = None
-
-        def mock_query_op_constructor2(
+        def capture_success(
             parent: QWidget,
             op: Any,
             success: Any,
         ) -> Mock:
-            nonlocal success_callback2
-            success_callback2 = success
+            nonlocal success_callback
+            success_callback = success
             mock_op_instance = Mock()
             mock_op_instance.success.return_value = mock_op_instance
             mock_op_instance.failure.return_value = mock_op_instance
             mock_op_instance.run_in_background.return_value = None
             return mock_op_instance
 
-        mock_query_op.reset_mock()
-        mock_query_op.side_effect = mock_query_op_constructor2
+        mock_query_op.side_effect = capture_success
 
-        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
+        table.show_notes(SelectedNotes(col, test_note_ids), test_selected_fields, test_field_updates)
 
-        table2.show_notes(
+        assert table.is_highlighted is True
+        assert isinstance(table.highlight_color, QColor)
+        assert table.highlight_color.isValid()
+
+        actual_color = table.highlight_color.getRgb()[:3]
+        expected_color = DARK_MODE_HIGHLIGHT_COLOR if is_dark_mode else LIGHT_MODE_HIGHLIGHT_COLOR
+        assert actual_color == expected_color
+
+        assert table.rowCount() == len(test_note_ids)
+        assert table.columnCount() == len(test_selected_fields)
+        mock_query_op.assert_called_once()
+
+        # Verify highlighting when data is loaded
+        assert success_callback
+
+        mock_notes_data = [
+            {
+                "note": create_mock_note(note_id, test_field_updates.get(note_id, {})),
+                "note_updates": test_field_updates.get(note_id, {}),
+            }
+            for note_id in test_note_ids
+        ]
+        success_callback(mock_notes_data)
+
+        for row in range(table.rowCount()):
+            for col_idx in range(table.columnCount()):
+                item = table.item(row, col_idx)
+                assert item
+                field_name = test_selected_fields[col_idx]
+                note_id = test_note_ids[row]
+                note_updates = test_field_updates.get(note_id, {})
+
+                if field_name in note_updates:
+                    assert item.background().color() == table.highlight_color
+                else:
+                    assert item.background().color() != table.highlight_color
+
+    @with_test_collection("empty_collection")
+    @patch("transformerman.ui.preview_table.QueryOp")
+    def test_no_highlighting_without_field_updates(
+        self,
+        mock_query_op: Mock,
+        qtbot: QtBot,
+        parent_widget: QWidget,
+        is_dark_mode: bool,
+        col: TestCollection,
+        test_note_ids: list[NoteId],
+        test_selected_fields: list[str],
+    ) -> None:
+        """Test that table is not in highlighted mode without field updates."""
+        selected_notes = SelectedNotes(col, [])
+        table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
+        qtbot.addWidget(table)
+
+        mock_op_instance = Mock()
+        mock_op_instance.success.return_value = mock_op_instance
+        mock_op_instance.failure.return_value = mock_op_instance
+        mock_op_instance.run_in_background.return_value = None
+        mock_query_op.return_value = mock_op_instance
+
+        table.show_notes(
             SelectedNotes(col, test_note_ids),
-            selected_fields_list,
-            None  # No field updates
+            test_selected_fields,
+            None,  # No field updates
         )
 
-        # Without field updates, table should not be in highlighted mode
-        assert table2.is_highlighted is False
-        # But highlight_color should still be set (always set in constructor)
-        assert table2.highlight_color is not None
-        assert isinstance(table2.highlight_color, QColor)
+        assert table.is_highlighted is False
+        assert table.highlight_color is not None
+        assert isinstance(table.highlight_color, QColor)
 
-        # Table structure should still be set up
-        assert table2.rowCount() == len(test_note_ids)
-        assert table2.columnCount() == len(selected_fields_list)
+        assert table.rowCount() == len(test_note_ids)
+        assert table.columnCount() == len(test_selected_fields)
 
     @with_test_collection("empty_collection")
     @patch("transformerman.ui.preview_table.QueryOp")
@@ -300,82 +263,22 @@ class TestPreviewTable:
         parent_widget: QWidget,
         is_dark_mode: bool,
         col: TestCollection,
-        test_selected_fields: Sequence[str],
+        test_note_ids: list[NoteId],
+        test_selected_fields: list[str],
     ) -> None:
         """Test that background loading is set up correctly."""
         selected_notes = SelectedNotes(col, [])
         table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
         qtbot.addWidget(table)
 
-        selected_fields_list = list(test_selected_fields)
-
-        # Mock QueryOp to avoid requiring main window
         mock_op_instance = Mock()
         mock_op_instance.success.return_value = mock_op_instance
         mock_op_instance.failure.return_value = mock_op_instance
         mock_op_instance.run_in_background.return_value = None
         mock_query_op.return_value = mock_op_instance
 
-        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
+        table.show_notes(SelectedNotes(col, test_note_ids), test_selected_fields, None)
 
-        # We can't easily test the full background loading without
-        # complex mocking, but we can verify the method doesn't crash
-        table.show_notes(
-            SelectedNotes(col, test_note_ids),
-            selected_fields_list,
-            None  # No field updates
-        )
-
-        # Should set up table structure
         assert table.rowCount() == len(test_note_ids)
-        assert table.columnCount() == len(selected_fields_list)
-
-        # QueryOp should have been created
-        mock_query_op.assert_called_once()
-
-    @with_test_collection("empty_collection")
-    @patch("transformerman.ui.preview_table.QueryOp")
-    def test_table_with_field_updates(
-        self,
-        mock_query_op: Mock,
-        qtbot: QtBot,
-        parent_widget: QWidget,
-        is_dark_mode: bool,
-        col: TestCollection,
-        test_selected_fields: Sequence[str],
-        test_field_updates: FieldUpdates,
-    ) -> None:
-        """Test that table handles field updates for highlighting."""
-        selected_notes = SelectedNotes(col, [])
-        table = PreviewTable(parent_widget, is_dark_mode, selected_notes.get_notes)
-        qtbot.addWidget(table)
-
-        selected_fields_list = list(test_selected_fields)
-
-        # Mock QueryOp to avoid requiring main window
-        mock_op_instance = Mock()
-        mock_op_instance.success.return_value = mock_op_instance
-        mock_op_instance.failure.return_value = mock_op_instance
-        mock_op_instance.run_in_background.return_value = None
-        mock_query_op.return_value = mock_op_instance
-
-        test_note_ids = [cast("NoteId", 123), cast("NoteId", 456), cast("NoteId", 789)]
-
-        # Set up table with field updates
-        table.show_notes(
-            SelectedNotes(col, test_note_ids),
-            selected_fields_list,
-            test_field_updates
-        )
-
-        # Should be in highlighted mode when field updates are provided
-        assert table.is_highlighted is True
-        # Highlight color should always be set (in constructor)
-        assert table.highlight_color is not None
-
-        # Table structure should be set up
-        assert table.rowCount() == len(test_note_ids)
-        assert table.columnCount() == len(selected_fields_list)
-
-        # QueryOp should have been created
+        assert table.columnCount() == len(test_selected_fields)
         mock_query_op.assert_called_once()
