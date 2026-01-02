@@ -108,7 +108,7 @@ class SelectedNotes:
         """Return the note IDs in the selection."""
         return self._note_ids
 
-    def get_selected_card_ids(self) -> Sequence[CardId] | None:  # noqa: vulture
+    def get_selected_card_ids(self) -> Sequence[CardId] | None:
         """Return the card IDs in the selection, or None if not available."""
         return self._card_ids
 

@@ -26,7 +26,7 @@ class BatchingStats(NamedTuple):
     median_batch_size: int | None
     avg_batch_size: int | None
     num_batches: int
-    num_notes_selected: int  # noqa: F841
+    num_notes_selected: int
     avg_note_size: int
     max_prompt_size: int
 

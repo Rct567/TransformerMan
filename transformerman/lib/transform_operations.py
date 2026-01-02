@@ -52,7 +52,7 @@ class CacheKey(NamedTuple):
 class NoteTransformer:
     """Transforms notes in batches (UI-agnostic)."""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         col: Collection,
         selected_notes: SelectedNotesFromType,
