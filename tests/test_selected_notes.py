@@ -906,3 +906,204 @@ class TestSelectedNotesFromNote:
         # Note: SelectedNotesBatch doesn't inherit from SelectedNotesFromNote, but from SelectedNotes
         # So it won't have note_type, which is correct as per implementation
         assert not isinstance(batch, SelectedNotesFromType)
+
+
+class SelectedNotesParent:
+    """Test class for parent() method."""
+
+    @with_test_collection("two_deck_collection")
+    def test_parent_returns_none_for_root_selection(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that .parent() returns None for root SelectedNotes (no parent)."""
+        note_ids = col.find_notes("")[:3]
+        selected_notes = SelectedNotes(col, note_ids)
+
+        # Root selection should have no parent
+        assert selected_notes.parent() is None
+
+    @with_test_collection("two_deck_collection")
+    def test_parent_after_filter_by_note_type(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that .parent() returns to previous selection after filter_by_note_type."""
+        # add some "Cloze" notes to the collection for testing
+        for _ in range(2):
+            model = col.models.by_name("Cloze")
+            deck_id = col.decks.id_for_name("Default")
+            assert model and deck_id
+            note = col.new_note(model)
+            col.add_note(note, deck_id)
+
+        collection_note_ids = col.find_notes("")
+        selected_notes = SelectedNotes(col, collection_note_ids)
+
+        # Filter by note type
+        note_type = NoteModel.by_name(col, "Cloze")
+        assert note_type
+        filtered = selected_notes.filter_by_note_type(note_type)
+        assert filtered
+        assert list(collection_note_ids) != list(filtered.get_ids())
+        assert collection_note_ids == selected_notes.get_ids()
+
+        # .parent() should return to the original selection
+        parent = filtered.parent()
+        assert parent is not None
+        assert (parent.get_ids()) == list(collection_note_ids)
+        assert parent == selected_notes
+        assert parent.get_ids() != filtered.get_ids()
+        assert parent != filtered
+
+    @with_test_collection("two_deck_collection")
+    def test_parent_after_new_selected_notes(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that .parent() returns to previous selection after new_selected_notes."""
+        note_ids = col.find_notes("")[:4]
+        selected_notes = SelectedNotes(col, note_ids)
+
+        # Create sub-selection
+        subset_ids = note_ids[:2]
+        subset = selected_notes.new_selected_notes(subset_ids)
+
+        # .parent() should return to the original selection
+        parent = subset.parent()
+        assert parent is not None
+        assert list(parent.get_ids()) == list(note_ids)
+
+    @with_test_collection("empty_collection")
+    def test_parent_after_filter_by_empty_field(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that .parent() returns to previous selection after filter_by_empty_field."""
+        model = col.models.by_name("Basic")
+        assert model is not None
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
+
+        # Create notes with mixed empty/non-empty fields
+        note_ids = []
+        for i in range(4):
+            note = col.new_note(model)
+            if i < 2:
+                note["Front"] = ""  # Empty
+            else:
+                note["Front"] = "Filled"
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
+
+        selected_notes = SelectedNotes(col, note_ids)
+
+        # Filter by empty field
+        filtered = selected_notes.filter_by_empty_field(["Front"])
+
+        # .parent() should return to the original selection
+        parent = filtered.parent()
+        assert parent is not None
+        assert list(parent.get_ids()) == list(note_ids)
+
+    @with_test_collection("empty_collection")
+    def test_parent_after_batched_by_prompt_size(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that .parent() returns to previous selection after batched_by_prompt_size."""
+        model = col.models.by_name("Basic")
+        assert model is not None
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
+
+        # Create notes with empty fields
+        note_ids = []
+        for i in range(10):
+            note = col.new_note(model)
+            note["Front"] = ""  # Empty field
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
+
+        selected_notes = SelectedNotes(col, note_ids)
+        prompt_builder = PromptBuilder(col)
+        note_type = NoteModel(col, model)
+
+        # Get batches
+        selected_from_type = selected_notes.filter_by_note_type(note_type)
+        batches = selected_from_type.batched_by_prompt_size(
+            prompt_builder=prompt_builder,
+            field_selection=FieldSelection(
+                selected=["Front", "Back"],
+                writable=["Front"],
+                overwritable=[],
+            ),
+            max_chars=5000,
+            max_examples=10,
+        )
+
+        batch = batches[0]
+        parent = batch.parent()
+        assert parent is not None
+        assert isinstance(parent, SelectedNotesFromType)
+
+    @with_test_collection("two_deck_collection")
+    def test_chaining_end_multiple_times(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test chaining multiple .parent() calls (each goes back one level)."""
+        note_ids = col.find_notes("")[:4]
+        selected_notes = SelectedNotes(col, note_ids)
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
+        # Create chain: SelectedNotes -> SelectedNotesFromType -> sub-selection
+        filtered = selected_notes.filter_by_note_type(note_type)
+        subset_ids = list(filtered.get_ids())[:2] if filtered.get_ids() else []
+        subset = filtered.new_selected_notes(subset_ids) if subset_ids else filtered
+
+        # First .parent() returns to filtered
+        parent1 = subset.parent()
+        assert parent1 is filtered
+
+        # Second .parent() returns to original selection (if filtered was created from selected_notes)
+        parent2 = parent1.parent() if parent1 else None
+        assert parent2 is selected_notes
+
+    @with_test_collection("empty_collection")
+    def test_parent_preserves_note_type(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that .parent() preserves note_type when returning from SelectedNotesFromType."""
+        model = col.models.by_name("Basic")
+        assert model is not None
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
+
+        # Create notes
+        note_ids = []
+        for i in range(3):
+            note = col.new_note(model)
+            note["Front"] = ""
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
+
+        selected_notes = SelectedNotes(col, note_ids)
+        note_type = NoteModel(col, model)
+
+        # Filter by note type
+        filtered = selected_notes.filter_by_note_type(note_type)
+
+        # Filter by empty field
+        filtered_empty = filtered.filter_by_empty_field(["Front"])
+
+        # .parent() should return to the SelectedNotesFromType (not plain SelectedNotes)
+        parent = filtered_empty.parent()
+        assert parent is not None
+        assert isinstance(parent, SelectedNotesFromType)
+        assert parent.note_type == note_type

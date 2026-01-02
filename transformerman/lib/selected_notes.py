@@ -75,6 +75,7 @@ class SelectedNotes:
         card_ids: Sequence[CardId] | None = None,
         note_cache: dict[NoteId, Note] | None = None,
         deck_cache: dict[CardId, str] | None = None,
+        _parent: SelectedNotes | None = None,
     ) -> None:
         """Initialize with collection and selected note IDs and optional card IDs."""
         self.col = col
@@ -84,6 +85,7 @@ class SelectedNotes:
         self._deck_cache = deck_cache if deck_cache else {}
         self.logger = logging.getLogger(__name__)
         self.batching_stats = None
+        self._parent = _parent
 
         assert self._card_ids is None or len(self._card_ids) >= len(self._note_ids)
 
@@ -136,6 +138,7 @@ class SelectedNotes:
             self._card_ids,
             self._note_cache,
             self._deck_cache,
+            _parent=self,
         )
 
     def get_note_type_counts(self) -> dict[str, int]:
@@ -231,6 +234,7 @@ class SelectedNotes:
         Args:
             selected_notes: The existing SelectedNotes instance.
             note_ids: The list of note IDs to include in the new sub selection instance.
+            _parent: Optional parent selection. If None, uses selected_notes.
 
         Returns:
             A new instance of the class.
@@ -241,7 +245,14 @@ class SelectedNotes:
             new_card_ids = [card_id for card_id in selected_notes._get_card_ids_from_notes(note_ids) if card_id in original_card_ids_set]
         else:
             new_card_ids = None
-        return cls(selected_notes.col, note_ids, new_card_ids, note_cache=selected_notes._note_cache, deck_cache=selected_notes._deck_cache)
+        return cls(
+            selected_notes.col,
+            note_ids,
+            new_card_ids,
+            note_cache=selected_notes._note_cache,
+            deck_cache=selected_notes._deck_cache,
+            _parent=selected_notes,
+        )
 
     @staticmethod
     def has_empty_field(note: Note, selected_fields: Sequence[str]) -> bool:
@@ -372,6 +383,10 @@ class SelectedNotes:
         if clear_deck_cache:
             self._deck_cache.clear()
 
+    def parent(self) -> SelectedNotes | None:  # noqa
+        """Return to the previous selection in the chain (jQuery-style)."""
+        return self._parent
+
     def __len__(self) -> int:
         """Return the number of notes in the selection."""
         return len(self._note_ids)
@@ -396,8 +411,9 @@ class SelectedNotesFromType(SelectedNotes):
         card_ids: Sequence[CardId] | None = None,
         note_cache: dict[NoteId, Note] | None = None,
         deck_cache: dict[CardId, str] | None = None,
+        _parent: SelectedNotes | None = None,
     ) -> None:
-        super().__init__(col, note_ids, card_ids, note_cache, deck_cache)
+        super().__init__(col, note_ids, card_ids, note_cache, deck_cache, _parent)
         self.note_type = note_type
 
     @override
@@ -427,6 +443,10 @@ class SelectedNotesFromType(SelectedNotes):
         notes_with_fields = self.filter_by_writable_or_overwritable(field_selection.writable, field_selection.overwritable)
         if not notes_with_fields:
             return []
+
+        # Set parent so batches return to self (not the intermediate filtered result)
+        # this might not be needed (?)
+        notes_with_fields._parent = self
 
         batches, self.batching_stats = batched_by_prompt_size(
             notes_with_fields, prompt_builder, field_selection, max_chars, max_examples, self.logger
