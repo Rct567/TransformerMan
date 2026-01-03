@@ -111,11 +111,10 @@ class TransformProgressDialog(QProgressDialog):
 
             if self._cancel_requested:
                 progress_msg.append("Processing canceled...")
+            elif total_batches == 1:
+                progress_msg.append("Processing...")
             else:
-                if total_batches == 1:
-                    progress_msg.append("Processing...")
-                else:
-                    progress_msg.append(f"Processing batch {current_batch + 1} of {total_batches}...")
+                progress_msg.append(f"Processing batch {current_batch + 1} of {total_batches}...")
 
             if detailed:
                 detailed_msg = self._format_detailed_message(detailed)

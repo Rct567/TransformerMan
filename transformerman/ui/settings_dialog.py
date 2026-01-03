@@ -491,10 +491,9 @@ class SettingsDialog(TransformerManBaseDialog):
                     a0.accept()
                 # Call parent closeEvent to save geometry
                 super().closeEvent(a0)
-            else:
-                # Cancel close - don't save geometry since dialog isn't closing
-                if a0:
-                    a0.ignore()
+            # Cancel close - don't save geometry since dialog isn't closing
+            elif a0:
+                a0.ignore()
         else:
             # No unsaved changes, proceed with close
             if a0:
