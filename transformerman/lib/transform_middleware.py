@@ -124,7 +124,8 @@ class CacheBatchMiddleware(Middleware):
             conn.execute("CREATE INDEX IF NOT EXISTS idx_key_hash ON cache(key_hash)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON cache(timestamp)")
 
-    def _get_cache_key(self, prompt: str, client_id: str, model: str) -> str:
+    @staticmethod
+    def _get_cache_key(prompt: str, client_id: str, model: str) -> str:
         """Generate a cache key from prompt, client_id, and model."""
         key_data = f"{prompt}{client_id}{model}"
         return hashlib.sha256(key_data.encode("utf-8")).hexdigest()
