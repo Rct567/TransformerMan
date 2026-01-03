@@ -5,7 +5,7 @@ import sqlite3
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from .lm_clients import LmResponse
 from .utilities import override
@@ -212,6 +212,9 @@ class CacheBatchMiddleware(Middleware):
                 """, (self.cache_limit,))
 
 
+T = TypeVar("T", bound=Middleware)
+
+
 class TransformMiddleware:
     """Registry for transform operation middleware."""
 
@@ -228,7 +231,7 @@ class TransformMiddleware:
         """
         self._middleware[type(middleware)] = middleware
 
-    def get(self, middleware_type: type[Middleware]) -> Middleware | None:
+    def get(self, middleware_type: type[T]) -> T | None:
         """
         Get middleware by type.
 
@@ -238,7 +241,10 @@ class TransformMiddleware:
         Returns:
             Middleware instance if registered, None otherwise.
         """
-        return self._middleware.get(middleware_type)
+        middleware = self._middleware.get(middleware_type)
+        if isinstance(middleware, middleware_type):
+            return middleware
+        return None
 
     def before_transform(self, note_transformer: NoteTransformer) -> None:
         """
