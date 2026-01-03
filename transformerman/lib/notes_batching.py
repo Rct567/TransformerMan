@@ -149,6 +149,7 @@ def batched_by_prompt_size(
     max_chars: int,
     max_examples: int,
     logger: logging.Logger,
+    prompt_template: str | None = None,
 ) -> tuple[list[SelectedNotesBatch], BatchingStats]:
     """
     Batch notes by maximum prompt size using adaptive prediction with learning.
@@ -164,11 +165,18 @@ def batched_by_prompt_size(
     def build_prompt(test_selected_notes: SelectedNotesFromType) -> str:
         nonlocal num_prompts_tried
         num_prompts_tried += 1
-        return prompt_builder.get_prompt_renderer(
-            target_notes=test_selected_notes,
-            field_selection=field_selection,
-            max_examples=max_examples,
-        )(None)
+        if prompt_template:
+            return prompt_builder.get_renderer_from_template(
+                prompt_template,
+                target_notes=test_selected_notes,
+                field_selection=field_selection,
+            )(None)
+        else:
+            return prompt_builder.get_prompt_renderer(
+                target_notes=test_selected_notes,
+                field_selection=field_selection,
+                max_examples=max_examples,
+            )(None)
 
     def create_validator(notes_list: Sequence[Note]) -> Callable[[int], bool]:
         def validate(size: int) -> bool:
@@ -193,7 +201,6 @@ def batched_by_prompt_size(
     init_predicted = predict_batch_size(max_chars, len(remaining), avg_note_size)
 
     while remaining:
-
         # Predict batch size based on previous batches
         if len(batches) > 0:
             current_avg_batch_size = sum(len(batch) for batch in batches) // len(batches)
@@ -215,9 +222,7 @@ def batched_by_prompt_size(
             note = remaining[0]
             prompt_size = len(build_prompt(notes_with_fields.new_selected_notes([note.id])))
             if prompt_size > max_chars:
-                logger.warning(
-                    f"Note {note.id} exceeds maximum prompt size ({prompt_size} > {max_chars}). Skipping."
-                )
+                logger.warning(f"Note {note.id} exceeds maximum prompt size ({prompt_size} > {max_chars}). Skipping.")
                 break
 
         # Create batch
@@ -243,7 +248,7 @@ def batched_by_prompt_size(
         num_batches=num_batches,
         num_notes_selected=len(notes),
         avg_note_size=avg_note_size,
-        max_prompt_size=max_chars
+        max_prompt_size=max_chars,
     )
 
     return batches, batching_stats

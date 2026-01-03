@@ -64,6 +64,7 @@ class NoteTransformer:
         field_selection: FieldSelection,
         addon_config: AddonConfig,
         transform_middleware: TransformMiddleware,
+        prompt_interceptor: Callable[[str], str] | None = None,
     ) -> None:
         """
         Initialize the NoteTransformer.
@@ -76,6 +77,7 @@ class NoteTransformer:
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             addon_config: Addon configuration.
             transform_middleware: Transform middleware instance.
+            prompt_interceptor: Optional function to intercept and modify the prompt template before use.
         """
         self.col = col
         self.selected_notes = selected_notes
@@ -99,12 +101,24 @@ class NoteTransformer:
             self.field_selection.writable, self.field_selection.overwritable
         )
 
+        # Generate initial template
+        self.prompt_template = self.prompt_builder.build_prompt_template(
+            self.target_notes,
+            self.field_selection,
+            self.addon_config.get_max_examples(),
+        )
+
+        # Apply interceptor if provided
+        if prompt_interceptor:
+            self.prompt_template = prompt_interceptor(self.prompt_template)
+
         # Create batches based on prompt size
         self.batches = self.target_notes.batched_by_prompt_size(
             prompt_builder=self.prompt_builder,
             field_selection=self.field_selection,
             max_chars=self.addon_config.get_max_prompt_size(),
             max_examples=self.addon_config.get_max_examples(),
+            prompt_template=self.prompt_template,
         )
         self.num_batches = len(self.batches)
 
@@ -228,10 +242,10 @@ class NoteTransformer:
         is_canceled = False
 
         # Prompt builder
-        render_prompt = self.prompt_builder.get_prompt_renderer(
+        render_prompt = self.prompt_builder.get_renderer_from_template(
+            self.prompt_template,
             self.target_notes,
             self.field_selection,
-            self.addon_config.get_max_examples(),
         )
 
         for batch_idx, selected_notes_batch in enumerate(self.batches):

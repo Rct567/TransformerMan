@@ -18,6 +18,7 @@ from aqt.qt import (
     QScrollArea,
     QWidget,
     QApplication,
+    Qt,
 )
 from aqt.utils import showInfo, showWarning, askUserDialog
 
@@ -26,6 +27,7 @@ from .preview_table import PreviewTable
 from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent, FieldInstructionChangedEvent
 from .stats_widget import StatsWidget, StatKeyValue
 from .settings_dialog import SettingsDialog
+from .prompt_preview_dialog import PromptPreviewDialog
 
 from ..ui.transform_notes import TransformNotesWithProgress
 from ..lib.transform_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware, TransformMiddleware
@@ -563,11 +565,31 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
             showInfo("\n".join(result_info_text), parent=self)
 
-        self.transformer.transform(
-            selected_notes=selected_notes_from_note,
-            field_selection=field_selection,
-            on_success=on_transform_success,
-        )
+        # Check for Shift key modifier
+        prompt_interceptor = None
+        if QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier:
+
+            def interceptor(template: str) -> str:
+                dialog = PromptPreviewDialog(self, template)
+                if dialog.exec():
+                    return dialog.get_template() or ""
+                # If canceled, we raise an exception to stop the process
+                raise Exception("Prompt preview canceled by user")
+
+            prompt_interceptor = interceptor
+
+        try:
+            self.transformer.transform(
+                selected_notes=selected_notes_from_note,
+                field_selection=field_selection,
+                on_success=on_transform_success,
+                prompt_interceptor=prompt_interceptor,
+            )
+        except Exception as e:
+            if str(e) == "Prompt preview canceled by user":
+                self.update_buttons_state()
+                return
+            raise e
 
     def _on_apply_clicked(self) -> None:
         """Handle apply button click."""

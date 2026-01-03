@@ -332,6 +332,7 @@ class TransformNotesWithProgress:
         selected_notes: SelectedNotesFromType,
         field_selection: FieldSelection,
         on_success: Callable[[TransformResults, FieldUpdates], None],
+        prompt_interceptor: Callable[[str], str] | None = None,
     ) -> None:
         """
         Transform notes in batches with progress tracking.
@@ -344,6 +345,7 @@ class TransformNotesWithProgress:
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             on_success: Callback for transformation success.
                 Called with (results, field_updates) when transformation completes successfully.
+            prompt_interceptor: Optional function to intercept and modify the prompt template before use.
         """
         # Check cache first
         cache_key = self._get_cache_key(selected_notes, field_selection)
@@ -361,6 +363,7 @@ class TransformNotesWithProgress:
             field_selection=field_selection,
             addon_config=self.addon_config,
             transform_middleware=self.transform_middleware,
+            prompt_interceptor=prompt_interceptor,
         )
 
         # Create custom progress dialog

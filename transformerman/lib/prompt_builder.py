@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 
 
 class PromptTemplate:
-
     def __init__(
         self,
         field_instructions: dict[str, str],
@@ -175,16 +174,15 @@ class PromptBuilder:
         """Update the field instructions for this prompt builder."""
         self.field_instructions = field_instructions
 
-    def get_prompt_renderer(
+    def build_prompt_template(
         self,
         target_notes: SelectedNotesFromType,
         field_selection: FieldSelection,
         max_examples: int,
-    ) -> Callable[[SelectedNotesFromType | None], str]:
+    ) -> str:
         """
-        Get a function that renders the prompt for the given target notes and field selection.
+        Build the prompt template string with {target_notes_xml} placeholder.
         """
-
         if not field_selection.writable:
             target_fields = field_selection.selected
         else:
@@ -210,7 +208,21 @@ class PromptBuilder:
         )
 
         prompt = PromptTemplate(self.field_instructions, fields_to_fill, formatted_examples_xml)
-        prompt_template_str = prompt.render("{target_notes_xml}")  # Prompt is rendered, but with placeholder for target notes
+        return prompt.render("{target_notes_xml}")
+
+    def get_renderer_from_template(
+        self,
+        prompt_template_str: str,
+        target_notes: SelectedNotesFromType,
+        field_selection: FieldSelection,
+    ) -> Callable[[SelectedNotesFromType | None], str]:
+        """
+        Get a renderer function from a provided template string.
+        """
+        if not field_selection.writable:
+            target_fields = field_selection.selected
+        else:
+            target_fields = field_selection.writable
 
         def render_prompt(provided_target_notes: SelectedNotesFromType | None = None) -> str:
 
@@ -239,6 +251,18 @@ class PromptBuilder:
             return prompt_template_str.replace("{target_notes_xml}", formatted_target_notes_xml)
 
         return render_prompt
+
+    def get_prompt_renderer(
+        self,
+        target_notes: SelectedNotesFromType,
+        field_selection: FieldSelection,
+        max_examples: int,
+    ) -> Callable[[SelectedNotesFromType | None], str]:
+        """
+        Get a function that renders the prompt for the given target notes and field selection.
+        """
+        prompt_template_str = self.build_prompt_template(target_notes, field_selection, max_examples)
+        return self.get_renderer_from_template(prompt_template_str, target_notes, field_selection)
 
     def _select_example_notes(
         self,
