@@ -19,6 +19,8 @@ DEFAULT_MAX_PROMPT_SIZE = 50_000
 DEFAULT_MAX_NOTES_PER_BATCH = 1000
 DEFAULT_TIMEOUT = 240
 DEFAULT_CONNECT_TIMEOUT = 10
+DEFAULT_MAX_EXAMPLES = 10
+DEFAULT_CACHE_RESPONSES = 500
 
 
 class AddonConfig:
@@ -176,31 +178,53 @@ class AddonConfig:
         return int(val)
 
     def get_max_prompt_size(self) -> int:
-        """Get the maximum prompt size from configuration with validation."""
+        """Get the maximum size of the prompt in characters.
+
+        This limit helps prevent sending excessively large requests,
+        which could lead to API errors. It also helps preventing request that are too small,
+        leading to higher overhead.
+        """
         return self._get_int_setting("max_prompt_size", DEFAULT_MAX_PROMPT_SIZE)
 
     def get_max_notes_per_batch(self) -> int:
-        """Get the maximum number of notes per batch from configuration with validation."""
+        """Get the maximum number of notes to process in a single batch.
+
+        Processing notes in batches improves efficiency, but very large batches
+        might exceed memory limits or API constraints.
+        """
         return self._get_int_setting("max_notes_per_batch", DEFAULT_MAX_NOTES_PER_BATCH)
 
     def get_timeout(self) -> int:
-        """Get the total timeout from configuration with validation."""
+        """Get the total timeout in seconds for API requests.
+
+        This is the maximum time allowed for the entire request-response cycle.
+        """
         return self._get_int_setting("timeout", DEFAULT_TIMEOUT)
 
     def get_connect_timeout(self) -> int:
-        """Get the connect timeout from configuration with validation."""
+        """Get the connection timeout in seconds for API requests.
+
+        This is the maximum time allowed to establish a connection with the API server.
+        """
         return self._get_int_setting("connect_timeout", DEFAULT_CONNECT_TIMEOUT)
 
     def get_max_examples(self) -> int:
-        """Get the maximum number of examples from configuration with validation."""
-        return self._get_int_setting("max_examples", 10, min_val=0)
+        """Get the maximum number of few-shot examples to include in the prompt.
+
+        Few-shot examples help the model understand the desired output format and style.
+        """
+        return self._get_int_setting("max_examples", DEFAULT_MAX_EXAMPLES, min_val=0)
 
     def get_num_cache_responses(self) -> int:
-        """Get the cache responses setting from configuration with validation."""
+        """Get the number of API responses to cache.
+
+        Caching responses helps avoid redundant API calls for identical prompts,
+        saving time and reducing costs. Set to 0 to disable caching.
+        """
         if self._config and "cache_responses" in self._config and self._config["cache_responses"] is False:
             self._config["cache_responses"] = 0
 
-        return self._get_int_setting("cache_responses", 500, min_val=0)
+        return self._get_int_setting("cache_responses", DEFAULT_CACHE_RESPONSES, min_val=0)
 
     def get_client(self) -> tuple[Optional[LMClient], Optional[str]]:
         """Return the configured LM client, or None if the client is unknown."""
