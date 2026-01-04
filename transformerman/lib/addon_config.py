@@ -23,48 +23,48 @@ DEFAULT_CONNECT_TIMEOUT = 10
 
 class AddonConfig:
 
-    __config: Optional[dict[str, JSON_TYPE]]
-    __config_load: Callable[[], Optional[dict[str, Any]]]
-    __config_save: Callable[[dict[str, Any]], None]
+    _config: Optional[dict[str, JSON_TYPE]]
+    _config_load: Callable[[], Optional[dict[str, Any]]]
+    _config_save: Callable[[dict[str, Any]], None]
 
     def __init__(self, config_loader: Callable[[], Optional[dict[str, Any]]], config_saver: Callable[[dict[str, Any]], None]):
-        self.__config = None
-        self.__config_load = config_loader
-        self.__config_save = config_saver
+        self._config = None
+        self._config_load = config_loader
+        self._config_save = config_saver
 
     def load(self) -> None:
-        if self.__config is not None:
+        if self._config is not None:
             raise ValueError("Config already loaded!")
-        config = self.__config_load()
+        config = self._config_load()
         if config is None:
             config = {}
-        self.__config = config
+        self._config = config
 
     def reload(self) -> None:
-        self.__config = None
+        self._config = None
         self.load()
 
     def __getitem__(self, key: str) -> JSON_TYPE:
-        if self.__config is None:
+        if self._config is None:
             raise ValueError("Config not loaded!")
-        return self.__config[key]
+        return self._config[key]
 
     def get(self, key: str, default: JSON_TYPE) -> JSON_TYPE:
-        if self.__config is None:
+        if self._config is None:
             raise ValueError("Config not loaded!")
-        return self.__config.get(key, default)
+        return self._config.get(key, default)
 
     def __contains__(self, key: str) -> bool:
-        if self.__config is None:
+        if self._config is None:
             raise ValueError("Config not loaded!")
-        return key in self.__config
+        return key in self._config
 
     def is_enabled(self, key: str, default: bool = False) -> bool:
-        if self.__config is None:
+        if self._config is None:
             raise ValueError("Config not loaded!")
-        if key not in self.__config:
+        if key not in self._config:
             return default
-        val = self.__config[key]
+        val = self._config[key]
         if isinstance(val, bool):
             return val
         if isinstance(val, str):
@@ -72,44 +72,44 @@ class AddonConfig:
         return default
 
     def update_setting(self, key: str, value: Union[bool, int, float, str, list[Any], dict[str, Any]]) -> None:
-        if self.__config is None:
+        if self._config is None:
             raise ValueError("Config not loaded!")
-        self.__config[key] = value
-        self.__config_save(self.__config)
+        self._config[key] = value
+        self._config_save(self._config)
 
     def get_api_key(self, client_id: str) -> ApiKey:
         """Get the API key for a specific LM client."""
-        if self.__config is None:
+        if self._config is None:
             self.load()
 
-        # After load(), __config should not be None
-        assert self.__config is not None
+        # After load(), _config should not be None
+        assert self._config is not None
 
         # client-specific key (e.g., "openai_api_key")
         client_key = f"{client_id}_api_key"
-        if client_key in self.__config:
-            return ApiKey(str(self.__config[client_key]))
+        if client_key in self._config:
+            return ApiKey(str(self._config[client_key]))
 
         return ApiKey("")
 
     def get_model(self, client_id: str) -> str:
         """Get the model for a specific LM client."""
-        if self.__config is None:
+        if self._config is None:
             self.load()
 
-        # After load(), __config should not be None
-        assert self.__config is not None
+        # After load(), _config should not be None
+        assert self._config is not None
 
         model_key = f"{client_id}_model"
         return str(self.get(model_key, ""))
 
     def set_model(self, client_id: str, model: str) -> None:
         """Set the model for a specific LM client."""
-        if self.__config is None:
+        if self._config is None:
             self.load()
 
-        # After load(), __config should not be None
-        assert self.__config is not None
+        # After load(), _config should not be None
+        assert self._config is not None
 
         # Store with client-specific prefix
         model_key = f"{client_id}_model"
@@ -117,11 +117,11 @@ class AddonConfig:
 
     def set_api_key(self, client_id: str, api_key: str) -> None:
         """Set the API key for a specific LM client."""
-        if self.__config is None:
+        if self._config is None:
             self.load()
 
-        # After load(), __config should not be None
-        assert self.__config is not None
+        # After load(), _config should not be None
+        assert self._config is not None
 
         # Store with client-specific prefix
         client_key = f"{client_id}_api_key"
@@ -129,16 +129,16 @@ class AddonConfig:
 
     def get_custom_client_settings(self, client_id: str) -> dict[str, str]:
         """Get custom settings for a specific LM client."""
-        if self.__config is None:
+        if self._config is None:
             self.load()
 
-        # After load(), __config should not be None
-        assert self.__config is not None
+        # After load(), _config should not be None
+        assert self._config is not None
 
         custom_settings = {}
         prefix = f"{client_id}_custom_"
 
-        for key, value in self.__config.items():
+        for key, value in self._config.items():
             if key.startswith(prefix) and isinstance(value, str):
                 setting_name = key[len(prefix):]
                 custom_settings[setting_name] = value
@@ -147,11 +147,11 @@ class AddonConfig:
 
     def set_custom_client_setting(self, client_id: str, setting_name: str, setting_value: str) -> None:
         """Set a custom setting for a specific LM client."""
-        if self.__config is None:
+        if self._config is None:
             self.load()
 
-        # After load(), __config should not be None
-        assert self.__config is not None
+        # After load(), _config should not be None
+        assert self._config is not None
 
         # Store with client-specific prefix
         client_key = f"{client_id}_custom_{setting_name}"
@@ -159,75 +159,45 @@ class AddonConfig:
 
     def set_custom_client_settings(self, client_id: str, settings: dict[str, str]) -> None:
         """Set multiple custom settings for a specific LM client."""
-        if self.__config is None:
+        if self._config is None:
             self.load()
 
-        # After load(), __config should not be None
-        assert self.__config is not None
+        # After load(), _config should not be None
+        assert self._config is not None
 
         for setting_name, setting_value in settings.items():
             self.set_custom_client_setting(client_id, setting_name, setting_value)
 
+    def _get_int_setting(self, key: str, default: int, min_val: int = 1) -> int:
+        """Get an integer setting with validation."""
+        val = self.get(key, default)
+        if not isinstance(val, int) or val < min_val:
+            return default
+        return val
+
     def get_max_prompt_size(self) -> int:
         """Get the maximum prompt size from configuration with validation."""
-        assert self.__config is not None
-
-        max_prompt_size = self.get("max_prompt_size", DEFAULT_MAX_PROMPT_SIZE)
-
-        if not isinstance(max_prompt_size, int) or max_prompt_size <= 0:
-            max_prompt_size = DEFAULT_MAX_PROMPT_SIZE
-
-        return max_prompt_size
+        return self._get_int_setting("max_prompt_size", DEFAULT_MAX_PROMPT_SIZE)
 
     def get_max_notes_per_batch(self) -> int:
         """Get the maximum number of notes per batch from configuration with validation."""
-        assert self.__config is not None
-
-        max_notes = self.get("max_notes_per_batch", DEFAULT_MAX_NOTES_PER_BATCH)
-
-        if not isinstance(max_notes, int) or max_notes <= 0:
-            max_notes = DEFAULT_MAX_NOTES_PER_BATCH
-
-        return max_notes
+        return self._get_int_setting("max_notes_per_batch", DEFAULT_MAX_NOTES_PER_BATCH)
 
     def get_timeout(self) -> int:
         """Get the total timeout from configuration with validation."""
-        assert self.__config is not None
-
-        timeout = self.get("timeout", DEFAULT_TIMEOUT)
-
-        if not isinstance(timeout, int) or timeout <= 0:
-            timeout = DEFAULT_TIMEOUT
-
-        return timeout
+        return self._get_int_setting("timeout", DEFAULT_TIMEOUT)
 
     def get_connect_timeout(self) -> int:
         """Get the connect timeout from configuration with validation."""
-        assert self.__config is not None
-
-        connect_timeout = self.get("connect_timeout", DEFAULT_CONNECT_TIMEOUT)
-
-        if not isinstance(connect_timeout, int) or connect_timeout <= 0:
-            connect_timeout = DEFAULT_CONNECT_TIMEOUT
-
-        return connect_timeout
+        return self._get_int_setting("connect_timeout", DEFAULT_CONNECT_TIMEOUT)
 
     def get_max_examples(self) -> int:
         """Get the maximum number of examples from configuration with validation."""
-        assert self.__config is not None
-
-        default = 10
-
-        max_examples = self.get("max_examples", default)
-
-        if not isinstance(max_examples, int) or max_examples < 0:
-            max_examples = default
-
-        return max_examples
+        return self._get_int_setting("max_examples", 10, min_val=0)
 
     def get_client(self) -> tuple[Optional[LMClient], Optional[str]]:
         """Return the configured LM client, or None if the client is unknown."""
-        if self.__config is None:
+        if self._config is None:
             self.load()
 
         # Lm client name
