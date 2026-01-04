@@ -449,6 +449,7 @@ class SelectedNotesFromType(SelectedNotes):
         max_chars: int,
         max_examples: int,
         prompt_template: str | None = None,
+        max_notes_per_batch: int = 1000,
     ) -> list[SelectedNotesBatch]:
         """Batch notes by maximum prompt size."""
 
@@ -465,7 +466,14 @@ class SelectedNotesFromType(SelectedNotes):
         notes_with_fields._parent = self
 
         batches, self.batching_stats = batched_by_prompt_size(
-            notes_with_fields, prompt_builder, field_selection, max_chars, max_examples, self.logger, prompt_template
+            notes_with_fields,
+            prompt_builder,
+            field_selection,
+            max_chars,
+            max_examples,
+            self.logger,
+            prompt_template,
+            max_notes_per_batch,
         )
 
         self.logger.info(self.batching_stats)

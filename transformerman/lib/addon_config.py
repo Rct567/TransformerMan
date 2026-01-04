@@ -16,6 +16,7 @@ from .lm_clients import LM_CLIENTS, LMClient, get_lm_client_class, ApiKey, Model
 
 
 DEFAULT_MAX_PROMPT_SIZE = 50_000
+DEFAULT_MAX_NOTES_PER_BATCH = 1000
 DEFAULT_TIMEOUT = 240
 DEFAULT_CONNECT_TIMEOUT = 10
 
@@ -177,6 +178,17 @@ class AddonConfig:
             max_prompt_size = DEFAULT_MAX_PROMPT_SIZE
 
         return max_prompt_size
+
+    def get_max_notes_per_batch(self) -> int:
+        """Get the maximum number of notes per batch from configuration with validation."""
+        assert self.__config is not None
+
+        max_notes = self.get("max_notes_per_batch", DEFAULT_MAX_NOTES_PER_BATCH)
+
+        if not isinstance(max_notes, int) or max_notes <= 0:
+            max_notes = DEFAULT_MAX_NOTES_PER_BATCH
+
+        return max_notes
 
     def get_timeout(self) -> int:
         """Get the total timeout from configuration with validation."""

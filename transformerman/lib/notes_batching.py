@@ -150,6 +150,7 @@ def batched_by_prompt_size(
     max_examples: int,
     logger: logging.Logger,
     prompt_template: str | None = None,
+    max_notes_per_batch: int = 1000,
 ) -> tuple[list[SelectedNotesBatch], BatchingStats]:
     """
     Batch notes by maximum prompt size using adaptive prediction with learning.
@@ -184,6 +185,8 @@ def batched_by_prompt_size(
                 return True
             test_batch = notes_list[:size]
             test_selected_notes = notes_with_fields.new_selected_notes([note.id for note in test_batch])
+            if size > max_notes_per_batch:
+                return False
             prompt = build_prompt(test_selected_notes)
             return len(prompt) <= max_chars
 
@@ -199,6 +202,7 @@ def batched_by_prompt_size(
     accuracy_factor = 1.0
     avg_note_size = calc_avg_note_size(remaining, field_selection.selected)
     init_predicted = predict_batch_size(max_chars, len(remaining), avg_note_size)
+    init_predicted = min(init_predicted, max_notes_per_batch)
 
     while remaining:
         # Predict batch size based on previous batches

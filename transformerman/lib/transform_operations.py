@@ -46,6 +46,7 @@ class CacheKey(NamedTuple):
     overwritable_fields: tuple[str, ...]
     note_ids: tuple[NoteId, ...]
     max_prompt_size: int
+    max_notes_per_batch: int
     field_instructions_hash: int
 
 
@@ -117,6 +118,7 @@ class NoteTransformer:
             prompt_builder=self.prompt_builder,
             field_selection=self.field_selection,
             max_chars=self.addon_config.get_max_prompt_size(),
+            max_notes_per_batch=self.addon_config.get_max_notes_per_batch(),
             max_examples=self.addon_config.get_max_examples(),
             prompt_template=self.prompt_template,
         )

@@ -265,6 +265,7 @@ class TransformNotesWithProgress:
             overwritable_fields=tuple(field_selection.overwritable),
             note_ids=tuple(selected_notes.get_ids()),
             max_prompt_size=self.addon_config.get_max_prompt_size(),
+            max_notes_per_batch=self.addon_config.get_max_notes_per_batch(),
             field_instructions_hash=field_instructions_hash,
         )
 
@@ -321,6 +322,7 @@ class TransformNotesWithProgress:
             prompt_builder=self._prompt_builder,
             field_selection=field_selection,
             max_chars=self.addon_config.get_max_prompt_size(),
+            max_notes_per_batch=self.addon_config.get_max_notes_per_batch(),
             max_examples=self.addon_config.get_max_examples(),
         )
 

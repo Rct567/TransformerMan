@@ -104,6 +104,15 @@ class SettingsDialog(TransformerManBaseDialog):
         self.max_prompt_size_spin.valueChanged.connect(self._on_setting_changed)
         form_layout.addRow("Max Prompt Size:", self.max_prompt_size_spin)
 
+        # Max Notes Per Batch
+        self.max_notes_per_batch_spin = FormattedSpinBox()
+        self.max_notes_per_batch_spin.setMinimum(1)
+        self.max_notes_per_batch_spin.setMaximum(10_000)
+        self.max_notes_per_batch_spin.setSuffix(" notes")
+        self.max_notes_per_batch_spin.setSingleStep(10)
+        self.max_notes_per_batch_spin.valueChanged.connect(self._on_setting_changed)
+        form_layout.addRow("Max Notes Per Batch:", self.max_notes_per_batch_spin)
+
         # Timeout
         self.timeout_spin = FormattedSpinBox()
         self.timeout_spin.setMinimum(60)  # 1 second minimum
@@ -198,6 +207,9 @@ class SettingsDialog(TransformerManBaseDialog):
         # Load max prompt size
         self.max_prompt_size_spin.setValue(self.addon_config.get_max_prompt_size())
 
+        # Load max notes per batch
+        self.max_notes_per_batch_spin.setValue(self.addon_config.get_max_notes_per_batch())
+
         # Load timeout
         self.timeout_spin.setValue(self.addon_config.get_timeout())
 
@@ -238,6 +250,12 @@ class SettingsDialog(TransformerManBaseDialog):
         if max_prompt_size < 10_000:
             max_prompt_size = 10_000
         self.addon_config.update_setting("max_prompt_size", max_prompt_size)
+
+        # Save max notes per batch
+        max_notes_per_batch = self.max_notes_per_batch_spin.value()
+        if max_notes_per_batch < 1:
+            max_notes_per_batch = 1
+        self.addon_config.update_setting("max_notes_per_batch", max_notes_per_batch)
 
         # Save timeout
         timeout = self.timeout_spin.value()
@@ -303,6 +321,10 @@ class SettingsDialog(TransformerManBaseDialog):
 
         # Check if max prompt size has changed
         if self.max_prompt_size_spin.value() != self.addon_config.get_max_prompt_size():
+            return True
+
+        # Check if max notes per batch has changed
+        if self.max_notes_per_batch_spin.value() != self.addon_config.get_max_notes_per_batch():
             return True
 
         # Check if timeout has changed

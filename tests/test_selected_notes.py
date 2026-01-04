@@ -433,6 +433,49 @@ class TestSelectedNotes:
         assert num_prompts_tried[3] <= 81
 
     @with_test_collection("empty_collection")
+    def test_batched_by_prompt_size_respects_max_notes_per_batch(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that batched_by_prompt_size respects the max_notes_per_batch limit."""
+        model = col.models.by_name("Basic")
+        assert model is not None
+        deck_id = col.decks.id_for_name("Default")
+        assert deck_id
+
+        # Create 10 notes
+        note_ids = []
+        for i in range(10):
+            note = col.new_note(model)
+            note["Front"] = ""
+            note["Back"] = f"Back {i}"
+            col.add_note(note, deck_id)
+            note_ids.append(note.id)
+
+        selected_notes = SelectedNotes(col, note_ids)
+        prompt_builder = PromptBuilder(col)
+        note_type = NoteModel(col, model)
+
+        # Set max_notes_per_batch to 2
+        max_notes = 2
+        batches = selected_notes.filter_by_note_type(note_type).batched_by_prompt_size(
+            prompt_builder=prompt_builder,
+            field_selection=FieldSelection(
+                selected=["Front"],
+                writable=["Front"],
+                overwritable=[],
+            ),
+            max_chars=500000,  # Large enough to fit all notes
+            max_examples=10,
+            max_notes_per_batch=max_notes,
+        )
+
+        # Verify each batch has at most 2 notes
+        assert len(batches) == 5
+        for batch in batches:
+            assert len(batch) <= max_notes
+
+    @with_test_collection("empty_collection")
     def test_batched_by_prompt_size_single_note_exceeds_limit(
         self,
         col: TestCollection,
