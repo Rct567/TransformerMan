@@ -23,6 +23,10 @@ DEFAULT_MAX_EXAMPLES = 10
 DEFAULT_CACHE_RESPONSES = 500
 
 
+class AddonConfigError(str):
+    pass
+
+
 class AddonConfig:
 
     _config: Optional[dict[str, JSON_TYPE]]
@@ -226,7 +230,7 @@ class AddonConfig:
 
         return self._get_int_setting("cache_responses", DEFAULT_CACHE_RESPONSES, min_val=0)
 
-    def get_client(self) -> tuple[Optional[LMClient], Optional[str]]:
+    def get_client(self) -> tuple[LMClient, None] | tuple[None, AddonConfigError]:
         """Return the configured LM client, or None if the client is unknown."""
         if self._config is None:
             self.load()
@@ -235,37 +239,37 @@ class AddonConfig:
         client_name = self.get("lm_client", None)
 
         if client_name is None:
-            return None, "No LM client configured"
+            return None, AddonConfigError("No LM client configured")
         if not isinstance(client_name, str):
-            return None, "Configured LM client is not a string"
+            return None, AddonConfigError("Configured LM client is not a string")
         elif not client_name:
-            return None, "No LM client configured"
+            return None, AddonConfigError("No LM client configured")
 
         if client_name not in LM_CLIENTS:
-            return None, f"Unknown LM client '{client_name}' configured"
+            return None, AddonConfigError(f"Unknown LM client '{client_name}' configured")
 
         # get client
         client_class = get_lm_client_class(client_name)
 
         if not client_class:
-            return None, f"Unknown LM client '{client_name}' configured"
+            return None, AddonConfigError(f"Unknown LM client '{client_name}' configured")
 
         # Model of LM client (stored with client prefix like API key)
         model_str = self.get_model(client_name)
 
         if client_class.get_available_models():
             if not model_str:
-                return None, "No model configured"
+                return None, AddonConfigError("No model configured")
 
             if model_str not in client_class.get_available_models():
-                return None, f"Configured model '{model_str}' is not available for client '{client_name}'"
+                return None, AddonConfigError(f"Configured model '{model_str}' is not available for client '{client_name}'")
 
         # Api key
         api_key = self.get_api_key(client_name)
 
         if client_class.api_key_required():
             if not api_key:
-                return None, f"API key is required for client '{client_name}'"
+                return None, AddonConfigError(f"API key is required for client '{client_name}'")
 
         # Create client with proper types
         model = ModelName(model_str)
