@@ -171,9 +171,9 @@ class AddonConfig:
     def _get_int_setting(self, key: str, default: int, min_val: int = 1) -> int:
         """Get an integer setting with validation."""
         val = self.get(key, default)
-        if not isinstance(val, int) or val < min_val:
+        if not isinstance(val, (int, float)) or val < min_val:
             return default
-        return val
+        return int(val)
 
     def get_max_prompt_size(self) -> int:
         """Get the maximum prompt size from configuration with validation."""
@@ -194,6 +194,13 @@ class AddonConfig:
     def get_max_examples(self) -> int:
         """Get the maximum number of examples from configuration with validation."""
         return self._get_int_setting("max_examples", 10, min_val=0)
+
+    def get_num_cache_responses(self) -> int:
+        """Get the cache responses setting from configuration with validation."""
+        if self._config and "cache_responses" in self._config and self._config["cache_responses"] is False:
+            self._config["cache_responses"] = 0
+
+        return self._get_int_setting("cache_responses", 500, min_val=0)
 
     def get_client(self) -> tuple[Optional[LMClient], Optional[str]]:
         """Return the configured LM client, or None if the client is unknown."""

@@ -168,34 +168,38 @@ class TestCacheBatchMiddleware:
         note_ids = create_test_notes_with_empty_front(col)
         selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
 
-        # Create middleware and register it (caching disabled by default)
-        middleware = CacheBatchMiddleware(addon_config, user_files_dir)
-        transform_middleware = TransformMiddleware()
-        transform_middleware.register(middleware)
+        for disable_value in [False, 0, 0.0]:
+            # Disable caching
+            addon_config.update_setting("cache_responses", disable_value)
 
-        # Create and run NoteTransformer
-        transformer = NoteTransformer(
-            col=col,
-            selected_notes=selected_notes,
-            lm_client=dummy_client,
-            prompt_builder=prompt_builder,
-            field_selection=field_selection,
-            addon_config=addon_config,
-            transform_middleware=transform_middleware,
-        )
-        results, _field_updates = transformer.get_field_updates()
+            # Create middleware and register it
+            middleware = CacheBatchMiddleware(addon_config, user_files_dir)
+            transform_middleware = TransformMiddleware()
+            transform_middleware.register(middleware)
 
-        # Verify transform succeeded
-        assert results.num_notes_updated == 2
-        assert transformer.prompt is not None
-        assert transformer.response is not None
+            # Create and run NoteTransformer
+            transformer = NoteTransformer(
+                col=col,
+                selected_notes=selected_notes,
+                lm_client=dummy_client,
+                prompt_builder=prompt_builder,
+                field_selection=field_selection,
+                addon_config=addon_config,
+                transform_middleware=transform_middleware,
+            )
+            results, _field_updates = transformer.get_field_updates()
 
-        # Verify no files were created (since caching is disabled)
-        cache_dir = user_files_dir / "cache"
-        assert not cache_dir.exists()
+            # Verify transform succeeded
+            assert results.num_notes_updated == 2
+            assert transformer.prompt is not None
+            assert transformer.response is not None
 
-        # Verify no cache hits occurred
-        assert middleware.num_cache_hits == 0
+            # Verify no files were created (since caching is disabled)
+            cache_dir = user_files_dir / "cache"
+            assert not cache_dir.exists()
+
+            # Verify no cache hits occurred
+            assert middleware.num_cache_hits == 0
 
     @with_test_collection("two_deck_collection")
     def test_caching_enabled_caches_and_hits(

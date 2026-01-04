@@ -89,18 +89,14 @@ class CacheBatchMiddleware(Middleware):
         self._num_cache_hits = 0
 
     @property
-    def is_cache_enabled(self) -> bool:
-        """Check if caching is enabled based on current config."""
-        cache_setting = self._addon_config.get("cache_responses", False)
-        return cache_setting is not False and cache_setting != 0
+    def cache_limit(self) -> int:
+        """Get the cache limit from config."""
+        return self._addon_config.get_num_cache_responses()
 
     @property
-    def cache_limit(self) -> int:
-        """Get the cache limit from current config."""
-        cache_setting = self._addon_config.get("cache_responses", False)
-        if isinstance(cache_setting, (int, float)):
-            return int(cache_setting)
-        return 100  # default if enabled but not specified
+    def is_cache_enabled(self) -> bool:
+        """Check if caching is enabled based on current config."""
+        return self.cache_limit > 0
 
     @property
     def num_cache_hits(self) -> int:
