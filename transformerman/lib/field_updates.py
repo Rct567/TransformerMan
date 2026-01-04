@@ -222,9 +222,3 @@ class FieldUpdates:
         ))
         overwritable_tuple = tuple(sorted(self._overwritable_fields))
         return hash((updates_tuple, overwritable_tuple))
-
-    @override
-    def __repr__(self) -> str:
-        """Return a string representation of the FieldUpdates."""
-        return (f"FieldUpdates(updates={self._updates}, "
-                f"overwritable_fields={self._overwritable_fields}, ")
