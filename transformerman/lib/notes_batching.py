@@ -194,6 +194,8 @@ def batched_by_prompt_size(
 
     def calc_avg_note_size(notes_list: Sequence[Note], field_names: Sequence[str]) -> int:
         sample = evenly_spaced_sample(notes_list, 4000)
+        if not sample:
+            return 0
         avg_size = sum(sum(len(note[fields_name]) for fields_name in field_names) for note in sample) // len(sample)
         return avg_size
 
