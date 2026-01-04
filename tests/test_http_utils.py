@@ -25,7 +25,7 @@ class TestHttpUtils:
             mock_response.content = b"hello world"
             mock_response.status_code = 200
             mock_response.headers = {}
-            mock_request.return_value = mock_response
+            mock_request.return_value.__enter__.return_value = mock_response
 
             result, is_cancelled = make_api_request("https://api.example.com/test", method="POST")
             assert result == b"hello world"
@@ -38,7 +38,7 @@ class TestHttpUtils:
             mock_response.content = json.dumps({"status": "ok"}).encode("utf-8")
             mock_response.status_code = 200
             mock_response.headers = {"Content-Type": "application/json"}
-            mock_request.return_value = mock_response
+            mock_request.return_value.__enter__.return_value = mock_response
 
             result, is_cancelled = make_api_request_json("https://api.example.com/json")
             assert result == {"status": "ok"}
@@ -48,18 +48,19 @@ class TestHttpUtils:
         """Test SSE stream parsing with OpenAI-style format."""
         # Mock OpenAI-style SSE stream
         sse_chunks = [
-            b'data: {"choices": [{"delta": {"content": "Hello"}}]}\n\n',
-            b'data: {"choices": [{"delta": {"content": " world"}}]}\n\n',
-            b"data: [DONE]\n\n",
+            'data: {"choices": [{"delta": {"content": "Hello"}}]}\n\n',
+            'data: {"choices": [{"delta": {"content": " world"}}]}\n\n',
+            "data: [DONE]\n\n",
         ]
 
         with patch("requests.request") as mock_request:
             mock_response = MagicMock()
             mock_response.url = "https://api.openai.com/v1/chat/completions"
             mock_response.status_code = 200
+            mock_response.encoding = "utf-8"
             mock_response.headers = {"Content-Type": "text/event-stream"}
-            mock_response.iter_content.return_value = sse_chunks
-            mock_request.return_value = mock_response
+            mock_response.iter_lines.return_value = sse_chunks
+            mock_request.return_value.__enter__.return_value = mock_response
 
             progress_updates: list[LmProgressData] = []
 
@@ -95,7 +96,7 @@ class TestHttpUtils:
             mock_response = MagicMock()
             mock_response.status_code = 404
             mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Client Error")
-            mock_request.return_value = mock_response
+            mock_request.return_value.__enter__.return_value = mock_response
 
             with pytest.raises(requests.exceptions.HTTPError):
                 make_api_request("https://api.example.com/error")
@@ -111,7 +112,7 @@ class TestHttpUtils:
     def test_make_api_request_sse_utf8_encoding(self) -> None:
         """Test that SSE streams default to UTF-8 if no charset is specified."""
         # "El queso holandés" in UTF-8
-        utf8_chunk = b'data: {"content": "El queso holand\xc3\xa9s"}\n\n'
+        utf8_chunk = 'data: {"content": "El queso holandés"}\n\n'
 
         with patch("requests.request") as mock_request:
             mock_response = MagicMock()
@@ -120,14 +121,8 @@ class TestHttpUtils:
             mock_response.encoding = "ISO-8859-1"
             mock_response.headers = {"Content-Type": "text/event-stream"}
 
-            def mock_iter_content(chunk_size: int | None = None, decode_unicode: bool = False) -> Any:
-                if decode_unicode:
-                    yield utf8_chunk.decode(mock_response.encoding)
-                else:
-                    yield utf8_chunk
-
-            mock_response.iter_content.side_effect = mock_iter_content
-            mock_request.return_value = mock_response
+            mock_response.iter_lines.return_value = [utf8_chunk]
+            mock_request.return_value.__enter__.return_value = mock_response
 
             result, is_cancelled = make_api_request_json(
                 "https://api.example.com/sse",
@@ -145,7 +140,7 @@ class TestHttpUtils:
         """Test that explicit charsets in Content-Type are respected."""
         # "El queso holandés" in ISO-8859-1 is b'El queso holand\xe9s'
         # In a JSON context: {"content": "El queso holand\xe9s"}
-        iso_chunk = b'data: {"content": "El queso holand\xe9s"}\n\n'
+        iso_chunk = 'data: {"content": "El queso holandés"}\n\n'
 
         with patch("requests.request") as mock_request:
             mock_response = MagicMock()
@@ -154,14 +149,8 @@ class TestHttpUtils:
             # Explicit charset in header
             mock_response.headers = {"Content-Type": "text/event-stream; charset=ISO-8859-1"}
 
-            def mock_iter_content(chunk_size: int | None = None, decode_unicode: bool = False) -> Any:
-                if decode_unicode:
-                    yield iso_chunk.decode(mock_response.encoding)
-                else:
-                    yield iso_chunk
-
-            mock_response.iter_content.side_effect = mock_iter_content
-            mock_request.return_value = mock_response
+            mock_response.iter_lines.return_value = [iso_chunk]
+            mock_request.return_value.__enter__.return_value = mock_response
 
             result, is_cancelled = make_api_request_json(
                 "https://api.example.com/sse",

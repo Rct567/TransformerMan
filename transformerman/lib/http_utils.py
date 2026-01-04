@@ -97,32 +97,32 @@ def make_api_request(  # noqa: PLR0913
     timeout = (connect_timeout, read_timeout)
     is_streaming = progress_callback is not None or (json_data is not None and json_data.get("stream") is True)
 
-    if json_data is not None:
-        response = requests.request(method, url, headers=headers, json=json_data, timeout=timeout, stream=is_streaming)
-    elif data is not None:
-        response = requests.request(method, url, headers=headers, data=data, timeout=timeout, stream=is_streaming)
-    else:
-        response = requests.request(method, url, headers=headers, timeout=timeout, stream=is_streaming)
+    with requests.request(
+        method,
+        url,
+        headers=headers,
+        json=json_data if json_data is not None else None,
+        data=data if data is not None else None,
+        timeout=timeout,
+        stream=is_streaming,
+    ) as response:
+        response.raise_for_status()
 
-    response.raise_for_status()
+        # Check if this is an SSE stream
+        content_type = response.headers.get("Content-Type", "").lower()
+        is_sse_stream = "text/event-stream" in content_type or (json_data is not None and json_data.get("stream") is True)
 
-    # Check if this is an SSE stream
-    content_type = response.headers.get("Content-Type", "").lower()
-    is_sse_stream = "text/event-stream" in content_type or (json_data is not None and json_data.get("stream") is True)
+        if is_sse_stream:
+            return _handle_sse_stream(response, progress_callback, stream_chunk_parser, should_cancel)
 
-    if is_sse_stream:
-        content, is_cancelled = _handle_sse_stream(response, progress_callback, stream_chunk_parser, should_cancel)
-        return content, is_cancelled
+        # If no progress callback and not SSE, read the entire response
+        if progress_callback is None:
+            if should_cancel and should_cancel():
+                return None, True
+            return response.content, False
 
-    # If no progress callback and not SSE, read the entire response
-    if progress_callback is None:
-        if should_cancel and should_cancel():
-            return None, True
-        return response.content, False
-
-    # Handle regular byte streaming
-    content, is_cancelled = _handle_byte_stream(response, progress_callback, chunk_size, should_cancel)
-    return content, is_cancelled
+        # Handle regular byte streaming
+        return _handle_byte_stream(response, progress_callback, chunk_size, should_cancel)
 
 
 def _handle_sse_stream(
@@ -143,7 +143,6 @@ def _handle_sse_stream(
     content_length_header = response.headers.get("Content-Length")
     content_length = int(content_length_header) if content_length_header is not None and content_length_header.isdigit() else None
 
-    buffer = ""
     downloaded_bytes = 0
 
     # Force UTF-8 encoding if not specified in headers, as most LM APIs return UTF-8.
@@ -155,58 +154,48 @@ def _handle_sse_stream(
         if "charset" not in content_type:
             response.encoding = "utf-8"
 
-    for chunk in response.iter_content(chunk_size=None, decode_unicode=True):
+    for line in response.iter_lines(decode_unicode=True):
         if should_cancel and should_cancel():
             return None, True
 
-        if not chunk:
+        if not line:
             continue
 
-        if isinstance(chunk, bytes):
-            chunk_str = chunk.decode("utf-8", errors="replace")
-            downloaded_bytes += len(chunk)
-        else:
-            chunk_str = chunk
-            downloaded_bytes += len(chunk_str.encode("utf-8"))
+        # downloaded_bytes estimation (since we are decoding)
+        downloaded_bytes += len(line.encode(response.encoding, errors="replace")) + 1
+        stripped_line = line.strip()
 
-        buffer += chunk_str
+        if not stripped_line or stripped_line.startswith(":"):
+            continue
 
-        # Process complete lines in the buffer
-        while "\n" in buffer:
-            line, buffer = buffer.split("\n", 1)
-            line = line.strip()
+        if stripped_line.startswith("data: "):
+            data_str = stripped_line[6:]
+            if data_str == "[DONE]":
+                break
 
-            if not line or line.startswith(":"):
+            try:
+                data = json.loads(data_str)
+
+                # Use the provided parser if available
+                chunk_text = None
+                if stream_chunk_parser:
+                    chunk_text = stream_chunk_parser(data)
+
+                if chunk_text:
+                    full_text += chunk_text
+                    if progress_callback:
+                        elapsed = time.time() - start_time
+                        progress_data = LmProgressData(
+                            stage=LmRequestStage.RECEIVING,
+                            text_chunk=chunk_text,
+                            total_chars=len(full_text),
+                            total_bytes=downloaded_bytes,
+                            elapsed=elapsed,
+                            content_length=content_length,
+                        )
+                        progress_callback(progress_data)
+            except json.JSONDecodeError:
                 continue
-
-            if line.startswith("data: "):
-                data_str = line[6:]
-                if data_str == "[DONE]":
-                    break
-
-                try:
-                    data = json.loads(data_str)
-
-                    # Use the provided parser if available
-                    chunk_text = None
-                    if stream_chunk_parser:
-                        chunk_text = stream_chunk_parser(data)
-
-                    if chunk_text:
-                        full_text += chunk_text
-                        if progress_callback:
-                            elapsed = time.time() - start_time
-                            progress_data = LmProgressData(
-                                stage=LmRequestStage.RECEIVING,
-                                text_chunk=chunk_text,
-                                total_chars=len(full_text),
-                                total_bytes=downloaded_bytes,
-                                elapsed=elapsed,
-                                content_length=content_length,
-                            )
-                            progress_callback(progress_data)
-                except json.JSONDecodeError:
-                    continue
 
         # If no text was extracted yet (e.g. still downloading), report byte progress
         if not full_text and progress_callback:
@@ -220,23 +209,6 @@ def _handle_sse_stream(
                 content_length=content_length,
             )
             progress_callback(progress_data)
-
-    # If we didn't get any SSE data, try to parse the whole thing as regular JSON
-    if not full_text:
-        try:
-            # Re-decode the whole response if buffer still has content or if we need to check the full body
-            # Note: response.text might not be available if we've consumed it via iter_content
-            # But we've been accumulating in 'buffer' and potentially 'full_text'
-            # If full_text is empty, it might be a non-SSE JSON response
-            # Since we consumed iter_content, we should have the full content in our buffer if it wasn't SSE
-            if buffer:
-                data = json.loads(buffer)
-                # This is a bit of a hack since we don't have the parser for non-SSE JSON here
-                # but usually the caller will handle the full response if it's not SSE.
-                # However, to maintain compatibility with the previous version:
-                return buffer.encode("utf-8"), False
-        except json.JSONDecodeError:
-            pass
 
     # Return a simple JSON containing the full text to maintain compatibility with make_api_request_json
     return json.dumps({"content": full_text}, ensure_ascii=False).encode("utf-8"), False
