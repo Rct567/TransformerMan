@@ -25,34 +25,27 @@ def notes_from_xml(xml_response: str) -> FieldUpdates:
     Returns:
         FieldUpdates instance mapping note IDs to dictionaries of field updates.
         Example: FieldUpdates({123: {"Front": "Hello", "Back": "World"}})
-
-    Raises:
-        ValueError: If the XML response is malformed or cannot be parsed.
     """
 
-    try:
-        # Find all note blocks
-        note_pattern = r'<note nid="(\d+)"[^>]*>(.*?)</note>'
-        notes = re.findall(note_pattern, xml_response, re.DOTALL)
+    # Find all note blocks
+    note_pattern = r'<note nid="(\d+)"[^>]*>(.*?)</note>'
+    notes = re.findall(note_pattern, xml_response, re.DOTALL)
 
-        result = FieldUpdates()
+    result = FieldUpdates()
 
-        for nid, note_content in notes:
-            # Find all fields within this note
-            field_pattern = r'<field name="([^"]+)">([^<]*)</field>'
-            fields = re.findall(field_pattern, note_content)
+    for nid, note_content in notes:
+        # Find all fields within this note
+        field_pattern = r'<field name="([^"]+)">([^<]*)</field>'
+        fields = re.findall(field_pattern, note_content)
 
-            for field_name, field_value in fields:
-                result.add_field_update(
-                    cast("NoteId", int(nid)),
-                    field_name,
-                    unescape_xml_content(field_value)
-                )
+        for field_name, field_value in fields:
+            result.add_field_update(
+                cast("NoteId", int(nid)),
+                field_name,
+                unescape_xml_content(field_value)
+            )
 
-        return result
-
-    except Exception as e:
-        raise ValueError(f"Failed to parse XML response: {e}") from e
+    return result
 
 
 def escape_xml_content(content: str) -> str:
