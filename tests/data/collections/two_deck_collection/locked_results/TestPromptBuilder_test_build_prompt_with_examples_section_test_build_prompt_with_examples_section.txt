@@ -1,0 +1,48 @@
+You are an Anki note assistant. Your task is to fill empty fields in notes based on context.
+
+Instructions:
+- Fill empty fields intelligently based on field names, deck context, and examples.
+- Fill in only the following empty field: "Front".
+
+Here are some example notes from the collection:
+
+<notes model="Basic">
+  <note nid="1701890435655" deck="decka">
+    <field name="Front">aaaa&amp;nbsp; hhh aaaa aaaa aa aa aaaa car</field>
+  </note>
+  <note nid="1701890446032" deck="decka">
+    <field name="Front">aaaa aaaa hh aaaa aa aa aaaa 4</field>
+  </note>
+  <note nid="1701890440810" deck="decka">
+    <field name="Front">aaaa aaaa aaaa aa aa aaaa car</field>
+  </note>
+  <note nid="1701890444014" deck="decka">
+    <field name="Front">aaaa aaaa aaaa aa aa aaaa 3</field>
+  </note>
+  <note nid="1701890448066" deck="decka">
+    <field name="Front">aaaa aaaa aaaa aa aa aaaa 5</field>
+  </note>
+  <note nid="1701890458659" deck="decka">
+    <field name="Front">aaaa aaaa aaaa aa aa aaaa 6</field>
+  </note>
+  <note nid="1701890157782" deck="decka">
+    <field name="Front">aaa aa car aaa hello car</field>
+  </note>
+  <note nid="1701890181405" deck="deckb">
+    <field name="Front">bby bbb bbb bbbbb hello</field>
+  </note>
+  <note nid="1701890196332" deck="deckb">
+    <field name="Front">bby bbb bbb bbbbb bbbb</field>
+  </note>
+  <note nid="1701890404845" deck="deckb">
+    <field name="Front">bbbb bbbb bbbb car bbb</field>
+  </note>
+</notes>
+
+Please fill the specified empty field ("Front") in the following notes and return them in the same XML format:
+
+<notes model="Basic" deck="decka">
+  <note nid="1701890146289">
+    <field name="Front"></field>
+  </note>
+</notes>

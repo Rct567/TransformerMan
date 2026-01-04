@@ -6,22 +6,19 @@ Instructions:
 
 Here are some example notes from the collection:
 
-<notes model="Basic" deck="decka">
-  <note nid="1701890446032">
-    <field name="Front">aaaa aaaa hh aaaa aa aa aaaa 4</field>
-    <field name="Back">aa aa aa aa hh</field>
+<notes model="Basic" deck="Default">
+  <note nid="1767484988547">
+    <field name="Front">Example front 0</field>
   </note>
-  <note nid="1701890435655">
-    <field name="Front">aaaa&amp;nbsp; hhh aaaa aaaa aa aa aaaa car</field>
-    <field name="Back">aa aa aa aa</field>
+  <note nid="1767484988548">
+    <field name="Front">Example front 1</field>
   </note>
 </notes>
 
 Please fill the specified empty field ("Front") in the following notes and return them in the same XML format:
 
-<notes model="Basic" deck="decka">
-  <note nid="1701890133045">
+<notes model="Basic" deck="Default">
+  <note nid="1767484988549">
     <field name="Front"></field>
-    <field name="Back">Note 1 back content</field>
   </note>
 </notes>

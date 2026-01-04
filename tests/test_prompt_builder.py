@@ -64,7 +64,7 @@ class TestPromptBuilder:
             assert "You are an Anki note assistant" in prompt
             assert "Please fill" in prompt
 
-            assert prompt.count('<notes model="Basic">') == 2  # example list + target list
+            assert prompt.count('<notes model="Basic"') == 2  # example list + target list
 
             # Check that our modified notes appear in the prompt
             for note_id in note_ids:
@@ -120,7 +120,7 @@ class TestPromptBuilder:
         assert prompt.count("For field 'Front': Provide a concise question") == 1
         assert prompt.count("For field 'Back': Provide detailed answer") == 0  # Back is not writable
         # Examples should be present from test collection, so exactly 2 <notes> tags
-        assert prompt.count('<notes model="Basic">') == 2
+        assert prompt.count('<notes model="Basic"') == 2
         # There should be at least one empty Front field (our target note)
         assert prompt.count('<field name="Front"></field>') >= 1
         # The target note's Back field should be present (with its original content)
@@ -190,77 +190,39 @@ class TestPromptBuilder:
             )
 
     @with_test_collection("two_deck_collection")
-    def test_build_prompt_includes_deck_name(
-        self,
-        col: TestCollection,
-    ) -> None:
-        """Test build_prompt includes deck name in XML output."""
-        # Create a note in a specific deck
-        model = col.models.by_name("Basic")
-        assert model is not None
-
-        # Get or create a deck with known name
-        deck_name = "TestDeckForPrompt"
-        deck_id = col.decks.id(deck_name)
-        assert deck_id is not None  # Ensure deck was created/found
-
-        note = col.new_note(model)
-        note["Front"] = ""  # Empty field
-        note["Back"] = "Back content"
-        col.add_note(note, deck_id)
-
-        selected_notes = SelectedNotes(col, [note.id])
-        builder = PromptBuilder(col)
-
-        # Build prompt
-        prompt = builder.get_prompt_renderer(
-            target_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
-            field_selection=FieldSelection(
-                selected=["Front"],
-                writable=["Front"],
-                overwritable=[],
-            ),
-            max_examples=3,
-        )(None)
-
-        # Strategic assertions
-        assert prompt.count(f'deck="{deck_name}"') == 1  # Our note should have the deck name exactly once
-        assert prompt.count('<notes model="Basic">') == 2
-        assert prompt.count('<field name="Front">') == 4
-        assert prompt.count('<field name="Front"></field>') == 1
-
-    @with_test_collection("empty_collection")
     def test_build_prompt_with_examples_section(
         self,
         col: TestCollection,
     ) -> None:
         """Test build_prompt includes examples section when example notes are available."""
-        model = col.models.by_name("Basic")
-        assert model is not None
-        deck_id = col.decks.id_for_name("Default")
-        assert deck_id
+        # Use existing notes and modify them
+        note_ids = sorted(col.find_notes(""))[:3]  # Get 3 notes
 
-        # Create example notes (non-empty Front field)
+        # Modify first 2 notes to have non-empty Front fields (examples)
         example_note_ids = []
-        for i in range(2):
-            note = col.new_note(model)
+        for i, note_id in enumerate(note_ids[:2]):
+            note = col.get_note(note_id)
             note["Front"] = f"Example front {i}"  # Non-empty field
             note["Back"] = f"Example back {i}"
-            col.add_note(note, deck_id)
-            example_note_ids.append(note.id)
+            col.update_note(note)
+            example_note_ids.append(note_id)
 
-        # Create target note with empty field
-        target_note = col.new_note(model)
+        # Modify third note to have empty Front field (target)
+        target_note_id = note_ids[2]
+        target_note = col.get_note(target_note_id)
         target_note["Front"] = ""  # Empty field
         target_note["Back"] = "Target back"
-        col.add_note(target_note, deck_id)
+        col.update_note(target_note)
 
-        selected_notes = SelectedNotes(col, [target_note.id])
+        selected_notes = SelectedNotes(col, [target_note_id])
         builder = PromptBuilder(col)
+
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
 
         # Build prompt
         prompt = builder.get_prompt_renderer(
-            target_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
+            target_notes=selected_notes.filter_by_note_type(note_type),
             field_selection=FieldSelection(
                 selected=["Front"],
                 writable=["Front"],
@@ -269,13 +231,36 @@ class TestPromptBuilder:
             max_examples=10,
         )(None)
 
-        # Strategic assertions
+        col.lock_and_assert_result("test_build_prompt_with_examples_section", prompt)
+
         assert prompt.count("Here are some example notes") == 1  # Examples section should be present exactly once
-        # Since we created examples, there should be exactly 2 <notes> tags
-        assert prompt.count('<notes model="Basic">') == 2
-        assert '<field name="Front">' in prompt
-        # The prompt should contain the target note
-        assert f'<note nid="{target_note.id}"' in prompt
-        # The prompt should contain example notes
-        for note_id in example_note_ids:
-            assert f'<note nid="{note_id}"' in prompt
+        assert prompt.count('<notes model="Basic"') == 2  # examples + target
+        assert f'<note nid="{target_note_id}"' in prompt
+        assert prompt.count('<note nid="') == 11  # 10 examples + 1 target
+
+    @with_test_collection("two_deck_collection")
+    def test_format_notes_with_mixed_decks(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test that deck stays on individual notes when notes have different decks."""
+        # Get two notes and put them in different decks
+        note_ids = col.find_notes("")
+
+        selected_notes = SelectedNotes(col, note_ids)
+        builder = PromptBuilder(col)
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
+        prompt = builder.get_prompt_renderer(
+            target_notes=selected_notes.filter_by_note_type(note_type),
+            field_selection=FieldSelection(selected=["Front"], writable=["Front"], overwritable=["Front"]),
+            max_examples=1,
+        )(None)
+
+        col.lock_and_assert_result("test_format_notes_with_mixed_decks", prompt)
+
+        assert prompt.count("Here are some example notes") == 0
+        assert prompt.count('deck="decka"') == 10
+        assert prompt.count('deck="deckb"') == 6
+        assert prompt.count('<notes model="Basic">') == 1

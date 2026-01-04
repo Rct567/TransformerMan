@@ -112,7 +112,7 @@ class PromptBuilder:
     note_cache: dict[NoteId, Note]
     card_cache: dict[CardId, Card]
     find_notes_cache: dict[str, Sequence[NoteId]]
-    note_xml_cache: dict[tuple[NoteId, tuple[str, ...], tuple[str, ...]], str]
+    note_xml_cache: dict[tuple[NoteId, tuple[str, ...], tuple[str, ...], bool], str]
     max_examples: int
 
     def __init__(self, col: Collection) -> None:
@@ -363,10 +363,12 @@ class PromptBuilder:
         # Return top examples
         return [note for _, _, note in scored_candidates[:max_examples]]
 
-    def _format_note_as_xml(self, note: Note, fields_included: Sequence[str], leave_empty: Sequence[str] | None) -> str:
+    def _format_note_as_xml(
+        self, note: Note, fields_included: Sequence[str], leave_empty: Sequence[str] | None, include_deck: bool = True
+    ) -> str:
         """Format a single note as XML with caching."""
         # Create cache key
-        cache_key = (note.id, tuple(fields_included), tuple(leave_empty or []))
+        cache_key = (note.id, tuple(fields_included), tuple(leave_empty or []), include_deck)
 
         # Check cache
         if cache_key in self.note_xml_cache:
@@ -376,7 +378,10 @@ class PromptBuilder:
         deck_name = self._get_deck_name_for_note(note)
 
         # Build XML lines for this note
-        lines = [f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">']
+        if include_deck:
+            lines = [f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">']
+        else:
+            lines = [f'  <note nid="{note.id}">']
 
         # Add included fields
         for field_name in fields_included:
@@ -417,10 +422,23 @@ class PromptBuilder:
 
         assert not leave_empty or all(field in fields_included for field in leave_empty)
 
-        lines = [f'<notes model="{escape_xml_content(note_type.name)}">']
+        # Check if all notes have the same deck
+        common_deck: str | None = None
+        if notes:
+            first_deck = self._get_deck_name_for_note(notes[0])
+            all_same_deck = all(self._get_deck_name_for_note(note) == first_deck for note in notes)
+            if all_same_deck:
+                common_deck = first_deck
 
+        # Build root element
+        if common_deck:
+            lines = [f'<notes model="{escape_xml_content(note_type.name)}" deck="{escape_xml_content(common_deck)}">']
+        else:
+            lines = [f'<notes model="{escape_xml_content(note_type.name)}">']
+
+        # Add notes
         for note in notes:
-            lines.append(self._format_note_as_xml(note, fields_included, leave_empty))
+            lines.append(self._format_note_as_xml(note, fields_included, leave_empty, include_deck=(common_deck is None)))
 
         lines.append("</notes>")
 

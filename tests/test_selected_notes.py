@@ -375,8 +375,8 @@ class TestSelectedNotes:
         test_cases = [
             (20_000, 1, 1),  # (max_chars, min_expected_batches, max_expected_batches)
             (9_500, 2, 2),
-            (4_900, 5, 6),
-            (2_500, 16, 22),
+            (4_900, 4, 5),
+            (2_500, 13, 18),
         ]
 
         num_prompts_tried = []

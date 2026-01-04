@@ -6,16 +6,16 @@ Instructions:
 
 Here are some example notes from the collection:
 
-<notes model="Basic">
-  <note nid="1701890446032" deck="decka">
+<notes model="Basic" deck="decka">
+  <note nid="1701890446032">
     <field name="Front">aaaa aaaa hh aaaa aa aa aaaa 4</field>
     <field name="Back">aa aa aa aa hh</field>
   </note>
-  <note nid="1701890435655" deck="decka">
+  <note nid="1701890435655">
     <field name="Front">aaaa&amp;nbsp; hhh aaaa aaaa aa aa aaaa car</field>
     <field name="Back">aa aa aa aa</field>
   </note>
-  <note nid="1701890440810" deck="decka">
+  <note nid="1701890440810">
     <field name="Front">aaaa aaaa aaaa aa aa aaaa car</field>
     <field name="Back">aa aa aa aa</field>
   </note>
@@ -23,12 +23,12 @@ Here are some example notes from the collection:
 
 Please fill the specified empty field ("Front") in the following notes and return them in the same XML format:
 
-<notes model="Basic">
-  <note nid="1701890133045" deck="decka">
+<notes model="Basic" deck="decka">
+  <note nid="1701890133045">
     <field name="Front"></field>
     <field name="Back">aaa</field>
   </note>
-  <note nid="1701890142102" deck="decka">
+  <note nid="1701890142102">
     <field name="Front"></field>
     <field name="Back">aaa</field>
   </note>
