@@ -39,7 +39,7 @@ class TransformProgressDialog(QProgressDialog):
 
     WAIT_THRESHOLD_SECONDS = 3
 
-    def __init__(self, num_batches: int, parent: QWidget | None = None):
+    def __init__(self, num_batches: int, parent: QWidget | None = None) -> None:
         """
         Initialize the progress dialog.
 

@@ -22,6 +22,7 @@ extend-select = [
     "UP",       # Category selector for all pyupgrade rules (prefix UP).
     "RUF",      # ruff's own rules
     "FA",       # flake8-future-annotations ruleset
+    "ANN",      # flake8-annotations ruleset
 ]
 ignore = [
     "PLR6301",   # No self use - Checks for the presence of unused `self` parameter in method definitions.
@@ -51,6 +52,7 @@ ignore = [
     "E226",      # Missing whitespace around arithmetic operator
     "PLW0108",   # Lambda may be not necessary
     "PLR0904",   # To many public methods
+    "ANN401",    # Dynamically typed expressions disallowed
 ]
 
 

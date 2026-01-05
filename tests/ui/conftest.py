@@ -17,6 +17,7 @@ from aqt.qt import QWidget, QMessageBox
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pytestqt.qtbot import QtBot
 
 
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
 # Also patch QMessageBox to avoid showing dialogs during tests
 # Patch QueryOp to avoid requiring main window
 @pytest.fixture(autouse=True)
-def mock_anki_utils():
+def mock_anki_utils() -> Generator[None, None, None]:
     """Mock Anki utility functions that require main window."""
     with patch("transformerman.ui.base_dialog.restoreGeom") as mock_restore, \
          patch("transformerman.ui.base_dialog.saveGeom") as mock_save, \

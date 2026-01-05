@@ -15,7 +15,7 @@ from ..ui.ui_utilities import debounce, EventManager, Event
 
 if TYPE_CHECKING:
     from ..lib.addon_config import AddonConfig
-    from collections.abc import Sequence
+    from collections.abc import Sequence, ItemsView, ValuesView
 
 
 class FieldSelection(NamedTuple):
@@ -214,11 +214,11 @@ class FieldWidgets:
         """Add a widget."""
         self._widgets[field_name] = widget
 
-    def items(self):
+    def items(self) -> ItemsView[str, FieldWidget]:
         """Return widget items."""
         return self._widgets.items()
 
-    def values(self):
+    def values(self) -> ValuesView[FieldWidget]:
         """Return widget values."""
         return self._widgets.values()
 

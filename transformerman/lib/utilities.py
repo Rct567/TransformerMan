@@ -63,7 +63,7 @@ elif TYPE_CHECKING:
     from typing_extensions import override  # type: ignore[unused-import]
 else:
     # Dummy decorator for runtime on Python < 3.12
-    def override(func):  # type: ignore[misc]
+    def override(func: Callable) -> Callable[..., Any]:
         return func
 
 

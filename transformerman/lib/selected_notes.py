@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 class NoteModel:
     """Wrapper for Anki's note type (model)."""
 
-    def __init__(self, col: Collection, data: NotetypeDict):
+    def __init__(self, col: Collection, data: NotetypeDict) -> None:
         self.col = col
         self.data = data
 

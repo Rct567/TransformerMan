@@ -33,7 +33,7 @@ class AddonConfig:
     _config_load: Callable[[], Optional[dict[str, Any]]]
     _config_save: Callable[[dict[str, Any]], None]
 
-    def __init__(self, config_loader: Callable[[], Optional[dict[str, Any]]], config_saver: Callable[[dict[str, Any]], None]):
+    def __init__(self, config_loader: Callable[[], Optional[dict[str, Any]]], config_saver: Callable[[dict[str, Any]], None]) -> None:
         self._config = None
         self._config_load = config_loader
         self._config_save = config_saver

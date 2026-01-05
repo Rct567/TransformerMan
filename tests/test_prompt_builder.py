@@ -59,7 +59,7 @@ class TestPromptBuilder:
             max_examples=3,
         )(None)
 
-        def check_prompt(prompt: str):
+        def check_prompt(prompt: str) -> None:
 
             assert "You are an Anki note assistant" in prompt
             assert "Please fill" in prompt

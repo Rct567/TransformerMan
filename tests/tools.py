@@ -122,7 +122,7 @@ class TestCollection(Collection):
         )
 
     def __init__(self, collection_name: str, collection_dir: Path,
-                 caller_context: Optional[CallerContext] = None):
+                 caller_context: Optional[CallerContext] = None) -> None:
         self.collection_name = collection_name
         self.collection_dir = collection_dir
 
@@ -165,7 +165,7 @@ class TestCollection(Collection):
         return order_file_dir / "{}_{}.txt".format(self.caller_full_name, lock_name)
 
     # helper function used to lock-in and assert result
-    def lock_and_assert_result(self, lock_name: str, result_data: Any):
+    def lock_and_assert_result(self, lock_name: str, result_data: Any) -> None:
         result_file_path = self.__get_lock_file_path(lock_name, "locked_results")
 
         if isinstance(result_data, str):
@@ -190,7 +190,7 @@ class TestCollection(Collection):
 
     # helper function used to lock-in and assert order
 
-    def lock_and_assert_order(self, lock_name: str, sorted_items: Sequence[Any]):
+    def lock_and_assert_order(self, lock_name: str, sorted_items: Sequence[Any]) -> None:
 
         order_file_path = self.__get_lock_file_path(lock_name, "locked_orders")
 
@@ -208,7 +208,7 @@ class TestCollection(Collection):
                 file.write("\n".join(map(str, sorted_items)))
             print("WARNING: Order file '{}' for '{}' didn't exist yet!".format(order_file_path, self.collection_name))
 
-    def remove(self):
+    def remove(self) -> None:
 
         if self.db:
             self.close()
@@ -238,7 +238,7 @@ class TestCollections:
     last_initiated_test_collection: Optional[TestCollection] = None
 
     @staticmethod
-    def run_cleanup_routine():
+    def run_cleanup_routine() -> None:
 
         test_collection_folder = TEST_COLLECTIONS_DIR
         cutoff = time.time() - 30  # 30 seconds

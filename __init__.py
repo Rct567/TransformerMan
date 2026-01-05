@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from aqt.browser.browser import Browser
 
 
-def get_mw():
+def get_mw() -> AnkiQt:
     return anki_main_window
 
 
