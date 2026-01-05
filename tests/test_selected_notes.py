@@ -265,6 +265,7 @@ class TestSelectedNotes:
             ),
             max_chars=1000,
             max_examples=10,
+            max_notes_per_batch=500
         )
 
         assert batches == []
@@ -301,6 +302,7 @@ class TestSelectedNotes:
             ),
             max_chars=1000,
             max_examples=10,
+            max_notes_per_batch=500
         )
 
         assert batches == []
@@ -338,6 +340,7 @@ class TestSelectedNotes:
             ),
             max_chars=500000,  # Very large
             max_examples=10,
+            max_notes_per_batch=500
         )
 
         # Should be one batch with all 3 notes
@@ -391,6 +394,7 @@ class TestSelectedNotes:
                 ),
                 max_chars=max_chars,
                 max_examples=10,
+                max_notes_per_batch=500
             )
 
             # Verify batch count is reasonable
@@ -506,6 +510,7 @@ class TestSelectedNotes:
             ),
             max_chars=10,  # Extremely small
             max_examples=3,
+            max_notes_per_batch=500
         )
         batches_increased_max_chars = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
             prompt_builder=prompt_builder,
@@ -516,6 +521,7 @@ class TestSelectedNotes:
             ),
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
             max_examples=3,
+            max_notes_per_batch=500
         )
         batches_increased_max_chars_with_large_field = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
             prompt_builder=prompt_builder,
@@ -526,6 +532,7 @@ class TestSelectedNotes:
             ),
             max_chars=1000,  # Increased to allow the note (prompt size is 842)
             max_examples=3,
+            max_notes_per_batch=500
         )
 
         # Should be empty (note skipped with warning logged)
@@ -1085,6 +1092,7 @@ class SelectedNotesParent:
             ),
             max_chars=5000,
             max_examples=10,
+            max_notes_per_batch=500
         )
 
         batch = batches[0]

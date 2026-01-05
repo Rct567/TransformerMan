@@ -148,9 +148,9 @@ def batched_by_prompt_size(
     field_selection: FieldSelection,
     max_chars: int,
     max_examples: int,
+    max_notes_per_batch: int,
     logger: logging.Logger,
     prompt_template: str | None = None,
-    max_notes_per_batch: int = 1000,
 ) -> tuple[list[SelectedNotesBatch], BatchingStats]:
     """
     Batch notes by maximum prompt size using adaptive prediction with learning.
