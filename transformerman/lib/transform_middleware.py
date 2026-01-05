@@ -16,6 +16,10 @@ if TYPE_CHECKING:
     from .transform_operations import NoteTransformer
 
 
+def format_log_header(text: str, width: int = 80, fill_char: str = "=") -> str:
+    return f" {text} ".center(width, fill_char)
+
+
 class Middleware(ABC):
     """Abstract base class for all middleware components."""
 
@@ -56,7 +60,7 @@ class LogLastRequestResponseMiddleware(Middleware):
 
         timestamp = datetime.now().isoformat()
         with self.log_file.open("w", encoding="utf-8") as f:
-            f.write(f"=== REQUEST [{timestamp}] ===\n")
+            f.write(format_log_header(f"REQUEST [{timestamp}]") + "\n\n")
             f.write(f"{note_transformer.prompt}\n\n")
 
     @override
@@ -67,7 +71,7 @@ class LogLastRequestResponseMiddleware(Middleware):
 
         timestamp = datetime.now().isoformat()
         with self.log_file.open("a", encoding="utf-8") as f:
-            f.write(f"=== RESPONSE [{timestamp}] ===\n")
+            f.write(format_log_header(f"RESPONSE [{timestamp}]") + "\n\n")
             if note_transformer.response is None:
                 f.write("No response...\n\n")
             else:
