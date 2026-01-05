@@ -49,6 +49,8 @@ __1033047802__
    - Click **Preview** to see what changes will be made
    - Review the changes and click **Apply** to save changes
 
+Note: You can hold shift and click on "Preview" to view and change the generated prompt.
+
 ## Free Options
 
 - **Gemini**: Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
@@ -67,8 +69,11 @@ Access via **Tools → TransformerMan Settings**:
 - **API Key**: Your language model API key
 - **Max Prompt Size**: Maximum prompt size in characters (lower number would require more batches)
 - **Timeout**: Request timeout in seconds
+- **Max Notes Per Batch**: Maximum number of notes to process in a single batch
 - **Max Examples**: Maximum number of example notes to use for generated prompt
 - **Custom Settings**: Client-specific settings (e.g., Organization ID for OpenAI)
+
+Note: both **Max Prompt Size** and **Max Notes Per Batch** limit the number of notes processed in a single batch, and thus the amount of API calls needed.
 
 ## How It Works
 
