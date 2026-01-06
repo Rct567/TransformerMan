@@ -43,7 +43,6 @@ ADDON_NAME = "TransformerMan"
 
 def open_settings(parent: QWidget, addon_config: AddonConfig) -> None:
     """Open the settings dialog."""
-
     addon_config.reload()
 
     dialog = SettingsDialog(parent, addon_config)
@@ -131,13 +130,13 @@ def open_add_notes_dialog(mw: AnkiQt, browser: Browser, addon_config: AddonConfi
         addon_config=addon_config,
         user_files_dir=TM_USER_FILES_DIR,
         example_notes=example_notes,
+        initial_search=browser.current_search(),
     )
     dialog.exec()
 
 
 def setup_browser_menu(mw: AnkiQt, browser: Browser, menu: Any, addon_config: AddonConfig) -> None:
     """Add TransformerMan to browser context menu."""
-
     tm_menu = menu.addMenu(ADDON_NAME)
     tm_menu.setIcon(get_tm_icon(is_dark_mode(mw)))
 

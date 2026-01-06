@@ -5,7 +5,8 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import re
+from typing import TYPE_CHECKING, Literal
 
 from aqt.qt import (
     QVBoxLayout,
@@ -43,6 +44,8 @@ if TYPE_CHECKING:
 class AddNotesDialog(TransformerManBaseDialog):
     """Dialog for generating and adding new Anki notes."""
 
+    _is_locked_by_context: tuple[NoteModel, str] | Literal[False]
+
     def __init__(
         self,
         parent: QWidget,
@@ -52,12 +55,14 @@ class AddNotesDialog(TransformerManBaseDialog):
         addon_config: AddonConfig,
         user_files_dir: Path,
         example_notes: SelectedNotes | None = None,
+        initial_search: str | None = None,
     ) -> None:
         super().__init__(parent, is_dark_mode)
         self.col = col
         self.lm_client = lm_client
         self.addon_config = addon_config
         self.example_notes = example_notes
+        self.initial_search = initial_search
 
         # Setup transform middleware (for logging)
         self.transform_middleware = TransformMiddleware()
@@ -65,7 +70,7 @@ class AddNotesDialog(TransformerManBaseDialog):
         self.transform_middleware.register(lm_logging)
 
         self.generator = NoteGenerator(col, lm_client, self.transform_middleware)
-        self._is_note_type_locked = False
+        self._is_locked_by_context = False
 
         self.setWindowTitle("TransformerMan: Add Notes")
         self.setMinimumWidth(800)
@@ -170,9 +175,17 @@ class AddNotesDialog(TransformerManBaseDialog):
             if most_common_deck:
                 self.deck_combo.setCurrentText(most_common_deck)
 
+        if self.initial_search:
+            # Try to find deck: in search string (handles deck:"Name" and deck:Name)
+            match = re.search(r'deck:(?:"([^"]+)"|([^\s]+))', self.initial_search)
+            if match:
+                deck_name = match.group(1) or match.group(2)
+                if deck_name in self.col.decks.all_names():
+                    self.deck_combo.setCurrentText(deck_name)
+
     def _on_field_selection_changed(self, _item: QListWidgetItem) -> None:
         """Update table columns when field selection changes (if not locked)."""
-        if self._is_note_type_locked:
+        if self._is_locked_by_context:
             return
 
         selected_fields = []
@@ -223,13 +236,18 @@ class AddNotesDialog(TransformerManBaseDialog):
             showInfo("Please select at least one field.")
             return
 
-        note_type_name = self.note_type_combo.currentText()
         deck_name = self.deck_combo.currentText()
         target_count = self.count_spin.value()
 
-        model = NoteModel.by_name(self.col, note_type_name)
-        if not model:
-            return
+        if self._is_locked_by_context:
+            model, deck_name = self._is_locked_by_context
+        else:
+            selected_model = NoteModel.by_name(self.col, self.note_type_combo.currentText())
+            if not selected_model:
+                return
+            else:
+                model = selected_model
+            deck_name = self.deck_combo.currentText()
 
         self.generate_btn.setEnabled(False)
         self.generate_btn.setText("Generating...")
@@ -269,10 +287,11 @@ class AddNotesDialog(TransformerManBaseDialog):
             self.generate_btn.setEnabled(True)
             self.generate_btn.setText("Generate notes")
             if notes:
-                # Lock note type and field selection after first successful generation
-                if not self._is_note_type_locked:
-                    self._is_note_type_locked = True
+                # Lock note type, deck and field selection after first successful generation
+                if not self._is_locked_by_context:
+                    self._is_locked_by_context = (model, deck_name)
                     self.note_type_combo.setEnabled(False)
+                    self.deck_combo.setEnabled(False)
                     self.field_list.setEnabled(False)
 
                 self.table.append_notes(notes, selected_fields)
