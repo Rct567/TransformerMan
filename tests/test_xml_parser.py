@@ -6,40 +6,25 @@ from __future__ import annotations
 
 from anki.notes import NoteId
 
-from transformerman.lib.xml_parser import notes_from_xml, escape_xml_content, unescape_xml_content
+from transformerman.lib.xml_parser import new_notes_from_xml, notes_from_xml, escape_xml_content, unescape_xml_content
 from transformerman.lib.field_updates import FieldUpdates
 
 
 class TestXmlParser:
     """Test class for XML parser."""
 
-    def test_parse_simple_response(self) -> None:
-        """Test parsing a simple XML response."""
-        xml = """<notes model="Basic">
-  <note nid="123" deck="Test">
-    <field name="Front">Hello</field>
-    <field name="Back">World</field>
-  </note>
-</notes>"""
-
-        result = notes_from_xml(xml)
-
-        assert NoteId(123) in result
-        assert result[NoteId(123)]["Front"] == "Hello"
-        assert result[NoteId(123)]["Back"] == "World"
-
-    def test_parse_multiple_notes(self) -> None:
+    def test_notes_from_xml_multiple_notes(self) -> None:
         """Test parsing multiple notes."""
         xml = """<notes model="Basic">
-  <note nid="123" deck="Test">
-    <field name="Front">Q1</field>
-    <field name="Back">A1</field>
-  </note>
-  <note nid="456" deck="Test">
-    <field name="Front">Q2</field>
-    <field name="Back">A2</field>
-  </note>
-</notes>"""
+        <note nid="123" deck="Test">
+            <field name="Front">Q1</field>
+            <field name="Back">A1</field>
+        </note>
+        <note nid="456" deck="Test">
+            <field name="Front">Q2</field>
+            <field name="Back">A2</field>
+        </note>
+        </notes>"""
 
         result = notes_from_xml(xml)
 
@@ -47,7 +32,7 @@ class TestXmlParser:
         assert result[NoteId(123)]["Front"] == "Q1"
         assert result[NoteId(456)]["Back"] == "A2"
 
-    def test_parse_xml_with_escaped_content(self) -> None:
+    def test_notes_from_xml_with_escaped_content(self) -> None:
         """Test parsing XML response with escaped content."""
         # Use escape_xml_content to generate the escaped XML
         # This ensures we're testing with the same escaping that would be used in production
@@ -58,11 +43,11 @@ class TestXmlParser:
         escaped_back = escape_xml_content(back_content)
 
         xml = f"""<notes model="Basic">
-  <note nid="123" deck="Test">
-    <field name="Front">{escaped_front}</field>
-    <field name="Back">{escaped_back}</field>
-  </note>
-</notes>"""
+        <note nid="123" deck="Test">
+            <field name="Front">{escaped_front}</field>
+            <field name="Back">{escaped_back}</field>
+        </note>
+        </notes>"""
 
         result = notes_from_xml(xml)
 
@@ -70,7 +55,7 @@ class TestXmlParser:
         assert result[NoteId(123)]["Front"] == front_content
         assert result[NoteId(123)]["Back"] == back_content
 
-    def test_parse_empty_response(self) -> None:
+    def test_notes_from_xml_empty_response(self) -> None:
         """Test parsing empty XML response."""
         xml = "<notes></notes>"
 
@@ -79,7 +64,7 @@ class TestXmlParser:
         assert len(result) == 0
         assert isinstance(result, FieldUpdates)
 
-    def test_parse_malformed_xml(self) -> None:
+    def test_notes_from_xml_malformed_xml(self) -> None:
         """Test parsing malformed XML raises ValueError."""
         xml = '<notes><note nid="123">'  # Unclosed tags
 
@@ -109,3 +94,50 @@ class TestXmlParser:
         unescaped = unescape_xml_content(escaped)
 
         assert unescaped == original
+
+    def test_new_notes_from_xml_root_deck(self) -> None:
+        xml = """
+        <notes model="Basic" deck="Default">
+        <note>
+            <field name="Front">Front 1</field>
+            <field name="Back">Back 1</field>
+        </note>
+        <note>
+            <field name="Front">Front 2</field>
+            <field name="Back">Back 2</field>
+        </note>
+        </notes>
+        """
+        notes = new_notes_from_xml(xml)
+        assert len(notes) == 2
+        assert notes[0]["Front"] == "Front 1"
+        assert notes[0]["deck"] == "Default"
+        assert notes[1]["Back"] == "Back 2"
+        assert notes[1]["deck"] == "Default"
+
+    def test_new_notes_from_xml_mixed_decks(self) -> None:
+        xml = """
+        <notes model="Basic">
+        <note deck="Deck A">
+            <field name="Front">Front A</field>
+        </note>
+        <note deck="Deck B">
+            <field name="Front">Front B</field>
+        </note>
+        </notes>
+        """
+        notes = new_notes_from_xml(xml)
+        assert len(notes) == 2
+        assert notes[0]["deck"] == "Deck A"
+        assert notes[1]["deck"] == "Deck B"
+
+    def test_new_notes_from_xml_unescape(self) -> None:
+        xml = """
+        <notes model="Basic">
+        <note>
+            <field name="Front">A &amp; B &lt; C</field>
+        </note>
+        </notes>
+        """
+        notes = new_notes_from_xml(xml)
+        assert notes[0]["Front"] == "A & B < C"

@@ -48,6 +48,49 @@ def notes_from_xml(xml_response: str) -> FieldUpdates:
     return result
 
 
+def new_notes_from_xml(xml_response: str) -> list[dict[str, str]]: # noqa
+    """
+    Parse XML-like LM response and extract new notes.
+
+    Args:
+        xml_response: The XML-like response from the LM containing new notes.
+
+    Returns:
+        List of dictionaries, each representing a new note's fields and optionally its deck.
+        Example: [{"Front": "Hello", "Back": "World", "deck": "Default"}]
+    """
+    # Find root deck if present
+    root_deck_match = re.search(r'<notes[^>]*deck="([^"]+)"', xml_response)
+    root_deck = root_deck_match.group(1) if root_deck_match else None
+
+    # Find all note blocks
+    note_pattern = r"<note\b([^>]*)>(.*?)</note>"
+    notes = re.findall(note_pattern, xml_response, re.DOTALL)
+
+    result = []
+
+    for note_attrs, note_content in notes:
+        note_data = {}
+
+        # Check for deck attribute in note tag
+        note_deck_match = re.search(r'deck=["\'](.*?)["\']', note_attrs)
+        deck = note_deck_match.group(1) if note_deck_match else root_deck
+        if deck:
+            note_data["deck"] = deck
+
+        # Find all fields within this note
+        field_pattern = r'<field name="([^"]+)">([^<]*)</field>'
+        fields = re.findall(field_pattern, note_content)
+
+        for field_name, field_value in fields:
+            note_data[field_name] = unescape_xml_content(field_value)
+
+        if note_data:
+            result.append(note_data)
+
+    return result
+
+
 def escape_xml_content(content: str) -> str:
     """
     Escape special XML characters in content.
