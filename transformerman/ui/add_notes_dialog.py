@@ -26,7 +26,7 @@ from aqt.operations import QueryOp
 
 from .base_dialog import TransformerManBaseDialog
 from .generated_notes_table import GeneratedNotesTable
-from .transform_notes import TransformProgressDialog
+from .transform_notes import ProgressDialog
 from ..lib.note_generator import NoteGenerator
 from ..lib.selected_notes import NoteModel
 from ..lib.selected_notes import SelectedNotes
@@ -235,7 +235,7 @@ class AddNotesDialog(TransformerManBaseDialog):
         self.generate_btn.setText("Generating...")
 
         # Create progress dialog
-        progress = TransformProgressDialog(1, self)
+        progress = ProgressDialog(1, self)
         progress.show()
 
         def generate(col: Collection) -> list[dict[str, str]]:
