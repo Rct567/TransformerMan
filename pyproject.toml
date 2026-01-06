@@ -61,11 +61,11 @@ ignore = [
 
 [tool.ruff.lint.pylint]
 max-locals = 30
-max-branches = 120
-max-statements = 135
-max-returns = 70
+max-branches = 100
+max-statements = 100
+max-returns = 40
 max-args = 9
-max-nested-blocks = 7
+max-nested-blocks = 5
 max-positional-args = 12
 
 [tool.pyright]
