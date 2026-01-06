@@ -16,7 +16,7 @@ from aqt.utils import showInfo, showWarning
 
 from .transformerman.ui.main_window import TransformerManMainWindow  # type: ignore[import-not-found]
 from .transformerman.ui.settings_dialog import SettingsDialog  # type: ignore[import-not-found]
-from .transformerman.ui.add_notes_dialog import AddNotesDialog  # type: ignore[import-not-found]
+from .transformerman.ui.generate_notes_dialog import GenerateNotesDialog  # type: ignore[import-not-found]
 from .transformerman.ui.ui_utilities import insert_action_after, get_tm_icon  # type: ignore[import-not-found]
 from .transformerman.lib.addon_config import AddonConfig  # type: ignore[import-not-found]
 from .transformerman.lib.selected_notes import SelectedNotes  # type: ignore[import-not-found]
@@ -96,7 +96,7 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
     window.exec()
 
 
-def open_add_notes_dialog(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) -> None:
+def open_generate_notes_dialog(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) -> None:
     """Open the Add Notes dialog from card browser."""
     if not mw.col:
         return
@@ -122,7 +122,7 @@ def open_add_notes_dialog(mw: AnkiQt, browser: Browser, addon_config: AddonConfi
     if note_ids:
         example_notes = SelectedNotes(mw.col, note_ids)
 
-    dialog = AddNotesDialog(
+    dialog = GenerateNotesDialog(
         parent=browser,
         is_dark_mode=is_dark_mode(mw),
         col=mw.col,
@@ -140,13 +140,23 @@ def setup_browser_menu(mw: AnkiQt, browser: Browser, menu: Any, addon_config: Ad
     tm_menu = menu.addMenu(ADDON_NAME)
     tm_menu.setIcon(get_tm_icon(is_dark_mode(mw)))
 
-    fill_fields_action = QAction("Fill fields", browser)
+    fill_fields_action = QAction("♻️ Fill fields", browser)
     fill_fields_action.triggered.connect(lambda: open_main_window(mw, browser, addon_config))
     tm_menu.addAction(fill_fields_action)
 
-    add_notes_action = QAction("Add notes", browser)
-    add_notes_action.triggered.connect(lambda: open_add_notes_dialog(mw, browser, addon_config))
-    tm_menu.addAction(add_notes_action)
+    generate_notes_action = QAction("✨ Generate notes", browser)
+    generate_notes_action.triggered.connect(lambda: open_generate_notes_dialog(mw, browser, addon_config))
+    tm_menu.addAction(generate_notes_action)
+
+    # action = QAction(f"{ADDON_NAME}: ♻️ Fill fields", browser)
+    # action.setIcon(get_tm_icon(is_dark_mode(mw)))
+    # action.triggered.connect(lambda: open_main_window(mw, browser, addon_config))
+    # menu.addAction(action)
+
+    # generate_notes_action = QAction(f"{ADDON_NAME}: ✨ Generate notes", browser)
+    # generate_notes_action.setIcon(get_tm_icon(is_dark_mode(mw)))
+    # generate_notes_action.triggered.connect(lambda: open_generate_notes_dialog(mw, browser, addon_config))
+    # menu.addAction(generate_notes_action)
 
 
 def setup_browser_top_menu(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) -> None:

@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from ..lib.http_utils import LmProgressData
 
 
-class AddNotesDialog(TransformerManBaseDialog):
+class GenerateNotesDialog(TransformerManBaseDialog):
     """Dialog for generating and adding new Anki notes."""
 
     _is_locked_by_context: tuple[NoteModel, str] | Literal[False]
@@ -72,7 +72,7 @@ class AddNotesDialog(TransformerManBaseDialog):
         self.generator = NoteGenerator(col, lm_client, self.transform_middleware)
         self._is_locked_by_context = False
 
-        self.setWindowTitle("TransformerMan: Add Notes")
+        self.setWindowTitle("TransformerMan: Generate notes")
         self.setMinimumWidth(800)
         self.setMinimumHeight(600)
 
