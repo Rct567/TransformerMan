@@ -35,13 +35,14 @@ from ..lib.selected_notes import SelectedNotes
 from ..lib.transform_middleware import LogLastRequestResponseMiddleware, TransformMiddleware
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
     from anki.collection import Collection
+    from anki.notes import NoteId
+    from anki.cards import CardId
     from ..lib.lm_clients import LMClient
     from ..lib.addon_config import AddonConfig
     from ..lib.http_utils import LmProgressData
-    from anki.notes import NoteId
-    from anki.cards import CardId
 
 
 class GenerateNotesDialog(TransformerManBaseDialog):
@@ -57,8 +58,8 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         lm_client: LMClient,
         addon_config: AddonConfig,
         user_files_dir: Path,
-        note_ids: list[NoteId],
-        card_ids: list[CardId] | None = None,
+        note_ids: Sequence[NoteId],
+        card_ids: Sequence[CardId] | None = None,
         initial_search: str | None = None,
     ) -> None:
         super().__init__(parent, is_dark_mode)

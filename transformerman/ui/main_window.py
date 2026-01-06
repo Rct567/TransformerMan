@@ -63,11 +63,11 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         parent: QWidget,
         is_dark_mode: bool,
         col: Collection,
-        note_ids: list[NoteId],
+        note_ids: Sequence[NoteId],
         lm_client: LMClient,
         addon_config: AddonConfig,
         user_files_dir: Path,
-        card_ids: list[CardId] | None = None,
+        card_ids: Sequence[CardId] | None = None,
     ) -> None:
         """
         Initialize the main window.
@@ -76,11 +76,11 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             parent: Parent widget.
             is_dark_mode: Whether the application is in dark mode.
             col: Anki collection.
-            note_ids: List of selected note IDs.
+            note_ids: Sequence of selected note IDs.
             lm_client: LM client instance.
             addon_config: Addon configuration instance.
             user_files_dir: Directory for user files.
-            card_ids: List of selected card IDs (optional). If provided, used for deck detection.
+            card_ids: Sequence of selected card IDs (optional). If provided, used for deck detection.
         """
         super().__init__(parent, is_dark_mode)
         self.is_dark_mode = is_dark_mode

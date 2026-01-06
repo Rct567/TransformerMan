@@ -19,7 +19,6 @@ from .transformerman.ui.settings_dialog import SettingsDialog  # type: ignore[im
 from .transformerman.ui.generate_notes_dialog import GenerateNotesDialog  # type: ignore[import-not-found]
 from .transformerman.ui.ui_utilities import insert_action_after, get_tm_icon  # type: ignore[import-not-found]
 from .transformerman.lib.addon_config import AddonConfig  # type: ignore[import-not-found]
-from .transformerman.lib.selected_notes import SelectedNotes  # type: ignore[import-not-found]
 
 
 if TYPE_CHECKING:
@@ -59,8 +58,8 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
     if not mw.col:
         return
 
-    note_ids = list(browser.selected_notes())
-    card_ids = list(browser.selected_cards())
+    note_ids = browser.selected_notes()
+    card_ids = browser.selected_cards()
 
     if not note_ids:
         showInfo("Please select at least one note.", parent=browser)
@@ -115,8 +114,8 @@ def open_generate_notes_dialog(mw: AnkiQt, browser: Browser, addon_config: Addon
         )
         return
 
-    note_ids = list(browser.selected_notes())
-    card_ids = list(browser.selected_cards())
+    note_ids = browser.selected_notes()
+    card_ids = browser.selected_cards()
 
     if not note_ids:
         showInfo("Please select at least one note.", parent=browser)
