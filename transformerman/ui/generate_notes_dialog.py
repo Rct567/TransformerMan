@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Literal
 from aqt.qt import (
     QVBoxLayout,
     QHBoxLayout,
+    QGridLayout,
     QLabel,
     QTextEdit,
     QComboBox,
@@ -39,6 +40,8 @@ if TYPE_CHECKING:
     from ..lib.lm_clients import LMClient
     from ..lib.addon_config import AddonConfig
     from ..lib.http_utils import LmProgressData
+    from anki.notes import NoteId
+    from anki.cards import CardId
 
 
 class GenerateNotesDialog(TransformerManBaseDialog):
@@ -54,14 +57,15 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         lm_client: LMClient,
         addon_config: AddonConfig,
         user_files_dir: Path,
-        example_notes: SelectedNotes | None = None,
+        note_ids: list[NoteId],
+        card_ids: list[CardId] | None = None,
         initial_search: str | None = None,
     ) -> None:
         super().__init__(parent, is_dark_mode)
         self.col = col
         self.lm_client = lm_client
         self.addon_config = addon_config
-        self.example_notes = example_notes
+        self.example_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
         self.initial_search = initial_search
 
         # Setup transform middleware (for logging)
@@ -82,6 +86,27 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
+
+        # Selection section (Note type and Deck)
+        selection_layout = QGridLayout()
+
+        # Note type
+        note_type_text = QLabel("Select note type:")
+        note_type_text.setMinimumWidth(145)
+        selection_layout.addWidget(note_type_text, 0, 0)
+        self.note_type_combo = QComboBox()
+        self.note_type_combo.currentTextChanged.connect(self._on_note_type_changed)
+        selection_layout.addWidget(self.note_type_combo, 0, 1)
+
+        # Deck
+        deck_text = QLabel("Select deck:")
+        deck_text.setMinimumWidth(145)
+        selection_layout.addWidget(deck_text, 1, 0)
+        self.deck_combo = QComboBox()
+        selection_layout.addWidget(self.deck_combo, 1, 1)
+
+        selection_layout.setColumnStretch(1, 1)
+        layout.addLayout(selection_layout)
 
         # Top Section: Source Text and Field Selection
         top_layout = QHBoxLayout()
@@ -107,15 +132,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
         # Settings Section
         settings_layout = QHBoxLayout()
-
-        settings_layout.addWidget(QLabel("Note Type:"))
-        self.note_type_combo = QComboBox()
-        self.note_type_combo.currentTextChanged.connect(self._on_note_type_changed)
-        settings_layout.addWidget(self.note_type_combo)
-
-        settings_layout.addWidget(QLabel("Deck:"))
-        self.deck_combo = QComboBox()
-        settings_layout.addWidget(self.deck_combo)
+        settings_layout.addStretch()
 
         settings_layout.addWidget(QLabel("Count:"))
         self.count_spin = QSpinBox()
@@ -155,7 +172,10 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
     def _populate_dropdowns(self) -> None:
         # Note Types
-        note_types = sorted([m["name"] for m in self.col.models.all()])
+        if self.example_notes:
+            note_types = list(self.example_notes.get_note_type_counts().keys())
+        else:
+            note_types = sorted([m["name"] for m in self.col.models.all()])
         self.note_type_combo.addItems(note_types)
 
         # Decks

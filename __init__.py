@@ -59,7 +59,6 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
     if not mw.col:
         return
 
-    # Get selected note IDs and card IDs
     note_ids = list(browser.selected_notes())
     card_ids = list(browser.selected_cards())
 
@@ -116,11 +115,12 @@ def open_generate_notes_dialog(mw: AnkiQt, browser: Browser, addon_config: Addon
         )
         return
 
-    # Get selected notes to use as examples
     note_ids = list(browser.selected_notes())
-    example_notes = None
-    if note_ids:
-        example_notes = SelectedNotes(mw.col, note_ids)
+    card_ids = list(browser.selected_cards())
+
+    if not note_ids:
+        showInfo("Please select at least one note.", parent=browser)
+        return
 
     dialog = GenerateNotesDialog(
         parent=browser,
@@ -129,7 +129,8 @@ def open_generate_notes_dialog(mw: AnkiQt, browser: Browser, addon_config: Addon
         lm_client=lm_client,
         addon_config=addon_config,
         user_files_dir=TM_USER_FILES_DIR,
-        example_notes=example_notes,
+        note_ids=note_ids,
+        card_ids=card_ids,
         initial_search=browser.current_search(),
     )
     dialog.exec()
