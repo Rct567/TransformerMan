@@ -272,8 +272,7 @@ class SelectedNotes:
         Returns:
             True if the note has at least one empty field in selected_fields, False otherwise.
         """
-        selected_fields_set = set(selected_fields)
-        return any(not note[field].strip() for field in selected_fields_set if field in note)
+        return any(not note[field].strip() for field in selected_fields if field in note)
 
     def has_note_with_empty_field(self, selected_fields: Sequence[str]) -> bool:
         """
