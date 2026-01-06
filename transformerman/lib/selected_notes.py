@@ -64,6 +64,7 @@ class SelectedNotes:
 
     _note_ids: Sequence[NoteId]
     _card_ids: Sequence[CardId] | None
+    _card_ids_set: set[CardId] | None
     _note_cache: dict[NoteId, Note]
     _deck_cache: dict[CardId, str]
     batching_stats: BatchingStats | None
@@ -81,6 +82,7 @@ class SelectedNotes:
         self.col = col
         self._note_ids = note_ids
         self._card_ids = card_ids if card_ids else None  # these might represent cards selected by the user
+        self._card_ids_set = None
         self._note_cache = note_cache if note_cache else {}
         self._deck_cache = deck_cache if deck_cache else {}
         self.logger = logging.getLogger(__name__)
@@ -229,8 +231,9 @@ class SelectedNotes:
     def _calculate_sub_selection_card_ids(self, note_ids: Sequence[NoteId]) -> Sequence[CardId] | None:
         """Calculate card IDs for a sub-selection of notes."""
         if self._card_ids:
-            original_card_ids_set = set(self._card_ids)
-            return [card_id for card_id in self._get_card_ids_from_notes(note_ids) if card_id in original_card_ids_set]
+            if self._card_ids_set is None:
+                self._card_ids_set = set(self._card_ids)
+            return [card_id for card_id in self._get_card_ids_from_notes(note_ids) if card_id in self._card_ids_set]
         return None
 
     @classmethod
