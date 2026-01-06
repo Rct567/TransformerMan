@@ -201,10 +201,10 @@ class PromptBuilder:
             raise ValueError("No writable or overwritable fields specified")
 
         # Get example notes
-        example_notes = self._select_example_notes(target_notes.note_type, target_notes, field_selection.selected, max_examples)
+        example_notes = self.select_example_notes(target_notes.note_type, target_notes, field_selection.selected, max_examples)
 
         formatted_examples_xml = (
-            self._format_notes_as_xml(example_notes, target_notes.note_type, field_selection.selected) if example_notes else ""
+            self.format_notes_as_xml(example_notes, target_notes.note_type, field_selection.selected) if example_notes else ""
         )
 
         prompt = PromptTemplate(self.field_instructions, fields_to_fill, formatted_examples_xml)
@@ -244,7 +244,7 @@ class PromptBuilder:
             if not target_notes_to_include:
                 raise ValueError("No target notes with empty writable fields or overwritable fields found")
 
-            formatted_target_notes_xml = self._format_notes_as_xml(
+            formatted_target_notes_xml = self.format_notes_as_xml(
                 target_notes_to_include, provided_target_notes.note_type, field_selection.selected, field_selection.overwritable
             )
 
@@ -264,7 +264,7 @@ class PromptBuilder:
         prompt_template_str = self.build_prompt_template(target_notes, field_selection, max_examples)
         return self.get_renderer_from_template(prompt_template_str, target_notes, field_selection)
 
-    def _select_example_notes(
+    def select_example_notes(
         self,
         note_type: NoteModel,
         target_notes: SelectedNotes,
@@ -363,7 +363,7 @@ class PromptBuilder:
         # Return top examples
         return [note for _, _, note in scored_candidates[:max_examples]]
 
-    def _format_note_as_xml(
+    def format_note_as_xml(
         self, note: Note, fields_included: Sequence[str], leave_empty: Sequence[str] | None, include_deck: bool = True
     ) -> str:
         """Format a single note as XML with caching."""
@@ -400,7 +400,7 @@ class PromptBuilder:
         self.note_xml_cache[cache_key] = result
         return result
 
-    def _format_notes_as_xml(
+    def format_notes_as_xml(
         self,
         notes: Sequence[Note],
         note_type: NoteModel,
@@ -438,7 +438,7 @@ class PromptBuilder:
 
         # Add notes
         for note in notes:
-            lines.append(self._format_note_as_xml(note, fields_included, leave_empty, include_deck=(common_deck is None)))
+            lines.append(self.format_note_as_xml(note, fields_included, leave_empty, include_deck=(common_deck is None)))
 
         lines.append("</notes>")
 
