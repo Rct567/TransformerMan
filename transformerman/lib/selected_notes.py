@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from anki.notes import Note, NoteId
     from anki.cards import CardId
     from ..ui.field_widgets import FieldSelection
-    from .prompt_builder import PromptBuilder
+    from .transform_prompt_builder import TransformPromptBuilder
 
 
 class NoteModel:
@@ -447,7 +447,7 @@ class SelectedNotesFromType(SelectedNotes):
 
     def batched_by_prompt_size(
         self,
-        prompt_builder: PromptBuilder,
+        prompt_builder: TransformPromptBuilder,
         field_selection: FieldSelection,
         max_chars: int,
         max_examples: int,

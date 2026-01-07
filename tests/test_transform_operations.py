@@ -13,7 +13,7 @@ from transformerman.ui.transform_notes import apply_field_updates_with_operation
 from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, TransformMiddleware
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
-from transformerman.lib.prompt_builder import PromptBuilder
+from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from transformerman.lib.field_updates import FieldUpdates
 from transformerman.ui.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection, mock_collection_op
@@ -56,8 +56,8 @@ class TestNoteTransformer:
         # Create a real DummyLMClient
         dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
-        # Create a real PromptBuilder
-        prompt_builder = PromptBuilder(col)
+        # Create a real TransformPromptBuilder
+        prompt_builder = TransformPromptBuilder(col)
 
         # Note type
         note_type = NoteModel.by_name(col, "Basic")
@@ -110,8 +110,8 @@ class TestNoteTransformer:
         # Create a real DummyLMClient
         dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
-        # Create a real PromptBuilder
-        prompt_builder = PromptBuilder(col)
+        # Create a real TransformPromptBuilder
+        prompt_builder = TransformPromptBuilder(col)
 
         # Create NoteTransformer with max prompt size of 1000
         transformer = NoteTransformer(
@@ -180,8 +180,8 @@ class TestNoteTransformer:
         # Create a real DummyLMClient
         dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
-        # Create a real PromptBuilder
-        prompt_builder = PromptBuilder(col)
+        # Create a real TransformPromptBuilder
+        prompt_builder = TransformPromptBuilder(col)
 
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
@@ -240,8 +240,8 @@ class TestNoteTransformer:
         # Create a real DummyLMClient
         dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
-        # Create a real PromptBuilder
-        prompt_builder = PromptBuilder(col)
+        # Create a real TransformPromptBuilder
+        prompt_builder = TransformPromptBuilder(col)
 
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(
@@ -299,8 +299,8 @@ class TestNoteTransformer:
         # Use real SelectedNotes instance
         selected_notes = SelectedNotes(col, note_ids)
 
-        # Create a real PromptBuilder
-        prompt_builder = PromptBuilder(col)
+        # Create a real TransformPromptBuilder
+        prompt_builder = TransformPromptBuilder(col)
 
         # Create a real DummyLMClient
         dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
@@ -372,8 +372,8 @@ class TestNoteTransformer:
         # Create a real DummyLMClient
         dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
-        # Create a real PromptBuilder
-        prompt_builder = PromptBuilder(col)
+        # Create a real TransformPromptBuilder
+        prompt_builder = TransformPromptBuilder(col)
 
         # Create NoteTransformer with max prompt size
         transformer = NoteTransformer(

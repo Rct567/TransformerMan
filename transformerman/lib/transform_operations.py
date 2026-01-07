@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import NoteId
-    from .prompt_builder import PromptBuilder
+    from .transform_prompt_builder import TransformPromptBuilder
     from .http_utils import LmProgressData
     from ..ui.field_widgets import FieldSelection
     from .transform_middleware import TransformMiddleware
@@ -61,7 +61,7 @@ class NoteTransformer:
         col: Collection,
         selected_notes: SelectedNotesFromType,
         lm_client: LMClient,
-        prompt_builder: PromptBuilder,
+        prompt_builder: TransformPromptBuilder,
         field_selection: FieldSelection,
         addon_config: AddonConfig,
         transform_middleware: TransformMiddleware,

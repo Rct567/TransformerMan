@@ -1,6 +1,6 @@
 import pytest
-from transformerman.lib.prompt_builder import PromptBuilder
-from transformerman.lib.selected_notes import SelectedNotesFromType, NoteModel
+from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
+from transformerman.lib.selected_notes import NoteModel, SelectedNotesFromType
 from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.transform_middleware import TransformMiddleware, LogLastRequestResponseMiddleware
@@ -38,7 +38,7 @@ class TestPromptInterception:
 
         selected_notes = SelectedNotesFromType(col, [note.id], NoteModel(col, model))
 
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
         # In the UI, writable fields are always also in 'selected'
         field_selection = FieldSelection(selected=["Front", "Back"], writable=["Back"], overwritable=[])
 
@@ -75,7 +75,7 @@ class TestPromptInterception:
 
         selected_notes = SelectedNotesFromType(col, [note.id], NoteModel(col, model))
 
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
         # In the UI, writable fields are always also in 'selected'
         field_selection = FieldSelection(selected=["Front", "Back"], writable=["Back"], overwritable=[])
 
@@ -149,7 +149,7 @@ class TestPromptInterception:
 
         selected_notes = SelectedNotesFromType(col, [note.id], NoteModel(col, model))
 
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
         field_selection = FieldSelection(selected=["Front", "Back"], writable=["Back"], overwritable=[])
 
         # Use real DummyLMClient

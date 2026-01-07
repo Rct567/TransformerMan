@@ -15,12 +15,11 @@ if TYPE_CHECKING:
     from .selected_notes import NoteModel, SelectedNotesFromType
 
 
-class GenerationPromptBuilder:
+class GenerationPromptBuilder(PromptBuilder):
     """Builds prompts for generating new Anki notes."""
 
     def __init__(self, col: Collection) -> None:
-        self.col = col
-        self.prompt_builder = PromptBuilder(col)
+        super().__init__(col)
 
     def build_prompt(
         self,
@@ -66,12 +65,12 @@ class GenerationPromptBuilder:
         if example_notes:
             # We use the public select_example_notes and format_notes_as_xml from PromptBuilder
             # to maintain consistency in example selection and formatting.
-            selected_examples = self.prompt_builder.select_example_notes(
+            selected_examples = self.select_example_notes(
                 note_type, example_notes, field_names, max_examples
             )
             if selected_examples:
                 parts.append("Here are some existing notes of this type from the collection to show the desired style and level of detail:")
-                parts.append(self.prompt_builder.format_notes_as_xml(selected_examples, note_type, field_names))
+                parts.append(self.format_notes_as_xml(selected_examples, note_type, field_names))
                 parts.append("")
 
         parts.extend([

@@ -14,7 +14,7 @@ from anki.models import NotetypeId
 
 from transformerman.lib.selected_notes import SelectedNotes, NoteModel, SelectedNotesFromType, SelectedNotesBatch
 from transformerman.ui.field_widgets import FieldSelection
-from transformerman.lib.prompt_builder import PromptBuilder
+from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
 col = test_collection_fixture
@@ -252,7 +252,7 @@ class TestSelectedNotes:
     ) -> None:
         """Test batched_by_prompt_size with empty note IDs."""
         selected_notes = SelectedNotes(col, [])
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
         note_type = NoteModel.by_name(col, "Basic")
         assert note_type
 
@@ -291,7 +291,7 @@ class TestSelectedNotes:
             note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, note_ids)
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
 
         batches = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
             prompt_builder=prompt_builder,
@@ -328,7 +328,7 @@ class TestSelectedNotes:
             note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, note_ids)
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
 
         # Use large max_chars to ensure single batch
         batches = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
@@ -371,7 +371,7 @@ class TestSelectedNotes:
             note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, note_ids)
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
 
         # Test with different max_chars to ensure multiple batches are created
 
@@ -457,7 +457,7 @@ class TestSelectedNotes:
             note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, note_ids)
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
         note_type = NoteModel(col, model)
 
         # Set max_notes_per_batch to 2
@@ -498,7 +498,7 @@ class TestSelectedNotes:
         col.add_note(note, deck_id)
 
         selected_notes = SelectedNotes(col, [note.id])
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
 
         # Use tiny max_chars so even single note exceeds limit
         batches = selected_notes.filter_by_note_type(NoteModel(col, model)).batched_by_prompt_size(
@@ -1078,7 +1078,7 @@ class SelectedNotesParent:
             note_ids.append(note.id)
 
         selected_notes = SelectedNotes(col, note_ids)
-        prompt_builder = PromptBuilder(col)
+        prompt_builder = TransformPromptBuilder(col)
         note_type = NoteModel(col, model)
 
         # Get batches

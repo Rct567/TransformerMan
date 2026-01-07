@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING, Callable, NamedTuple
 
+
 from .utilities import evenly_spaced_sample
 
 
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
     from anki.notes import Note
     from .selected_notes import SelectedNotesBatch, SelectedNotesFromType
     from ..ui.field_widgets import FieldSelection
-    from .prompt_builder import PromptBuilder
+    from .transform_prompt_builder import TransformPromptBuilder
 
 
 class BatchingStats(NamedTuple):
@@ -144,7 +145,7 @@ def find_adaptive_batch_size(
 
 def batched_by_prompt_size(
     notes_with_fields: SelectedNotesFromType,
-    prompt_builder: PromptBuilder,
+    prompt_builder: TransformPromptBuilder,
     field_selection: FieldSelection,
     max_chars: int,
     max_examples: int,

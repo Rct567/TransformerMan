@@ -10,7 +10,7 @@ from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware, TransformMiddleware
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes, SelectedNotesFromType
-from transformerman.lib.prompt_builder import PromptBuilder
+from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from transformerman.ui.field_widgets import FieldSelection
 
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
@@ -45,11 +45,11 @@ def create_test_notes_with_empty_front(col: TestCollection, count: int = 2, back
 
 def create_standard_transform_dependencies(
     col: TestCollection, note_ids: Sequence[NoteId]
-) -> tuple[SelectedNotesFromType, DummyLMClient, PromptBuilder, FieldSelection]:
+) -> tuple[SelectedNotesFromType, DummyLMClient, TransformPromptBuilder, FieldSelection]:
     """Create standard dependencies needed for NoteTransformer."""
     selected_notes = SelectedNotes(col, note_ids)
     dummy_client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
-    prompt_builder = PromptBuilder(col)
+    prompt_builder = TransformPromptBuilder(col)
     field_selection = FieldSelection(
         selected=["Front", "Back"],
         writable=["Front"],

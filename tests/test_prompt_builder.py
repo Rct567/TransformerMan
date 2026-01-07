@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from transformerman.lib.prompt_builder import PromptBuilder
+from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.ui.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
@@ -15,7 +15,7 @@ col = test_collection_fixture
 
 
 class TestPromptBuilder:
-    """Test class for PromptBuilder."""
+    """Test class for TransformPromptBuilder."""
 
     @with_test_collection("two_deck_collection")
     def test_build_prompt_basic(
@@ -34,7 +34,7 @@ class TestPromptBuilder:
             col.update_note(note)
 
         selected_notes = SelectedNotes(col, note_ids)
-        builder = PromptBuilder(col)
+        builder = TransformPromptBuilder(col)
 
         note_type = NoteModel.by_name(col, "Basic")
         assert note_type
@@ -96,7 +96,7 @@ class TestPromptBuilder:
         col.update_note(note)
 
         selected_notes = SelectedNotes(col, [note_id])
-        builder = PromptBuilder(col)
+        builder = TransformPromptBuilder(col)
 
         # Set field instructions
         instructions = {"Front": "Provide a concise question", "Back": "Provide detailed answer"}
@@ -157,7 +157,7 @@ class TestPromptBuilder:
         col.update_note(note2)
 
         # Prompt builder
-        builder = PromptBuilder(col)
+        builder = TransformPromptBuilder(col)
         note_type = NoteModel(col, model)
 
         # Check with both notes (should be ok, note1 satisfies the precondition)
@@ -215,7 +215,7 @@ class TestPromptBuilder:
         col.update_note(target_note)
 
         selected_notes = SelectedNotes(col, [target_note_id])
-        builder = PromptBuilder(col)
+        builder = TransformPromptBuilder(col)
 
         note_type = NoteModel.by_name(col, "Basic")
         assert note_type
@@ -248,7 +248,7 @@ class TestPromptBuilder:
         note_ids = col.find_notes("")
 
         selected_notes = SelectedNotes(col, note_ids)
-        builder = PromptBuilder(col)
+        builder = TransformPromptBuilder(col)
         note_type = NoteModel.by_name(col, "Basic")
         assert note_type
 

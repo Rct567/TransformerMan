@@ -13,7 +13,7 @@ from aqt.operations import QueryOp, CollectionOp
 from aqt.utils import showInfo
 
 from ..lib.transform_operations import CacheKey, NoteTransformer, TransformResults
-from ..lib.prompt_builder import PromptBuilder
+from ..lib.transform_prompt_builder import TransformPromptBuilder
 
 from .progress_dialog import ProgressDialog
 
@@ -70,7 +70,7 @@ class TransformNotesWithProgress:
         self.addon_config = addon_config
         self.transform_middleware = transform_middleware
         self.logger = logging.getLogger(__name__)
-        self._prompt_builder = PromptBuilder(col)
+        self._prompt_builder = TransformPromptBuilder(col)
 
         # Cache for transformation results
         self._cache = {}
