@@ -340,33 +340,28 @@ class SelectedNotes:
     def _get_all_card_ids(self) -> Sequence[CardId]:
         """Get all card IDs for the selected notes (independent of selected cards)."""
 
-        if self.get_selected_card_ids():
-            raise ValueError("Are you sure you don't need to use get_selected_card_ids()?")
-
         return self._get_card_ids_from_notes(self._note_ids)
 
-    def get_most_common_deck(self) -> str:
+    def get_most_common_decks(self, sample_size: int = 500, all_cards: bool = False) -> list[str]:
         """
-        Return the full name of most common deck among the selected cards.
+        Return a list of the most common decks.
 
         Returns:
-            Full deck name (e.g., "Parent::Child") or empty string if no decks found.
+            List of full deck names (e.g., "Parent::Child") or empty string if no decks found.
         """
         # Count deck frequencies
         deck_counts: dict[str, int] = {}
 
-        sample_size = 500
-
         card_ids = self.get_selected_card_ids()
 
-        if not card_ids:
+        if not card_ids or all_cards:
             card_ids = self._get_all_card_ids()
 
         # Use card IDs
         if not card_ids:
-            return ""
+            return []
 
-        # Random sampling for >500 cards
+        # Random sampling for > sample_size cards
         if len(card_ids) > sample_size:
             card_ids = evenly_spaced_sample(card_ids, sample_size)
 
@@ -375,11 +370,17 @@ class SelectedNotes:
             if deck_name:  # Skip empty deck names
                 deck_counts[deck_name] = deck_counts.get(deck_name, 0) + 1
 
-        # Return most common deck or empty string
-        if not deck_counts:
-            return ""
+        return sorted(deck_counts.keys(), key=lambda x: deck_counts[x], reverse=True)
 
-        return max(deck_counts.items(), key=lambda x: x[1])[0]
+    def get_most_common_deck(self, sample_size: int = 500, all_cards: bool = False) -> str:
+        """
+        Return the full name of most common deck among the selected cards.
+
+        Returns:
+            Full deck name (e.g., "Parent::Child") or empty string if no decks found.
+        """
+        most_common_decks = self.get_most_common_decks(sample_size, all_cards)
+        return most_common_decks[0] if most_common_decks else ""
 
     def clear_cache(self, clear_notes_cache: bool = True, clear_deck_cache: bool = True) -> None:
         """Clear the cache for notes and/or decks."""

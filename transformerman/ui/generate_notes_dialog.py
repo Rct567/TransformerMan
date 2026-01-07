@@ -5,7 +5,6 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING, Literal
 
 from aqt.qt import (
@@ -60,14 +59,12 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         user_files_dir: Path,
         note_ids: Sequence[NoteId],
         card_ids: Sequence[CardId] | None = None,
-        initial_search: str | None = None,
     ) -> None:
         super().__init__(parent, is_dark_mode)
         self.col = col
         self.lm_client = lm_client
         self.addon_config = addon_config
         self.example_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
-        self.initial_search = initial_search
 
         # Setup transform middleware (for logging)
         self.transform_middleware = TransformMiddleware()
@@ -179,8 +176,10 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             note_types = sorted([m["name"] for m in self.col.models.all()])
         self.note_type_combo.addItems(note_types)
 
-        # Decks
-        decks = sorted(self.col.decks.all_names())
+        # Decks (only those who share the same root with any card of selected notes)
+        used_decks = self.example_notes.get_most_common_decks(2000, all_cards=True)
+        used_deck_roots = set(deck.split("::")[0] for deck in used_decks)
+        decks = [deck for deck in self.col.decks.all_names() if not used_deck_roots or deck.split("::")[0] in used_deck_roots]
         self.deck_combo.addItems(decks)
 
     def _set_defaults(self) -> None:
@@ -194,15 +193,8 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             # Set default deck to most common
             most_common_deck = self.example_notes.get_most_common_deck()
             if most_common_deck:
-                self.deck_combo.setCurrentText(most_common_deck)
-
-        if self.initial_search:
-            # Try to find deck: in search string (handles deck:"Name" and deck:Name)
-            match = re.search(r'deck:(?:"([^"]+)"|([^\s]+))', self.initial_search)
-            if match:
-                deck_name = match.group(1) or match.group(2)
-                if deck_name in self.col.decks.all_names():
-                    self.deck_combo.setCurrentText(deck_name)
+                most_common_deck_root = most_common_deck.split("::")[0]
+                self.deck_combo.setCurrentText(most_common_deck_root)
 
     def _on_field_selection_changed(self, _item: QListWidgetItem) -> None:
         """Update table columns when field selection changes (if not locked)."""

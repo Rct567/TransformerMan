@@ -130,7 +130,6 @@ def open_generate_notes_dialog(mw: AnkiQt, browser: Browser, addon_config: Addon
         user_files_dir=TM_USER_FILES_DIR,
         note_ids=note_ids,
         card_ids=card_ids,
-        initial_search=browser.current_search(),
     )
     dialog.exec()
 
