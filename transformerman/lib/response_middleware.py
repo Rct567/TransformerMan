@@ -36,11 +36,11 @@ class Middleware(ABC):
 
     @abstractmethod
     def before_response(self, processor: PromptProcessor) -> None:
-        """Hook called before LM transformation."""
+        """Hook called before LM response."""
 
     @abstractmethod
     def after_response(self, processor: PromptProcessor) -> None:
-        """Hook called after LM transformation."""
+        """Hook called after LM response."""
 
 
 class LogLastRequestResponseMiddleware(Middleware):
@@ -61,7 +61,7 @@ class LogLastRequestResponseMiddleware(Middleware):
 
     @override
     def before_response(self, processor: PromptProcessor) -> None:
-        """Hook called before LM transformation."""
+        """Hook called before LM response."""
         if not self.log_enabled:
             return
 
@@ -72,7 +72,7 @@ class LogLastRequestResponseMiddleware(Middleware):
 
     @override
     def after_response(self, processor: PromptProcessor) -> None:
-        """Hook called after LM transformation."""
+        """Hook called after LM response."""
         if not self.log_enabled:
             return
 
@@ -139,7 +139,7 @@ class CacheResponseMiddleware(Middleware):
 
     @override
     def before_response(self, processor: PromptProcessor) -> None:
-        """Check cache before LM transformation."""
+        """Check cache before LM response."""
         if not self.is_cache_enabled:
             self._last_was_cache_hit = False
             return
@@ -176,7 +176,7 @@ class CacheResponseMiddleware(Middleware):
 
     @override
     def after_response(self, processor: PromptProcessor) -> None:
-        """Save response to cache after LM transformation."""
+        """Save response to cache after LM response."""
         if not self.is_cache_enabled:
             return
 
@@ -260,11 +260,11 @@ class ResponseMiddleware:
         return None
 
     def before_response(self, processor: PromptProcessor) -> None:
-        """Execute all middleware before LM transformation."""
+        """Execute all middleware before LM response."""
         for middleware in self._middleware.values():
             middleware.before_response(processor)
 
     def after_response(self, processor: PromptProcessor) -> None:
-        """Execute all middleware after LM transformation."""
+        """Execute all middleware after LM response."""
         for middleware in self._middleware.values():
             middleware.after_response(processor)
