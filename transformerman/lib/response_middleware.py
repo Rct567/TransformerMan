@@ -85,7 +85,7 @@ class LogLastRequestResponseMiddleware(Middleware):
                 f.write(f"{processor.response.content}\n\n")
 
 
-class CacheBatchMiddleware(Middleware):
+class CacheResponseMiddleware(Middleware):
     """Middleware for caching LM responses based on prompt, client ID, and model."""
 
     def __init__(self, addon_config: AddonConfig, user_files_dir: Path) -> None:

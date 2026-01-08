@@ -30,7 +30,7 @@ from .settings_dialog import SettingsDialog
 from .prompt_preview_dialog import PromptPreviewDialog
 
 from ..ui.transform_notes import TransformNotesWithProgress
-from ..lib.response_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware, ResponseMiddleware
+from ..lib.response_middleware import LogLastRequestResponseMiddleware, CacheResponseMiddleware, ResponseMiddleware
 from ..lib.selected_notes import SelectedNotes, NoteModel
 
 import logging
@@ -92,7 +92,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         # Setup transform middleware
         self.middleware = ResponseMiddleware(
             LogLastRequestResponseMiddleware(self.addon_config, user_files_dir),
-            CacheBatchMiddleware(self.addon_config, user_files_dir),
+            CacheResponseMiddleware(self.addon_config, user_files_dir),
         )
 
         self.selected_notes = SelectedNotes(col, note_ids, card_ids=card_ids)

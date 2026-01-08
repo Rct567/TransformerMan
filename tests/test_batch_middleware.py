@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from transformerman.lib.transform_operations import NoteTransformer
-from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware, ResponseMiddleware
+from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, CacheResponseMiddleware, ResponseMiddleware
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes, SelectedNotesFromType
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
@@ -173,7 +173,7 @@ class TestCacheBatchMiddleware:
             addon_config.update_setting("cache_responses", disable_value)
 
             # Create middleware and register it
-            cache_middleware = CacheBatchMiddleware(addon_config, user_files_dir)
+            cache_middleware = CacheResponseMiddleware(addon_config, user_files_dir)
             middleware = ResponseMiddleware()
             middleware.register(cache_middleware)
 
@@ -217,7 +217,7 @@ class TestCacheBatchMiddleware:
         selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
 
         # Create middleware and register it
-        cache_middleware = CacheBatchMiddleware(addon_config, user_files_dir)
+        cache_middleware = CacheResponseMiddleware(addon_config, user_files_dir)
         middleware = ResponseMiddleware()
         middleware.register(cache_middleware)
 
