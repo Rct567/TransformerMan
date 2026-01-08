@@ -10,7 +10,7 @@ import pytest
 
 from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.ui.transform_notes import apply_field_updates_with_operation
-from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, TransformMiddleware
+from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
@@ -29,9 +29,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def transform_middleware(addon_config: AddonConfig, user_files_dir: Path) -> TransformMiddleware:
-    """Create a TransformMiddleware with LmLoggingMiddleware for testing."""
-    middleware = TransformMiddleware()
+def middleware(addon_config: AddonConfig, user_files_dir: Path) -> ResponseMiddleware:
+    """Create middleware with LogLastRequestResponseMiddleware for testing."""
+    middleware = ResponseMiddleware()
     lm_logging = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
     middleware.register(lm_logging)
     return middleware
@@ -45,7 +45,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        middleware: ResponseMiddleware,
     ) -> None:
         """Test that __init__ validates notes have empty fields."""
         # Get real note IDs from the collection (all have non-empty fields)
@@ -77,7 +77,7 @@ class TestNoteTransformer:
                     overwritable=[],
                 ),
                 addon_config=addon_config,
-                transform_middleware=transform_middleware,
+                middleware=middleware,
             )
 
     @with_test_collection("two_deck_collection")
@@ -85,7 +85,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        middleware: ResponseMiddleware,
     ) -> None:
         """Test that get_field_updates returns correct field updates in preview mode."""
         addon_config.update_setting("max_examples", 3)
@@ -125,7 +125,7 @@ class TestNoteTransformer:
                 overwritable=[],
             ),
             addon_config=addon_config,
-            transform_middleware=transform_middleware,
+            middleware=middleware,
         )
 
         # Get field updates (preview mode)
@@ -157,7 +157,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        middleware: ResponseMiddleware,
     ) -> None:
         """Test that get_field_updates calls progress callback."""
         # Create 4 new notes with empty fields
@@ -195,7 +195,7 @@ class TestNoteTransformer:
                 overwritable=[],
             ),
             addon_config=addon_config,
-            transform_middleware=transform_middleware,
+            middleware=middleware,
         )
 
         # Track progress calls
@@ -218,7 +218,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        middleware: ResponseMiddleware,
     ) -> None:
         """Test that get_field_updates respects cancellation."""
         # Create 4 new notes with empty fields
@@ -255,7 +255,7 @@ class TestNoteTransformer:
                 overwritable=[],
             ),
             addon_config=addon_config,
-            transform_middleware=transform_middleware,
+            middleware=middleware,
         )
 
         # Cancel immediately (before processing)
@@ -279,7 +279,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        middleware: ResponseMiddleware,
     ) -> None:
         """Test that get_field_updates handles batch processing errors gracefully."""
         # Create 4 new notes with empty fields
@@ -324,11 +324,11 @@ class TestNoteTransformer:
                 overwritable=[],
             ),
             addon_config=addon_config,
-            transform_middleware=transform_middleware,
+            middleware=middleware,
         )
 
         # Get field updates with mocked transform
-        with patch.object(dummy_client, "transform", return_value=mock_response):
+        with patch.object(dummy_client, "process_prompt", return_value=mock_response):
             results, field_updates = transformer.get_field_updates()
 
         # Verify results show failures for all notes (all in one batch that failed)
@@ -346,7 +346,7 @@ class TestNoteTransformer:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        middleware: ResponseMiddleware,
     ) -> None:
         """Test that get_field_updates only returns updates for empty fields."""
         # Create 4 new notes with mixed empty/non-empty fields
@@ -387,7 +387,7 @@ class TestNoteTransformer:
                 overwritable=[],
             ),
             addon_config=addon_config,
-            transform_middleware=transform_middleware,
+            middleware=middleware,
         )
 
         # Get field updates

@@ -88,7 +88,7 @@ TransformerMan/
 │   │   ├── notes_batching.py       # Note batching logic
 │   │   ├── prompt_builder.py       # Prompt construction
 │   │   ├── selected_notes.py       # Data repository representing the notes selected by the user
-│   │   ├── transform_middleware.py # Transform middleware (used for logging and caching LM responses)
+│   │   ├── response_middleware.py  # Response middleware (used for logging and caching LM responses)
 │   │   ├── transform_operations.py # Batch processing (where FieldUpdates are created from the LM responses)
 │   │   ├── field_updates.py        # Field update logic
 │   │   ├── utilities.py            # Utility functions

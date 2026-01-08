@@ -30,7 +30,7 @@ class TestLmClient:
   </note>
 </notes>"""
 
-        response = client.transform(prompt)
+        response = client.process_prompt(prompt)
 
         assert '<notes model="Basic">' in response.content
         assert 'nid="123"' in response.content
@@ -52,7 +52,7 @@ class TestLmClient:
   </note>
 </notes>"""
 
-        response = client.transform(prompt)
+        response = client.process_prompt(prompt)
 
         assert 'nid="123"' in response.content
         assert 'nid="456"' in response.content
@@ -69,7 +69,7 @@ class TestLmClient:
   </note>
 </notes>"""
 
-        response = client.transform(prompt)
+        response = client.process_prompt(prompt)
 
         assert '<field name="Front">Existing Front</field>' in response.content
         assert '<field name="Back">Existing Back</field>' in response.content
@@ -79,7 +79,7 @@ class TestLmClient:
         """Test DummyLMClient with empty prompt."""
         client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
-        response = client.transform("")
+        response = client.process_prompt("")
 
         assert response.content == "<notes></notes>"
 
@@ -90,7 +90,7 @@ class TestLmClient:
 
         with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
             mock_request.return_value = {"content": "test response"}
-            client.transform("test prompt")
+            client.process_prompt("test prompt")
 
             _, kwargs = mock_request.call_args
             assert kwargs["url"] == "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse"
@@ -104,7 +104,7 @@ class TestLmClient:
 
         with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
             mock_request.return_value = {"content": "test response"}
-            client.transform("test prompt")
+            client.process_prompt("test prompt")
 
             _, kwargs = mock_request.call_args
             assert kwargs["url"] == "https://api.deepseek.com/chat/completions"
@@ -119,7 +119,7 @@ class TestLmClient:
 
         with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
             mock_request.return_value = {"content": "test response"}
-            client.transform("test prompt")
+            client.process_prompt("test prompt")
 
             _, kwargs = mock_request.call_args
             assert kwargs["url"] == "https://api.x.ai/v1/chat/completions"

@@ -3,7 +3,7 @@ from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from transformerman.lib.selected_notes import NoteModel, SelectedNotesFromType
 from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
-from transformerman.lib.transform_middleware import TransformMiddleware, LogLastRequestResponseMiddleware
+from transformerman.lib.response_middleware import ResponseMiddleware, LogLastRequestResponseMiddleware
 from transformerman.ui.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
@@ -14,9 +14,9 @@ col = test_collection_fixture
 
 
 @pytest.fixture
-def transform_middleware(addon_config: AddonConfig, user_files_dir: Path) -> TransformMiddleware:
+def response_middleware(addon_config: AddonConfig, user_files_dir: Path) -> ResponseMiddleware:
     """Create a TransformMiddleware with LmLoggingMiddleware for testing."""
-    middleware = TransformMiddleware()
+    middleware = ResponseMiddleware()
     lm_logging = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
     middleware.register(lm_logging)
     return middleware
@@ -59,7 +59,7 @@ class TestPromptInterception:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        response_middleware: ResponseMiddleware,
         user_files_dir: Path,
     ) -> None:
         # Setup: Create a note type and a note
@@ -88,7 +88,7 @@ class TestPromptInterception:
 
         # Enable logging to verify the prompt
         addon_config.update_setting("log_last_lm_response_request", True)
-        logging_middleware = transform_middleware.get(LogLastRequestResponseMiddleware)
+        logging_middleware = response_middleware.get(LogLastRequestResponseMiddleware)
         assert logging_middleware is not None
         # We need to manually enable it because it was initialized with log_enabled=False
         logging_middleware.log_enabled = True
@@ -105,7 +105,7 @@ class TestPromptInterception:
             prompt_builder=prompt_builder,
             field_selection=field_selection,
             addon_config=addon_config,
-            transform_middleware=transform_middleware,
+            middleware=response_middleware,
             prompt_interceptor=interceptor,
         )
 
@@ -134,7 +134,7 @@ class TestPromptInterception:
         self,
         col: TestCollection,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        response_middleware: ResponseMiddleware,
     ) -> None:
         # Setup: Create a note type and a note
         model = col.models.by_name("Basic")
@@ -166,6 +166,6 @@ class TestPromptInterception:
                 prompt_builder=prompt_builder,
                 field_selection=field_selection,
                 addon_config=addon_config,
-                transform_middleware=transform_middleware,
+                middleware=response_middleware,
                 prompt_interceptor=interceptor,
             )

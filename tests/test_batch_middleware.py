@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from transformerman.lib.transform_operations import NoteTransformer
-from transformerman.lib.transform_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware, TransformMiddleware
+from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, CacheBatchMiddleware, ResponseMiddleware
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes, SelectedNotesFromType
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
@@ -76,9 +76,9 @@ class TestLmLoggingMiddleware:
         selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
 
         # Create middleware and register it
-        middleware = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
-        transform_middleware = TransformMiddleware()
-        transform_middleware.register(middleware)
+        log_middleware = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
+        middleware = ResponseMiddleware()
+        middleware.register(log_middleware)
 
         # Create and run NoteTransformer
         transformer = NoteTransformer(
@@ -88,7 +88,7 @@ class TestLmLoggingMiddleware:
             prompt_builder=prompt_builder,
             field_selection=field_selection,
             addon_config=addon_config,
-            transform_middleware=transform_middleware,
+            middleware=middleware,
         )
         results, _field_updates = transformer.get_field_updates()
 
@@ -117,9 +117,9 @@ class TestLmLoggingMiddleware:
         selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
 
         # Create middleware and register it
-        middleware = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
-        transform_middleware = TransformMiddleware()
-        transform_middleware.register(middleware)
+        log_middleware = LogLastRequestResponseMiddleware(addon_config, user_files_dir)
+        middleware = ResponseMiddleware()
+        middleware.register(log_middleware)
 
         # Create and run NoteTransformer
         transformer = NoteTransformer(
@@ -129,7 +129,7 @@ class TestLmLoggingMiddleware:
             prompt_builder=prompt_builder,
             field_selection=field_selection,
             addon_config=addon_config,
-            transform_middleware=transform_middleware,
+            middleware=middleware,
         )
         results, _field_updates = transformer.get_field_updates()
 
@@ -173,9 +173,9 @@ class TestCacheBatchMiddleware:
             addon_config.update_setting("cache_responses", disable_value)
 
             # Create middleware and register it
-            middleware = CacheBatchMiddleware(addon_config, user_files_dir)
-            transform_middleware = TransformMiddleware()
-            transform_middleware.register(middleware)
+            cache_middleware = CacheBatchMiddleware(addon_config, user_files_dir)
+            middleware = ResponseMiddleware()
+            middleware.register(cache_middleware)
 
             # Create and run NoteTransformer
             transformer = NoteTransformer(
@@ -185,7 +185,7 @@ class TestCacheBatchMiddleware:
                 prompt_builder=prompt_builder,
                 field_selection=field_selection,
                 addon_config=addon_config,
-                transform_middleware=transform_middleware,
+                middleware=middleware,
             )
             results, _field_updates = transformer.get_field_updates()
 
@@ -199,7 +199,7 @@ class TestCacheBatchMiddleware:
             assert not cache_dir.exists()
 
             # Verify no cache hits occurred
-            assert middleware.num_cache_hits == 0
+            assert cache_middleware.num_cache_hits == 0
 
     @with_test_collection("two_deck_collection")
     def test_caching_enabled_caches_and_hits(
@@ -217,9 +217,9 @@ class TestCacheBatchMiddleware:
         selected_notes, dummy_client, prompt_builder, field_selection = create_standard_transform_dependencies(col, note_ids)
 
         # Create middleware and register it
-        middleware = CacheBatchMiddleware(addon_config, user_files_dir)
-        transform_middleware = TransformMiddleware()
-        transform_middleware.register(middleware)
+        cache_middleware = CacheBatchMiddleware(addon_config, user_files_dir)
+        middleware = ResponseMiddleware()
+        middleware.register(cache_middleware)
 
         # Create NoteTransformer
         transformer = NoteTransformer(
@@ -229,7 +229,7 @@ class TestCacheBatchMiddleware:
             prompt_builder=prompt_builder,
             field_selection=field_selection,
             addon_config=addon_config,
-            transform_middleware=transform_middleware,
+            middleware=middleware,
         )
 
         # First call - run transform to populate cache
@@ -262,4 +262,4 @@ class TestCacheBatchMiddleware:
         assert transformer.response is not None
 
         # Verify cache hit occurred
-        assert middleware.num_cache_hits == 1
+        assert cache_middleware.num_cache_hits == 1

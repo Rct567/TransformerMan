@@ -7,17 +7,24 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, TypeVar
 
-from .lm_clients import LmResponse
+from .lm_clients import LMClient, LmResponse
 from .utilities import override
 
 if TYPE_CHECKING:
     from pathlib import Path
     from .addon_config import AddonConfig
-    from .transform_operations import NoteTransformer
 
 
 def format_log_header(text: str, width: int = 80, fill_char: str = "=") -> str:
     return f" {text} ".center(width, fill_char)
+
+
+class PromptProcessor(ABC):
+    """Abstract base class for processing prompts and generating responses."""
+    lm_client: LMClient
+    middleware: ResponseMiddleware
+    prompt: str | None
+    response: LmResponse | None
 
 
 class Middleware(ABC):
@@ -28,11 +35,11 @@ class Middleware(ABC):
         """Initialize middleware."""
 
     @abstractmethod
-    def before_transform(self, note_transformer: NoteTransformer) -> None:
+    def before_response(self, processor: PromptProcessor) -> None:
         """Hook called before LM transformation."""
 
     @abstractmethod
-    def after_transform(self, note_transformer: NoteTransformer) -> None:
+    def after_response(self, processor: PromptProcessor) -> None:
         """Hook called after LM transformation."""
 
 
@@ -53,7 +60,7 @@ class LogLastRequestResponseMiddleware(Middleware):
             self.logs_dir.mkdir(parents=True, exist_ok=True)
 
     @override
-    def before_transform(self, note_transformer: NoteTransformer) -> None:
+    def before_response(self, processor: PromptProcessor) -> None:
         """Hook called before LM transformation."""
         if not self.log_enabled:
             return
@@ -61,10 +68,10 @@ class LogLastRequestResponseMiddleware(Middleware):
         timestamp = datetime.now().isoformat()
         with self.log_file.open("w", encoding="utf-8") as f:
             f.write(format_log_header(f"REQUEST [{timestamp}]") + "\n\n")
-            f.write(f"{note_transformer.prompt}\n\n")
+            f.write(f"{processor.prompt}\n\n")
 
     @override
-    def after_transform(self, note_transformer: NoteTransformer) -> None:
+    def after_response(self, processor: PromptProcessor) -> None:
         """Hook called after LM transformation."""
         if not self.log_enabled:
             return
@@ -72,10 +79,10 @@ class LogLastRequestResponseMiddleware(Middleware):
         timestamp = datetime.now().isoformat()
         with self.log_file.open("a", encoding="utf-8") as f:
             f.write(format_log_header(f"RESPONSE [{timestamp}]") + "\n\n")
-            if note_transformer.response is None:
+            if processor.response is None:
                 f.write("No response...\n\n")
             else:
-                f.write(f"{note_transformer.response.content}\n\n")
+                f.write(f"{processor.response.content}\n\n")
 
 
 class CacheBatchMiddleware(Middleware):
@@ -131,7 +138,7 @@ class CacheBatchMiddleware(Middleware):
         return hashlib.sha256(key_data.encode("utf-8")).hexdigest()
 
     @override
-    def before_transform(self, note_transformer: NoteTransformer) -> None:
+    def before_response(self, processor: PromptProcessor) -> None:
         """Check cache before LM transformation."""
         if not self.is_cache_enabled:
             self._last_was_cache_hit = False
@@ -143,11 +150,11 @@ class CacheBatchMiddleware(Middleware):
             self._init_db()
             self._db_initialized = True
 
-        assert note_transformer.prompt and note_transformer.lm_client
+        assert processor.prompt and processor.lm_client
 
-        prompt = note_transformer.prompt
-        client_id = note_transformer.lm_client.id
-        model = note_transformer.lm_client.get_model()
+        prompt = processor.prompt
+        client_id = processor.lm_client.id
+        model = processor.lm_client.get_model()
         cache_key = self._get_cache_key(prompt, client_id, model)
 
         with sqlite3.connect(self.cache_file) as conn:
@@ -160,7 +167,7 @@ class CacheBatchMiddleware(Middleware):
             if row:
                 # Cache hit
                 cached_response = row[0]
-                note_transformer.response = LmResponse(cached_response)
+                processor.response = LmResponse(cached_response)
                 self._last_was_cache_hit = True
                 self._num_cache_hits += 1
             else:
@@ -168,7 +175,7 @@ class CacheBatchMiddleware(Middleware):
                 self._last_was_cache_hit = False
 
     @override
-    def after_transform(self, note_transformer: NoteTransformer) -> None:
+    def after_response(self, processor: PromptProcessor) -> None:
         """Save response to cache after LM transformation."""
         if not self.is_cache_enabled:
             return
@@ -177,13 +184,16 @@ class CacheBatchMiddleware(Middleware):
         if self._last_was_cache_hit:
             return  # Don't save if it was from cache
 
-        if note_transformer.response is None:
+        if processor.response is None:
             return  # No response to cache
 
+        if processor.prompt is None:
+            return  # No prompt to cache
+
         # Get info from NoteTransformer
-        prompt = note_transformer.prompt
-        client_id = note_transformer.lm_client.id
-        model = note_transformer.lm_client.get_model()
+        prompt = processor.prompt
+        client_id = processor.lm_client.id
+        model = processor.lm_client.get_model()
         cache_key = self._get_cache_key(prompt, client_id, model)
 
         with sqlite3.connect(self.cache_file) as conn:
@@ -197,7 +207,7 @@ class CacheBatchMiddleware(Middleware):
                 prompt,
                 client_id,
                 model,
-                note_transformer.response.content,
+                processor.response.content,
                 int(time.time())
             ))
 
@@ -216,7 +226,7 @@ class CacheBatchMiddleware(Middleware):
 T = TypeVar("T", bound=Middleware)
 
 
-class TransformMiddleware:
+class ResponseMiddleware:
     """Registry for transform operation middleware."""
 
     def __init__(self) -> None:
@@ -247,22 +257,12 @@ class TransformMiddleware:
             return middleware
         return None
 
-    def before_transform(self, note_transformer: NoteTransformer) -> None:
-        """
-        Execute all middleware before LM transformation.
-
-        Args:
-            note_transformer: The note transformer used.
-        """
+    def before_response(self, processor: PromptProcessor) -> None:
+        """Execute all middleware before LM transformation."""
         for middleware in self._middleware.values():
-            middleware.before_transform(note_transformer)
+            middleware.before_response(processor)
 
-    def after_transform(self, note_transformer: NoteTransformer) -> None:
-        """
-        Execute all middleware after LM transformation.
-
-        Args:
-            note_transformer: The note transformer used.
-        """
+    def after_response(self, processor: PromptProcessor) -> None:
+        """Execute all middleware after LM transformation."""
         for middleware in self._middleware.values():
-            middleware.after_transform(note_transformer)
+            middleware.after_response(processor)

@@ -31,7 +31,7 @@ from .transform_notes import ProgressDialog
 from ..lib.note_generator import NoteGenerator
 from ..lib.selected_notes import NoteModel
 from ..lib.selected_notes import SelectedNotes
-from ..lib.transform_middleware import LogLastRequestResponseMiddleware, TransformMiddleware
+from ..lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -66,12 +66,12 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         self.addon_config = addon_config
         self.example_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
 
-        # Setup transform middleware (for logging)
-        self.transform_middleware = TransformMiddleware()
+        # Setup middleware (for logging)
+        self.middleware = ResponseMiddleware()
         lm_logging = LogLastRequestResponseMiddleware(self.addon_config, user_files_dir)
-        self.transform_middleware.register(lm_logging)
+        self.middleware.register(lm_logging)
 
-        self.generator = NoteGenerator(col, lm_client, self.transform_middleware)
+        self.generator = NoteGenerator(col, lm_client, self.middleware)
         self._is_locked_by_context = False
 
         self.setWindowTitle("TransformerMan: Generate notes")

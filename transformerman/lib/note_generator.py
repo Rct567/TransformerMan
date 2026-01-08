@@ -9,25 +9,25 @@ from typing import TYPE_CHECKING, Callable
 
 from .xml_parser import new_notes_from_xml
 from .generation_prompt_builder import GenerationPromptBuilder
+from .response_middleware import ResponseMiddleware, PromptProcessor
 
 if TYPE_CHECKING:
     from .lm_clients import LMClient, LmResponse
     from .http_utils import LmProgressData
     from .selected_notes import NoteModel, SelectedNotesFromType
-    from .transform_middleware import TransformMiddleware
     from anki.collection import Collection
 
 
-class NoteGenerator:
+class NoteGenerator(PromptProcessor):
     """Handles the generation of new Anki notes using a language model."""
 
     prompt: str | None
     response: LmResponse | None
 
-    def __init__(self, col: Collection, lm_client: LMClient, transform_middleware: TransformMiddleware) -> None:
+    def __init__(self, col: Collection, lm_client: LMClient, middleware: ResponseMiddleware) -> None:
         self.col = col
         self.lm_client = lm_client
-        self.transform_middleware = transform_middleware
+        self.middleware = middleware
         self.prompt_builder = GenerationPromptBuilder(col)
         self.prompt = None
         self.response = None
@@ -72,18 +72,18 @@ class NoteGenerator:
         self.response = None
 
         # Pre-transform middleware (e.g., log request)
-        self.transform_middleware.before_transform(self)  # type: ignore[arg-type]
+        self.middleware.before_response(self)
 
         # Get LM response
         if not self.response:
-            self.response = self.lm_client.transform(
+            self.response = self.lm_client.process_prompt(
                 prompt=self.prompt,
                 progress_callback=progress_callback,
                 should_cancel=should_cancel,
             )
 
         # Post-transform middleware (e.g., log response)
-        self.transform_middleware.after_transform(self)  # type: ignore[arg-type]
+        self.middleware.after_response(self)
 
         if self.response.error:
             raise Exception(self.response.error)

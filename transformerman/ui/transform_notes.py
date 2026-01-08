@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from ..lib.field_updates import FieldUpdates
     from ..ui.field_widgets import FieldSelection
     from ..lib.http_utils import LmProgressData
-    from ..lib.transform_middleware import TransformMiddleware
+    from ..lib.response_middleware import ResponseMiddleware
     from ..lib.addon_config import AddonConfig
     from ..lib.lm_clients import LMClient
     from ..lib.selected_notes import SelectedNotes, SelectedNotesFromType
@@ -50,7 +50,7 @@ class TransformNotesWithProgress:
         selected_notes: SelectedNotes,
         lm_client: LMClient,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        middleware: ResponseMiddleware,
     ) -> None:
         """
         Initialize the transformer.
@@ -61,14 +61,14 @@ class TransformNotesWithProgress:
             selected_notes: SelectedNotes instance.
             lm_client: LM client instance.
             addon_config: Addon configuration instance.
-            transform_middleware: Transform middleware instance.
+            middleware: Response middleware instance.
         """
         self.parent = parent
         self.col = col
         self.selected_notes = selected_notes
         self.lm_client = lm_client
         self.addon_config = addon_config
-        self.transform_middleware = transform_middleware
+        self.middleware = middleware
         self.logger = logging.getLogger(__name__)
         self._prompt_builder = TransformPromptBuilder(col)
 
@@ -192,7 +192,7 @@ class TransformNotesWithProgress:
             prompt_builder=self._prompt_builder,
             field_selection=field_selection,
             addon_config=self.addon_config,
-            transform_middleware=self.transform_middleware,
+            middleware=self.middleware,
             prompt_interceptor=prompt_interceptor,
         )
 

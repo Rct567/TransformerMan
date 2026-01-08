@@ -9,6 +9,8 @@ import logging
 
 from typing import TYPE_CHECKING, Callable, NamedTuple
 
+from .response_middleware import PromptProcessor
+
 from .field_updates import FieldUpdates
 
 if TYPE_CHECKING:
@@ -18,7 +20,7 @@ if TYPE_CHECKING:
     from .transform_prompt_builder import TransformPromptBuilder
     from .http_utils import LmProgressData
     from ..ui.field_widgets import FieldSelection
-    from .transform_middleware import TransformMiddleware
+    from .response_middleware import ResponseMiddleware
     from .addon_config import AddonConfig
     from .lm_clients import LMClient
     from .selected_notes import SelectedNotesBatch, SelectedNotesFromType
@@ -50,7 +52,7 @@ class CacheKey(NamedTuple):
     field_instructions_hash: int
 
 
-class NoteTransformer:
+class NoteTransformer(PromptProcessor):
     """Transforms notes in batches (UI-agnostic)."""
 
     target_notes: SelectedNotesFromType
@@ -64,7 +66,7 @@ class NoteTransformer:
         prompt_builder: TransformPromptBuilder,
         field_selection: FieldSelection,
         addon_config: AddonConfig,
-        transform_middleware: TransformMiddleware,
+        middleware: ResponseMiddleware,
         prompt_interceptor: Callable[[str], str] | None = None,
     ) -> None:
         """
@@ -77,7 +79,7 @@ class NoteTransformer:
             prompt_builder: PromptBuilder instance.
             field_selection: FieldSelection containing selected, writable, and overwritable fields.
             addon_config: Addon configuration.
-            transform_middleware: Transform middleware instance.
+            middleware: Middleware to use for processing responses.
             prompt_interceptor: Optional function to intercept and modify the prompt template before use.
         """
         self.col = col
@@ -86,7 +88,7 @@ class NoteTransformer:
         self.prompt_builder = prompt_builder
         self.field_selection = field_selection
         self.addon_config = addon_config
-        self.transform_middleware = transform_middleware
+        self.middleware = middleware
         self.logger = logging.getLogger(__name__)
 
         # Validate that we have notes with empty fields in writable_fields OR notes with overwritable_fields
@@ -152,15 +154,15 @@ class NoteTransformer:
         # Initial response
         self.response = None
 
-        # Pre-transform middleware (e.g., log request)
-        self.transform_middleware.before_transform(self)
+        # Pre-response hook for middleware
+        self.middleware.before_response(self)
 
         # Get LM response
         if not self.response:
-            self.response = self.lm_client.transform(self.prompt, progress_callback=progress_callback, should_cancel=should_cancel)
+            self.response = self.lm_client.process_prompt(self.prompt, progress_callback=progress_callback, should_cancel=should_cancel)
 
-        # Post-transform middleware (e.g., log response)
-        self.transform_middleware.after_transform(self)
+        # Post-response hook for middleware
+        self.middleware.after_response(self)
 
         #
         num_notes_updated = 0

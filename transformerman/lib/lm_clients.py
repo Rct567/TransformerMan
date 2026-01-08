@@ -89,13 +89,13 @@ class LMClient(ABC):
     def api_key_required() -> bool:
         return True
 
-    def transform(
+    def process_prompt(
         self,
         prompt: str,
         progress_callback: Callable[[LmProgressData], None] | None = None,
         should_cancel: Optional[Callable[[], bool]] = None,
     ) -> LmResponse:
-        """Generic transform implementation for network-based clients.
+        """Process prompt using the LM client.
 
         Args:
             prompt: The prompt to send to the LM.
@@ -216,13 +216,13 @@ class DummyLMClient(LMClient):
         return False
 
     @override
-    def transform(
+    def process_prompt(
         self,
         prompt: str,
         progress_callback: Callable[[LmProgressData], None] | None = None,
         should_cancel: Optional[Callable[[], bool]] = None,
     ) -> LmResponse:
-        """Dummy transform implementation for testing.
+        """Dummy process_prompt implementation for testing.
 
         Args:
             prompt: The prompt to send to the LM.
