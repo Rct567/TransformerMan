@@ -90,11 +90,10 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self.logger = logging.getLogger(__name__)
 
         # Setup transform middleware
-        self.middleware = ResponseMiddleware()
-        lm_logging = LogLastRequestResponseMiddleware(self.addon_config, user_files_dir)
-        self.middleware.register(lm_logging)
-        cache_middleware = CacheBatchMiddleware(self.addon_config, user_files_dir)
-        self.middleware.register(cache_middleware)
+        self.middleware = ResponseMiddleware(
+            LogLastRequestResponseMiddleware(self.addon_config, user_files_dir),
+            CacheBatchMiddleware(self.addon_config, user_files_dir),
+        )
 
         self.selected_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
         self.field_widgets = FieldWidgets()

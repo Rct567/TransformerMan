@@ -229,9 +229,11 @@ T = TypeVar("T", bound=Middleware)
 class ResponseMiddleware:
     """Registry for transform operation middleware."""
 
-    def __init__(self) -> None:
+    def __init__(self, *args: Middleware) -> None:
         """Initialize transform middleware registry."""
         self._middleware: dict[type, Middleware] = {}
+        for middleware in args:
+            self.register(middleware)
 
     def register(self, middleware: Middleware) -> None:
         """

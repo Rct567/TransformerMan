@@ -67,9 +67,9 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         self.example_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
 
         # Setup middleware (for logging)
-        self.middleware = ResponseMiddleware()
-        lm_logging = LogLastRequestResponseMiddleware(self.addon_config, user_files_dir)
-        self.middleware.register(lm_logging)
+        self.middleware = ResponseMiddleware(
+             LogLastRequestResponseMiddleware(self.addon_config, user_files_dir)
+        )
 
         self.generator = NoteGenerator(col, lm_client, self.middleware)
         self._is_locked_by_context = False
