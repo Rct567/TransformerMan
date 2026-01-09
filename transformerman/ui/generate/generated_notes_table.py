@@ -12,6 +12,10 @@ from aqt.qt import (
     QTableWidgetItem,
     QWidget,
     QHeaderView,
+    Qt,
+    QMenu,
+    QAction,
+    QPoint,
 )
 
 if TYPE_CHECKING:
@@ -33,6 +37,34 @@ class GeneratedNotesTable(QTableWidget):
         if v_header:
             v_header.setVisible(False)
         self.setMinimumHeight(200)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+
+    def _show_context_menu(self, position: QPoint) -> None:
+        """Show context menu for table rows."""
+        item = self.itemAt(position)
+        if not item:
+            return
+
+        menu = QMenu(self)
+        discard_action = QAction("Discard", self)
+        discard_action.triggered.connect(lambda: self.discard_selected_rows(item.row()))
+        menu.addAction(discard_action)
+        menu.exec(self.mapToGlobal(position))
+
+    def discard_selected_rows(self, clicked_row: int | None = None) -> None:
+        """Discard selected rows, or the clicked row if not in selection."""
+        rows = set()
+        for selected_item in self.selectedItems():
+            rows.add(selected_item.row())
+
+        # If a specific row was clicked and is not in selection, just use that row
+        if clicked_row is not None and clicked_row not in rows:
+            rows = {clicked_row}
+
+        # Remove in reverse order to maintain indices
+        for r in sorted(rows, reverse=True):
+            self.removeRow(r)
 
     def update_columns(self, field_names: Sequence[str]) -> None:
         """Update the columns of the table."""
