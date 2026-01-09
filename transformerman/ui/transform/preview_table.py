@@ -180,9 +180,9 @@ class PreviewTable(QTableWidget):
         # State
         self.get_notes = get_notes
         self.is_highlighted = False
-        self.current_note_ids = None
-        self.current_selected_fields = None
-        self.current_field_updates = None
+        self.current_note_ids = None  # currently displayed notes
+        self.current_selected_fields = None  # currently displayed fields
+        self.current_field_updates = None  # highlighted mode
 
     def _set_column_widths(self) -> None:
 
