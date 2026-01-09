@@ -25,8 +25,7 @@ from aqt.utils import showInfo, showWarning, askUserDialog
 from ..base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent, FieldInstructionChangedEvent
-from ..stats_widget import StatsWidget, StatKeyValue
-from ..settings_dialog import SettingsDialog
+from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
 from .prompt_preview_dialog import PromptPreviewDialog
 
 from .transform_notes import TransformNotesWithProgress
@@ -48,6 +47,7 @@ if TYPE_CHECKING:
 
 try:
     from ...version import TRANSFORMERMAN_VERSION
+
     tm_version = TRANSFORMERMAN_VERSION
 except ImportError:
     tm_version = ""
@@ -134,7 +134,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         """Setup the UI components."""
 
         if tm_version != "":
-            self.setWindowTitle("TransformerMan v"+tm_version)
+            self.setWindowTitle("TransformerMan v" + tm_version)
         else:
             self.setWindowTitle("TransformerMan")
 
@@ -178,9 +178,9 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         self.fields_widget = QWidget()
         fields_container_layout = QVBoxLayout()
-        fields_container_layout.addWidget(QLabel(
-            "<span style='color: rgba(128, 128, 128, 0.5);'>Read, Write & Optional instructions</span>"
-        ))
+        fields_container_layout.addWidget(
+            QLabel("<span style='color: rgba(128, 128, 128, 0.5);'>Read, Write & Optional instructions</span>")
+        )
         self.fields_widget.setLayout(fields_container_layout)
 
         self.fields_layout = QGridLayout()
@@ -285,29 +285,22 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         note_text = "note" if total_count == 1 else "notes"
         empty_text = "note" if num_notes_empty_field == 1 else "notes"
 
-        def open_config_dialog() -> None:
-            """Open the addon configuration dialog."""
-            SettingsDialog(parent=self, addon_config=self.addon_config).exec()
+        def on_client_updated(new_lm_client: LMClient) -> None:
+            self.lm_client = new_lm_client
+            self.transformer.lm_client = new_lm_client
+            self._update_state(clear_preview_results=True)
 
-            self.addon_config.reload()
-            new_lm_client, error = self.addon_config.get_client()
-            if error:
-                showWarning(f"{error}.\n\nPlease check your settings.", title="Configuration Error", parent=self)
-                self.close()
-                return
-            if new_lm_client:
-                self.lm_client = new_lm_client
-                self.transformer.lm_client = new_lm_client
-                self._update_state(clear_preview_results=True)
+        def open_dialog() -> None:
+            open_config_dialog(self, self.addon_config, on_client_updated)
 
         show_model = bool(self.lm_client.get_model())
         self.stats_widget.update_stats({
             "selected": StatKeyValue("Selected", f"{total_count} {note_text}"),
             "empty_fields": StatKeyValue("Empty writable fields", f"{num_notes_empty_field} {empty_text}"),
             "overwrite_stats": StatKeyValue("Overwritable fields", f"{total_count} {note_text}", len(overwritable_fields) > 0),
-            "api_client": StatKeyValue("Api client", self.lm_client.name, click_callback=open_config_dialog),
-            "client_model": StatKeyValue("Model", self.lm_client.get_model(), visible=show_model, click_callback=open_config_dialog),
-            "api_calls": StatKeyValue("Api calls", str(num_api_calls_needed))
+            "api_client": StatKeyValue("Api client", self.lm_client.name, click_callback=open_dialog),
+            "client_model": StatKeyValue("Model", self.lm_client.get_model(), visible=show_model, click_callback=open_dialog),
+            "api_calls": StatKeyValue("Api calls", str(num_api_calls_needed)),
         })
 
     def _load_note_types(self) -> None:
@@ -414,10 +407,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             has_notes_with_fillable_fields = self._has_notes_with_fillable_fields()
 
             preview_enabled = (
-                len(filtered_note_ids) > 0
-                and has_fillable_fields
-                and self.preview_results is None
-                and has_notes_with_fillable_fields
+                len(filtered_note_ids) > 0 and has_fillable_fields and self.preview_results is None and has_notes_with_fillable_fields
             )
 
         apply_enabled = self.preview_results is not None and len(self.preview_results) > 0 and not self.preview_results.is_applied

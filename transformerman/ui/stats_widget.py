@@ -5,7 +5,8 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-from typing import Callable
+
+from typing import Callable, TYPE_CHECKING
 
 from aqt.qt import (
     QWidget,
@@ -22,6 +23,12 @@ from aqt.qt import (
 from dataclasses import dataclass
 
 from ..lib.utilities import override
+from .settings_dialog import SettingsDialog
+from aqt.utils import showWarning
+
+if TYPE_CHECKING:
+    from ..lib.lm_clients import LMClient
+    from ..lib.addon_config import AddonConfig
 
 
 @dataclass
@@ -174,3 +181,21 @@ class StatsWidget(QWidget):
         """Update the values displayed in the badges."""
         for stat_id, stat in stats.items():
             self.update_stat(stat_id, stat)
+
+
+def open_config_dialog(
+    parent: QWidget,
+    addon_config: AddonConfig,
+    on_client_updated: Callable[[LMClient], None],
+) -> None:
+    """Open the addon configuration dialog."""
+    SettingsDialog(parent=parent, addon_config=addon_config).exec()
+
+    addon_config.reload()
+    new_lm_client, error = addon_config.get_client()
+    if error:
+        showWarning(f"{error}.\n\nPlease check your settings.", title="Configuration Error", parent=parent)
+        parent.close()
+        return
+    if new_lm_client:
+        on_client_updated(new_lm_client)

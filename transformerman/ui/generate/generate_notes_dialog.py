@@ -32,6 +32,7 @@ from ...lib.note_generator import NoteGenerator
 from ...lib.selected_notes import NoteModel
 from ...lib.selected_notes import SelectedNotes
 from ...lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
+from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -61,6 +62,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         card_ids: Sequence[CardId] | None = None,
     ) -> None:
         super().__init__(parent, is_dark_mode)
+        self.is_dark_mode = is_dark_mode
         self.col = col
         self.lm_client = lm_client
         self.addon_config = addon_config
@@ -105,6 +107,15 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
         selection_layout.setColumnStretch(1, 1)
         layout.addLayout(selection_layout)
+
+        # Stats section
+        stat_config = {
+            "selected": StatKeyValue("Selected"),
+            "api_client": StatKeyValue("Api client"),
+            "client_model": StatKeyValue("Model"),
+        }
+        self.stats_widget = StatsWidget(self, self.is_dark_mode, stat_config)
+        layout.addWidget(self.stats_widget)
 
         # Top Section: Source Text and Field Selection
         top_layout = QHBoxLayout()
@@ -182,6 +193,8 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         decks = [deck for deck in self.col.decks.all_names() if not used_deck_roots or deck.split("::")[0] in used_deck_roots]
         self.deck_combo.addItems(decks)
 
+        self._update_stats_widget()
+
     def _set_defaults(self) -> None:
         if self.example_notes:
             # Set default note type to most common
@@ -209,6 +222,32 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
         self.table.set_notes([], selected_fields)
 
+    def _update_stats_widget(self) -> None:
+        """Update the stats widget."""
+        note_type_name = self.note_type_combo.currentText()
+        model = NoteModel.by_name(self.col, note_type_name)
+
+        total_count = 0
+        if model and self.example_notes:
+            total_count = len(self.example_notes.filter_by_note_type(model))
+
+        note_text = "note" if total_count == 1 else "notes"
+
+        def on_client_updated(new_lm_client: LMClient) -> None:
+            self.lm_client = new_lm_client
+            self.generator.lm_client = new_lm_client
+            self._update_stats_widget()
+
+        def open_dialog() -> None:
+            open_config_dialog(self, self.addon_config, on_client_updated)
+
+        show_model = bool(self.lm_client.get_model())
+        self.stats_widget.update_stats({
+            "selected": StatKeyValue("Selected", f"{total_count} {note_text}"),
+            "api_client": StatKeyValue("Api client", self.lm_client.name, click_callback=open_dialog),
+            "client_model": StatKeyValue("Model", self.lm_client.get_model(), visible=show_model, click_callback=open_dialog),
+        })
+
     def _on_note_type_changed(self) -> None:
         # Update table columns and field list when note type changes
         note_type_name = self.note_type_combo.currentText()
@@ -231,6 +270,8 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             # Update table columns based on default selection (first 2 fields)
             default_fields = fields[:2] if len(fields) >= 2 else fields
             self.table.set_notes([], default_fields)
+
+        self._update_stats_widget()
 
     def _on_generate_clicked(self) -> None:
         source_text = self.source_text_edit.toPlainText().strip()
