@@ -29,6 +29,7 @@ class TransformerManBaseDialog(QDialog):
             is_dark_mode: Whether the UI is in dark mode.
         """
         super().__init__(parent)
+        self.is_dark_mode = is_dark_mode
         # Set the TransformerMan icon
         self.setWindowIcon(get_tm_icon(is_dark_mode))
         # Generate a unique geometry key based on the class name

@@ -83,7 +83,6 @@ class TransformerManMainWindow(TransformerManBaseDialog):
             card_ids: Sequence of selected card IDs (optional). If provided, used for deck detection.
         """
         super().__init__(parent, is_dark_mode)
-        self.is_dark_mode = is_dark_mode
         self.col = col
         self.lm_client = lm_client
         self.addon_config = addon_config
