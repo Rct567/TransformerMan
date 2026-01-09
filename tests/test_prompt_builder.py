@@ -8,7 +8,7 @@ import pytest
 
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes
-from transformerman.ui.field_widgets import FieldSelection
+from transformerman.ui.transform.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
 col = test_collection_fixture

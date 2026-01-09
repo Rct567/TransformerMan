@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from anki.models import NotetypeId, NotetypeDict
     from anki.notes import Note, NoteId
     from anki.cards import CardId
-    from ..ui.field_widgets import FieldSelection
+    from ..ui.transform.field_widgets import FieldSelection
     from .transform_prompt_builder import TransformPromptBuilder
 
 

@@ -22,16 +22,16 @@ from aqt.qt import (
 )
 from aqt.utils import showInfo, showWarning, askUserDialog
 
-from .base_dialog import TransformerManBaseDialog
+from ..base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent, FieldInstructionChangedEvent
-from .stats_widget import StatsWidget, StatKeyValue
-from .settings_dialog import SettingsDialog
+from ..stats_widget import StatsWidget, StatKeyValue
+from ..settings_dialog import SettingsDialog
 from .prompt_preview_dialog import PromptPreviewDialog
 
-from ..ui.transform_notes import TransformNotesWithProgress
-from ..lib.response_middleware import LogLastRequestResponseMiddleware, CacheResponseMiddleware, ResponseMiddleware
-from ..lib.selected_notes import SelectedNotes, NoteModel
+from .transform_notes import TransformNotesWithProgress
+from ...lib.response_middleware import LogLastRequestResponseMiddleware, CacheResponseMiddleware, ResponseMiddleware
+from ...lib.selected_notes import SelectedNotes, NoteModel
 
 import logging
 
@@ -41,13 +41,13 @@ if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
     from anki.cards import CardId
-    from ..lib.lm_clients import LMClient
-    from ..lib.addon_config import AddonConfig
-    from ..lib.field_updates import FieldUpdates
-    from ..lib.transform_operations import TransformResults
+    from ...lib.lm_clients import LMClient
+    from ...lib.addon_config import AddonConfig
+    from ...lib.field_updates import FieldUpdates
+    from ...lib.transform_operations import TransformResults
 
 try:
-    from ..version import TRANSFORMERMAN_VERSION
+    from ...version import TRANSFORMERMAN_VERSION
     tm_version = TRANSFORMERMAN_VERSION
 except ImportError:
     tm_version = ""

@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING, Optional, cast
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
+from transformerman.ui.transform.transform_notes import apply_field_updates_with_operation
+from transformerman.ui.transform.field_widgets import FieldSelection
 from transformerman.lib.transform_operations import NoteTransformer
-from transformerman.ui.transform_notes import apply_field_updates_with_operation
 from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from transformerman.lib.field_updates import FieldUpdates
-from transformerman.ui.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection, mock_collection_op
 
 col = test_collection_fixture

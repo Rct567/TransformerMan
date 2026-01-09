@@ -10,11 +10,11 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from aqt.qt import QLabel, QCheckBox, QLineEdit, QWidget, Qt, QMouseEvent, QObject, QEvent
 
-from ..lib.utilities import override, create_slug
-from ..ui.ui_utilities import debounce, EventManager, Event
+from ...lib.utilities import override, create_slug
+from ...ui.ui_utilities import debounce, EventManager, Event
 
 if TYPE_CHECKING:
-    from ..lib.addon_config import AddonConfig
+    from ...lib.addon_config import AddonConfig
     from collections.abc import Sequence, ItemsView, ValuesView
 
 
@@ -67,7 +67,7 @@ class FieldWidget(QWidget):
         self.field_label = QLabel(field_name)
 
         self.instruction_input = QLineEdit()
-        self.instruction_input.setPlaceholderText("Optional instructions for this field...")
+        self.instruction_input.setPlaceholderText("Optional instructions for this field…")
         self.instruction_input.textChanged.connect(self._on_instruction_changed)
 
         # Initial state

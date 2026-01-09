@@ -11,7 +11,7 @@ from transformerman.lib.response_middleware import LogLastRequestResponseMiddlew
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes, SelectedNotesFromType
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
-from transformerman.ui.field_widgets import FieldSelection
+from transformerman.ui.transform.field_widgets import FieldSelection
 
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 

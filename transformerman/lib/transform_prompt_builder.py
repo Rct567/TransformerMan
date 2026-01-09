@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from anki.collection import Collection
     from anki.notes import Note
-    from ..ui.field_widgets import FieldSelection
+    from ..ui.transform.field_widgets import FieldSelection
 
 
 class TransformPromptTemplate:

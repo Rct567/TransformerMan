@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 from anki.models import NotetypeId
 
 from transformerman.lib.selected_notes import SelectedNotes, NoteModel, SelectedNotesFromType, SelectedNotesBatch
-from transformerman.ui.field_widgets import FieldSelection
+from transformerman.ui.transform.field_widgets import FieldSelection
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 

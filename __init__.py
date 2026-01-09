@@ -14,9 +14,9 @@ from aqt.main import AnkiQt
 from aqt.qt import QAction, QWidget
 from aqt.utils import showInfo, showWarning
 
-from .transformerman.ui.main_window import TransformerManMainWindow  # type: ignore[import-not-found]
+from .transformerman.ui.transform.main_window import TransformerManMainWindow  # type: ignore[import-not-found]
 from .transformerman.ui.settings_dialog import SettingsDialog  # type: ignore[import-not-found]
-from .transformerman.ui.generate_notes_dialog import GenerateNotesDialog  # type: ignore[import-not-found]
+from .transformerman.ui.generate.generate_notes_dialog import GenerateNotesDialog  # type: ignore[import-not-found]
 from .transformerman.ui.ui_utilities import insert_action_after, get_tm_icon  # type: ignore[import-not-found]
 from .transformerman.lib.addon_config import AddonConfig  # type: ignore[import-not-found]
 

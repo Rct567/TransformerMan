@@ -1,9 +1,7 @@
 """Tests for preview table.
 
 Tests the PreviewTable widget which displays note previews with background loading
-and highlighting capabilities.
-"""
-
+and highlighting capabilities."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast, Any
@@ -17,7 +15,7 @@ if TYPE_CHECKING:
 
 from aqt.qt import QWidget, QColor
 
-from transformerman.ui.preview_table import (
+from transformerman.ui.transform.preview_table import (
     PreviewTable,
     DARK_MODE_HIGHLIGHT_COLOR,
     LIGHT_MODE_HIGHLIGHT_COLOR,
@@ -112,7 +110,7 @@ class TestPreviewTable:
         assert table.columnCount() == 0
 
     @with_test_collection("empty_collection")
-    @patch("transformerman.ui.preview_table.QueryOp")
+    @patch("transformerman.ui.transform.preview_table.QueryOp")
     def test_table_headers_set(
         self,
         mock_query_op: Mock,
@@ -145,7 +143,7 @@ class TestPreviewTable:
             assert header_item.text() == field
 
     @with_test_collection("empty_collection")
-    @patch("transformerman.ui.preview_table.QueryOp")
+    @patch("transformerman.ui.transform.preview_table.QueryOp")
     def test_highlighting_mode(
         self,
         mock_query_op: Mock,
@@ -219,7 +217,7 @@ class TestPreviewTable:
                     assert item.background().color() != table.highlight_color
 
     @with_test_collection("empty_collection")
-    @patch("transformerman.ui.preview_table.QueryOp")
+    @patch("transformerman.ui.transform.preview_table.QueryOp")
     def test_no_highlighting_without_field_updates(
         self,
         mock_query_op: Mock,
@@ -255,7 +253,7 @@ class TestPreviewTable:
         assert table.columnCount() == len(test_selected_fields)
 
     @with_test_collection("empty_collection")
-    @patch("transformerman.ui.preview_table.QueryOp")
+    @patch("transformerman.ui.transform.preview_table.QueryOp")
     def test_background_loading_setup(
         self,
         mock_query_op: Mock,

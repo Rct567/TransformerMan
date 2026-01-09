@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.notes import Note
     from .selected_notes import SelectedNotesBatch, SelectedNotesFromType
-    from ..ui.field_widgets import FieldSelection
+    from ..ui.transform.field_widgets import FieldSelection
     from .transform_prompt_builder import TransformPromptBuilder
 
 

@@ -30,7 +30,7 @@ def mock_anki_utils() -> Generator[None, None, None]:
     with patch("transformerman.ui.base_dialog.restoreGeom") as mock_restore, \
          patch("transformerman.ui.base_dialog.saveGeom") as mock_save, \
          patch("transformerman.ui.settings_dialog.QMessageBox.question") as mock_qmessagebox, \
-         patch("transformerman.ui.preview_table.QueryOp") as mock_query_op:
+         patch("transformerman.ui.transform.preview_table.QueryOp") as mock_query_op:
         # Configure mocks to do nothing (successful no-op)
         mock_restore.return_value = None
         mock_save.return_value = None

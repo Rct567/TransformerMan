@@ -4,7 +4,7 @@ from transformerman.lib.selected_notes import NoteModel, SelectedNotesFromType
 from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.response_middleware import ResponseMiddleware, LogLastRequestResponseMiddleware
-from transformerman.ui.field_widgets import FieldSelection
+from transformerman.ui.transform.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
 from pathlib import Path

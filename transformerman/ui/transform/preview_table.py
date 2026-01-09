@@ -25,8 +25,8 @@ from aqt.qt import (
 )
 from aqt.operations import QueryOp
 
-from ..lib.utilities import batched, override
-from ..lib.field_updates import FieldUpdates
+from ...lib.utilities import batched, override
+from ...lib.field_updates import FieldUpdates
 
 import logging
 
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence, Callable
     from anki.collection import Collection
     from anki.notes import NoteId, Note
-    from ..lib.selected_notes import SelectedNotes
+    from ...lib.selected_notes import SelectedNotes
 
 
 # Constants for content display

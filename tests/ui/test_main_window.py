@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 from aqt.qt import QWidget, QLineEdit, QComboBox, QPushButton, Qt
 
-from transformerman.ui.main_window import TransformerManMainWindow, FieldWidget
+from transformerman.ui.transform.main_window import TransformerManMainWindow, FieldWidget
 from transformerman.ui.stats_widget import StatsWidget
 from transformerman.lib.field_updates import FieldUpdates
 from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
@@ -247,7 +247,7 @@ class TestTransformerManMainWindow:
         # Should have corresponding instruction inputs
         front_input = front_widget.instruction_input
         assert isinstance(front_input, QLineEdit)
-        assert front_input.placeholderText() == "Optional instructions for this field..."
+        assert front_input.placeholderText() == "Optional instructions for this field…"
 
         # Instruction input should be enabled for checked fields
         assert front_input.isEnabled()
@@ -368,8 +368,8 @@ class TestTransformerManMainWindow:
         assert not window.apply_button.isEnabled()
 
     @with_test_collection("empty_collection")
-    @patch("transformerman.ui.main_window.TransformNotesWithProgress")
-    @patch("transformerman.ui.main_window.showInfo")
+    @patch("transformerman.ui.transform.main_window.TransformNotesWithProgress")
+    @patch("transformerman.ui.transform.main_window.showInfo")
     def test_preview_button_click_triggers_transformation(
         self,
         mock_show_info: Mock,
@@ -524,7 +524,6 @@ class TestTransformerManMainWindow:
         is_dark_mode: bool,
     ) -> None:
         """Test that discard button clears preview results and updates UI state."""
-
         # Add some notes to the collection
         model = col.models.by_name("Basic")
         deck_id = col.decks.id_for_name("Default")

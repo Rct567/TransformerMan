@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from anki.notes import NoteId
     from .transform_prompt_builder import TransformPromptBuilder
     from .http_utils import LmProgressData
-    from ..ui.field_widgets import FieldSelection
+    from ..ui.transform.field_widgets import FieldSelection
     from .response_middleware import ResponseMiddleware
     from .addon_config import AddonConfig
     from .lm_clients import LMClient

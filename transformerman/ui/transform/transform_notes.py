@@ -12,21 +12,21 @@ from aqt import mw
 from aqt.operations import QueryOp, CollectionOp
 from aqt.utils import showInfo
 
-from ..lib.transform_operations import CacheKey, NoteTransformer, TransformResults
-from ..lib.transform_prompt_builder import TransformPromptBuilder
+from ...lib.transform_operations import CacheKey, NoteTransformer, TransformResults
+from ...lib.transform_prompt_builder import TransformPromptBuilder
 
-from .progress_dialog import ProgressDialog
+from ..progress_dialog import ProgressDialog
 
 if TYPE_CHECKING:
     from aqt.qt import QWidget
     from anki.collection import Collection, OpChanges
-    from ..lib.field_updates import FieldUpdates
-    from ..ui.field_widgets import FieldSelection
-    from ..lib.http_utils import LmProgressData
-    from ..lib.response_middleware import ResponseMiddleware
-    from ..lib.addon_config import AddonConfig
-    from ..lib.lm_clients import LMClient
-    from ..lib.selected_notes import SelectedNotes, SelectedNotesFromType
+    from ...lib.field_updates import FieldUpdates
+    from ...ui.transform.field_widgets import FieldSelection
+    from ...lib.http_utils import LmProgressData
+    from ...lib.response_middleware import ResponseMiddleware
+    from ...lib.addon_config import AddonConfig
+    from ...lib.lm_clients import LMClient
+    from ...lib.selected_notes import SelectedNotes, SelectedNotesFromType
 
 
 class TransformNotesWithProgress:

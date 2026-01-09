@@ -25,13 +25,13 @@ from aqt import mw
 from aqt.utils import showInfo, showWarning
 from aqt.operations import QueryOp
 
-from .base_dialog import TransformerManBaseDialog
+from ..base_dialog import TransformerManBaseDialog
 from .generated_notes_table import GeneratedNotesTable
-from .transform_notes import ProgressDialog
-from ..lib.note_generator import NoteGenerator
-from ..lib.selected_notes import NoteModel
-from ..lib.selected_notes import SelectedNotes
-from ..lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
+from ..progress_dialog import ProgressDialog
+from ...lib.note_generator import NoteGenerator
+from ...lib.selected_notes import NoteModel
+from ...lib.selected_notes import SelectedNotes
+from ...lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -39,9 +39,9 @@ if TYPE_CHECKING:
     from anki.collection import Collection
     from anki.notes import NoteId
     from anki.cards import CardId
-    from ..lib.lm_clients import LMClient
-    from ..lib.addon_config import AddonConfig
-    from ..lib.http_utils import LmProgressData
+    from ...lib.lm_clients import LMClient
+    from ...lib.addon_config import AddonConfig
+    from ...lib.http_utils import LmProgressData
 
 
 class GenerateNotesDialog(TransformerManBaseDialog):
