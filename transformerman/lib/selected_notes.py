@@ -14,49 +14,15 @@ from anki.utils import ids2str
 from .utilities import evenly_spaced_sample, override
 
 from .notes_batching import BatchingStats, batched_by_prompt_size
+from .collection_data import CollectionData, NoteModel
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
-    from anki.models import NotetypeId, NotetypeDict
     from anki.notes import Note, NoteId
     from anki.cards import CardId
     from ..ui.transform.field_widgets import FieldSelection
     from .transform_prompt_builder import TransformPromptBuilder
-
-
-class NoteModel:
-    """Wrapper for Anki's note type (model)."""
-
-    def __init__(self, col: Collection, data: NotetypeDict) -> None:
-        self.col = col
-        self.data = data
-
-    @classmethod
-    def by_name(cls, col: Collection, name: str) -> NoteModel | None:
-        data = col.models.by_name(name)
-        if data:
-            return cls(col, data)
-        return None
-
-    @classmethod
-    def by_id(cls, col: Collection, mid: NotetypeId) -> NoteModel | None:
-        data = col.models.get(mid)
-        if data:
-            return cls(col, data)
-        return None
-
-    def get_fields(self) -> list[str]:
-        """Return the names of the fields in this note model."""
-        return [field["name"] for field in self.data["flds"]]
-
-    @property
-    def id(self) -> NotetypeId:
-        return self.data["id"]
-
-    @property
-    def name(self) -> str:
-        return self.data["name"]
 
 
 class SelectedNotes:
@@ -65,8 +31,6 @@ class SelectedNotes:
     _note_ids: Sequence[NoteId]
     _card_ids: Sequence[CardId] | None
     _card_ids_set: set[CardId] | None
-    _note_cache: dict[NoteId, Note]
-    _deck_cache: dict[CardId, str]
     batching_stats: BatchingStats | None
 
     def __init__(
@@ -74,8 +38,7 @@ class SelectedNotes:
         col: Collection,
         note_ids: Sequence[NoteId],
         card_ids: Sequence[CardId] | None = None,
-        note_cache: dict[NoteId, Note] | None = None,
-        deck_cache: dict[CardId, str] | None = None,
+        col_data: CollectionData | None = None,
         _parent: SelectedNotes | None = None,
     ) -> None:
         """Initialize with collection and selected note IDs and optional card IDs."""
@@ -83,8 +46,7 @@ class SelectedNotes:
         self._note_ids = note_ids
         self._card_ids = card_ids if card_ids else None  # these might represent cards selected by the user
         self._card_ids_set = None
-        self._note_cache = note_cache if note_cache else {}
-        self._deck_cache = deck_cache if deck_cache else {}
+        self._col_data = col_data if col_data else CollectionData(col)
         self.logger = logging.getLogger(__name__)
         self.batching_stats = None
         self._parent = _parent
@@ -101,12 +63,7 @@ class SelectedNotes:
         Returns:
             Note object if found and no error, otherwise None.
         """
-        if nid in self._note_cache:
-            return self._note_cache[nid]
-
-        note = self.col.get_note(nid)
-        self._note_cache[nid] = note
-        return note
+        return self._col_data.get_note(nid)
 
     def get_ids(self) -> Sequence[NoteId]:
         """Return the note IDs in the selection."""
@@ -138,8 +95,7 @@ class SelectedNotes:
             filtered_note_ids,
             note_type,
             self._card_ids,
-            self._note_cache,
-            self._deck_cache,
+            col_data=self._col_data,
             _parent=self,
         )
 
@@ -255,8 +211,7 @@ class SelectedNotes:
             selected_notes.col,
             note_ids,
             new_card_ids,
-            note_cache=selected_notes._note_cache,
-            deck_cache=selected_notes._deck_cache,
+            col_data=selected_notes._col_data,
             _parent=selected_notes,
         )
 
@@ -317,18 +272,11 @@ class SelectedNotes:
         Returns:
             Deck name (full path) or empty string if card not found.
         """
-        if card_id in self._deck_cache:
-            return self._deck_cache[card_id]
-
-        card = self.col.get_card(card_id)
+        card = self._col_data.get_card(card_id)
         if not card:
-            self._deck_cache[card_id] = ""
             return ""
 
-        deck = self.col.decks.get(card.did)
-        name = deck["name"] if deck else ""
-        self._deck_cache[card_id] = name
-        return name
+        return self._col_data.get_deck_name(card.did)
 
     def _get_card_ids_from_notes(self, note_ids: Sequence[NoteId]) -> Sequence[CardId]:
         """Get card IDs associated with the given note IDs."""
@@ -385,9 +333,9 @@ class SelectedNotes:
     def clear_cache(self, clear_notes_cache: bool = True, clear_deck_cache: bool = True) -> None:
         """Clear the cache for notes and/or decks."""
         if clear_notes_cache:
-            self._note_cache.clear()
+            self._col_data.note_cache.clear()
         if clear_deck_cache:
-            self._deck_cache.clear()
+            self._col_data.deck_cache.clear()
 
     def parent(self) -> SelectedNotes | None:  # noqa
         """Return to the previous selection in the chain (jQuery-style)."""
@@ -411,11 +359,10 @@ class SelectedNotesFromType(SelectedNotes):
         note_ids: Sequence[NoteId],
         note_type: NoteModel,
         card_ids: Sequence[CardId] | None = None,
-        note_cache: dict[NoteId, Note] | None = None,
-        deck_cache: dict[CardId, str] | None = None,
+        col_data: CollectionData | None = None,
         _parent: SelectedNotes | None = None,
     ) -> None:
-        super().__init__(col, note_ids, card_ids, note_cache, deck_cache, _parent)
+        super().__init__(col, note_ids, card_ids, col_data, _parent)
         self.note_type = note_type
 
     @override
@@ -431,8 +378,7 @@ class SelectedNotesFromType(SelectedNotes):
             note_ids,
             selected_notes.note_type,
             new_card_ids,
-            note_cache=selected_notes._note_cache,
-            deck_cache=selected_notes._deck_cache,
+            col_data=selected_notes._col_data,
             _parent=selected_notes,
         )
 

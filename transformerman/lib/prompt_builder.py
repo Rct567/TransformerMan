@@ -8,78 +8,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .xml_parser import escape_xml_content
-from .selected_notes import SelectedNotes, NoteModel
+from .collection_data import CollectionData, NoteModel
 
 if TYPE_CHECKING:
+    from .selected_notes import SelectedNotes
     from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import Note, NoteId
-    from anki.cards import Card, CardId
-    from anki.decks import DeckId
 
 
 class PromptBuilder:
     """Base class for building prompts for the language model."""
 
-    deck_cache: dict[int, str]
-    note_cache: dict[NoteId, Note]
-    card_cache: dict[CardId, Card]
-    find_notes_cache: dict[str, Sequence[NoteId]]
     note_xml_cache: dict[tuple[NoteId, tuple[str, ...], tuple[str, ...], bool], str]
 
     def __init__(self, col: Collection) -> None:
-        self.col = col
-        self.deck_cache = {}
-        self.note_cache = {}
-        self.card_cache = {}
-        self.find_notes_cache = {}
+        self._col_data = CollectionData(col)
         self.note_xml_cache = {}
-
-    def _get_note(self, note_id: NoteId) -> Note:
-        """Get a note from cache or collection."""
-        if note_id in self.note_cache:
-            return self.note_cache[note_id]
-
-        note = self.col.get_note(note_id)
-        self.note_cache[note_id] = note
-        return note
-
-    def _get_deck_name(self, deck_id: DeckId) -> str:
-        """Get deck name from cache or collection."""
-        if deck_id in self.deck_cache:
-            return self.deck_cache[deck_id]
-
-        deck = self.col.decks.get(deck_id)
-        name = deck["name"] if deck else ""
-        self.deck_cache[deck_id] = name
-        return name
-
-    def _get_deck_name_for_note(self, note: Note) -> str:
-        """Get deck name for a note."""
-        card_ids = note.card_ids()
-        if not card_ids:
-            return ""
-
-        card = self._get_card(card_ids[0])
-        return self._get_deck_name(card.did)
-
-    def _get_card(self, card_id: CardId) -> Card:
-        """Get a card from cache or collection."""
-        if card_id in self.card_cache:
-            return self.card_cache[card_id]
-
-        card = self.col.get_card(card_id)
-        self.card_cache[card_id] = card
-        return card
-
-    def _find_notes(self, query: str) -> Sequence[NoteId]:
-        """Find note IDs using cache or collection."""
-        if query in self.find_notes_cache:
-            return self.find_notes_cache[query]
-
-        note_ids = self.col.find_notes(query)
-        self.find_notes_cache[query] = note_ids
-        return note_ids
 
     def select_example_notes(
         self,
@@ -108,12 +53,12 @@ class PromptBuilder:
         target_note_ids = set(target_notes.get_ids())
 
         # Find the note type
-        model = NoteModel.by_name(self.col, note_type.name)
+        model = self._col_data.get_note_model_by_name(note_type.name)
         if not model:
             return []
 
         def find_candidate_notes(query: str) -> list[NoteId]:
-            note_ids = self._find_notes(query)
+            note_ids = self._col_data.find_notes(query)
             # Filter out target notes
             return [nid for nid in note_ids if nid not in target_note_ids]
 
@@ -156,7 +101,7 @@ class PromptBuilder:
 
         for nid in candidate_note_ids[:300]:  # Limit to first 300 for performance
             try:
-                note = self._get_note(nid)
+                note = self._col_data.get_note(nid)
 
                 # Count non-empty selected fields and words
                 non_empty_count = 0
@@ -192,7 +137,7 @@ class PromptBuilder:
             return self.note_xml_cache[cache_key]
 
         # Get deck name
-        deck_name = self._get_deck_name_for_note(note)
+        deck_name = self._col_data.get_deck_name_for_note(note)
 
         # Build XML lines for this note
         if include_deck:
@@ -242,8 +187,8 @@ class PromptBuilder:
         # Check if all notes have the same deck
         common_deck: str | None = None
         if notes:
-            first_deck = self._get_deck_name_for_note(notes[0])
-            all_same_deck = all(self._get_deck_name_for_note(note) == first_deck for note in notes)
+            first_deck = self._col_data.get_deck_name_for_note(notes[0])
+            all_same_deck = all(self._col_data.get_deck_name_for_note(note) == first_deck for note in notes)
             if all_same_deck:
                 common_deck = first_deck
 
