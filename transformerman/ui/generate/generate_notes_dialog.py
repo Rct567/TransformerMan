@@ -220,7 +220,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             if item and item.checkState() == Qt.CheckState.Checked:
                 selected_fields.append(item.text())
 
-        self.table.set_notes([], selected_fields)
+        self.table.update_columns(selected_fields)
 
     def _update_stats_widget(self) -> None:
         """Update the stats widget."""

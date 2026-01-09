@@ -34,6 +34,13 @@ class GeneratedNotesTable(QTableWidget):
             v_header.setVisible(False)
         self.setMinimumHeight(200)
 
+    def update_columns(self, field_names: Sequence[str]) -> None:
+        """Update the columns of the table."""
+        if self.rowCount() > 0:
+            raise ValueError("Cannot update columns when table is not empty")
+        self.setColumnCount(len(field_names))
+        self.setHorizontalHeaderLabels(field_names)
+
     def set_notes(self, notes: list[dict[str, str]], field_names: Sequence[str]) -> None:
         """
         Set the notes to display in the table.
@@ -43,8 +50,7 @@ class GeneratedNotesTable(QTableWidget):
             field_names: List of field names to show as columns.
         """
         self.clear()
-        self.setColumnCount(len(field_names))
-        self.setHorizontalHeaderLabels(field_names)
+        self.update_columns(field_names)
         self.setRowCount(len(notes))
 
         for row, note in enumerate(notes):
@@ -64,6 +70,8 @@ class GeneratedNotesTable(QTableWidget):
         if self.columnCount() == 0:
             self.set_notes(notes, field_names)
             return
+        if self.columnCount() != len(field_names):
+            raise ValueError("Number of columns must match number of field names")
 
         current_row_count = self.rowCount()
         self.setRowCount(current_row_count + len(notes))
