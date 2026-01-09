@@ -144,8 +144,9 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
         settings_layout.addWidget(QLabel("Count:"))
         self.count_spin = QSpinBox()
-        self.count_spin.setRange(1, 50)
-        self.count_spin.setValue(5)
+        self.count_spin.setRange(1, 1000)
+        self.count_spin.setValue(10)
+        self.count_spin.setMinimumWidth(55)
         settings_layout.addWidget(self.count_spin)
 
         self.generate_btn = QPushButton("Generate notes")
