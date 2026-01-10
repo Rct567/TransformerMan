@@ -68,9 +68,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         self.example_notes = SelectedNotes(col, note_ids, card_ids=card_ids)
 
         # Setup middleware (for logging)
-        self.middleware = ResponseMiddleware(
-             LogLastRequestResponseMiddleware(self.addon_config, user_files_dir)
-        )
+        self.middleware = ResponseMiddleware(LogLastRequestResponseMiddleware(self.addon_config, user_files_dir))
 
         self.generator = NoteGenerator(col, lm_client, self.middleware)
         self._is_locked_by_context = False
@@ -350,6 +348,9 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
                 self.table.append_notes(notes, selected_fields)
                 self._update_create_button_state()
+
+                # Check for duplicates in background
+                self._check_duplicates(notes)
             else:
                 showInfo("No notes were generated.")
 
@@ -364,6 +365,56 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             op=generate,
             success=on_success,
         ).failure(on_failure).run_in_background()
+
+    def _check_duplicates(self, notes: list[dict[str, str]]) -> None:
+        """
+        Check for duplicates in the generated notes.
+        """
+        # The notes were just appended to the table.
+        # So they start at (current_row_count - len(notes)).
+        # We should capture this immediately.
+        start_row = self.table.rowCount() - len(notes)
+        if start_row < 0:
+            start_row = 0
+
+        self._check_duplicates_batch(notes, 0, start_row)
+
+    def _check_duplicates_batch(self, all_notes: list[dict[str, str]], batch_start_index: int, table_start_row: int) -> None:
+        """
+        Process a batch of notes to check for duplicates.
+
+        Args:
+            all_notes: The list of all notes generated in this session.
+            batch_start_index: The index within all_notes where this batch starts.
+            table_start_row: The row index in the table where all_notes starts.
+        """
+        batch_size = 10
+        if batch_start_index >= len(all_notes):
+            return
+
+        batch_end = min(batch_start_index + batch_size, len(all_notes))
+        batch_notes = all_notes[batch_start_index:batch_end]
+
+        def find_duplicates_op(col: Collection) -> dict[int, list[str]]:
+            return find_duplicates(col, batch_notes)
+
+        def on_batch_success(duplicates: dict[int, list[str]]) -> None:
+            # Highlight duplicates for this batch
+            # The batch starts at table_start_row + batch_start_index
+            current_batch_table_start = table_start_row + batch_start_index
+            self.table.highlight_duplicates(duplicates, start_row=current_batch_table_start)
+
+            # Process next batch
+            self._check_duplicates_batch(all_notes, batch_end, table_start_row)
+
+        def on_batch_failure(e: Exception) -> None:
+            print(f"Duplicate check failed: {e}")
+
+        QueryOp(
+            parent=self,
+            op=find_duplicates_op,
+            success=on_batch_success,
+        ).failure(on_batch_failure).run_in_background()
 
     def _on_create_clicked(self) -> None:
         notes_data = self.table.get_all_notes()
@@ -406,3 +457,50 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             op=add_notes,
             success=on_success,
         ).failure(on_failure).run_in_background()
+
+
+def find_duplicates(col: Collection, notes: list[dict[str, str]]) -> dict[int, list[str]]:
+    """
+    Find duplicates for a list of notes.
+    Returns a dict mapping relative row index to a list of duplicate field names.
+    """
+    duplicates: dict[int, list[str]] = {}
+
+    for i, note in enumerate(notes):
+        duplicate_fields = get_duplicate_fields(col, note)
+        if duplicate_fields:
+            duplicates[i] = duplicate_fields
+
+    return duplicates
+
+
+def get_duplicate_fields(col: Collection, note: dict[str, str]) -> list[str]:
+    """Check a single note for duplicates in the collection."""
+    # Construct query: (Field1:"Val1") OR (Field2:"Val2") ...
+    query_parts = []
+    for field, value in note.items():
+        if not value.strip():
+            continue
+        # Escape double quotes in value
+        escaped_value = value.replace('"', '\\"')
+        query_parts.append(f'"{field}:{escaped_value}"')
+
+    if not query_parts:
+        return []
+
+    query = " OR ".join(query_parts)
+    found_note_ids = col.find_notes(query)
+
+    if not found_note_ids:
+        return []
+
+    duplicate_fields = []
+    # Check which fields are actually duplicates
+    for nid in found_note_ids:
+        existing_note = col.get_note(nid)
+        for field, value in note.items():
+            if field in existing_note and existing_note[field] == value:
+                if field not in duplicate_fields:
+                    duplicate_fields.append(field)
+
+    return duplicate_fields

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from aqt.qt import (
     QTableWidget,
     QTableWidgetItem,
+    QColor,
     QWidget,
     QHeaderView,
     Qt,
@@ -133,3 +134,32 @@ class GeneratedNotesTable(QTableWidget):
             notes.append(note_data)
 
         return notes
+
+    def highlight_duplicates(self, duplicates: dict[int, list[str]], start_row: int = 0) -> None:
+        """
+        Highlight duplicate cells in the table.
+
+        Args:
+            duplicates: Mapping of relative row index to list of duplicate field names.
+            start_row: The absolute row index where the batch starts.
+        """
+        # Light orange/red color for duplicates
+        duplicate_color = QColor(255, 200, 200)
+        if self.parent() and getattr(self.parent(), "is_dark_mode", False):
+            duplicate_color = QColor(100, 50, 50)
+
+        for rel_row, fields in duplicates.items():
+            row = start_row + rel_row
+            if row >= self.rowCount():
+                continue
+
+            for field in fields:
+                # Find column for this field
+                for col in range(self.columnCount()):
+                    header_item = self.horizontalHeaderItem(col)
+                    if header_item and header_item.text() == field:
+                        item = self.item(row, col)
+                        if item:
+                            item.setBackground(duplicate_color)
+                            item.setToolTip(f"Duplicate content in field '{field}'")
+                        break
