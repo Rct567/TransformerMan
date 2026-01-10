@@ -35,10 +35,10 @@ from ...lib.response_middleware import LogLastRequestResponseMiddleware, Respons
 from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterable, Sequence
     from pathlib import Path
     from anki.collection import Collection
-    from anki.notes import NoteId
+    from anki.notes import Note, NoteId
     from anki.cards import CardId
     from ...lib.lm_clients import LMClient
     from ...lib.addon_config import AddonConfig
@@ -274,7 +274,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
     def _on_generate_clicked(self) -> None:
         source_text = self.source_text_edit.toPlainText().strip()
         if not source_text:
-            showInfo("Please enter some source text.")
+            showInfo("Please enter some source text.", parent=self)
             return
 
         # Get selected fields
@@ -285,7 +285,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
                 selected_fields.append(item.text())
 
         if not selected_fields:
-            showInfo("Please select at least one field.")
+            showInfo("Please select at least one field.", parent=self)
             return
 
         deck_name = self.deck_combo.currentText()
@@ -308,7 +308,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         progress = ProgressDialog(1, self)
         progress.show()
 
-        def generate(col: Collection) -> list[dict[str, str]]:
+        def generate(col: Collection) -> tuple[list[dict[str, str]], dict[int, list[str]], int]:
             # Filter example notes by selected note type
             filtered_examples = None
             if self.example_notes:
@@ -318,12 +318,13 @@ class GenerateNotesDialog(TransformerManBaseDialog):
                 def update_ui() -> None:
                     progress.update_progress(0, 1, data)
 
-                mw.taskman.run_on_main(update_ui)
+                if mw and mw.taskman:
+                    mw.taskman.run_on_main(update_ui)
 
             def should_cancel() -> bool:
                 return progress.is_cancel_requested()
 
-            return self.generator.generate_notes(
+            raw_notes = self.generator.generate_notes(
                 source_text=source_text,
                 note_type=model,
                 deck_name=deck_name,
@@ -334,11 +335,41 @@ class GenerateNotesDialog(TransformerManBaseDialog):
                 should_cancel=should_cancel,
             )
 
-        def on_success(notes: list[dict[str, str]]) -> None:
+            def set_progress_to_filter_duplicates() -> None:
+                progress.setLabelText("Checking for duplicate content...")
+                progress.setValue(1)
+
+            if mw and mw.taskman:
+                mw.taskman.run_on_main(set_progress_to_filter_duplicates)
+
+            model_fields = model.get_fields()
+            all_duplicates = find_duplicates(col, raw_notes, deck_name, model_fields)
+            model_fields_set = set(model_fields)
+            filtered_notes: list[dict[str, str]] = []
+            duplicates: dict[int, list[str]] = {}
+            ignored_count = 0
+
+            for i, note in enumerate(raw_notes):
+                duplicate_fields = all_duplicates.get(i, [])
+                # Only count keys that are actual fields of the note type
+                actual_note_fields = [k for k in note if k in model_fields_set]
+
+                # If all actual fields in the note are duplicates, ignore it
+                if duplicate_fields and len(duplicate_fields) == len(actual_note_fields):
+                    ignored_count += 1
+                else:
+                    if duplicate_fields:
+                        duplicates[len(filtered_notes)] = duplicate_fields
+                    filtered_notes.append(note)
+
+            return filtered_notes, duplicates, ignored_count
+
+        def on_success(result: tuple[list[dict[str, str]], dict[int, list[str]], int]) -> None:
+            notes, duplicates, ignored_count = result
             progress.cleanup()
             self.generate_btn.setEnabled(True)
             self.generate_btn.setText("Generate notes")
-            if notes:
+            if notes or ignored_count > 0:
                 # Lock note type, deck and field selection after first successful generation
                 if not self._is_locked_by_context:
                     self._is_locked_by_context = (model, deck_name)
@@ -346,19 +377,23 @@ class GenerateNotesDialog(TransformerManBaseDialog):
                     self.deck_combo.setEnabled(False)
                     self.field_list.setEnabled(False)
 
-                self.table.append_notes(notes, selected_fields)
-                self._update_create_button_state()
+                if notes:
+                    start_row = self.table.rowCount()
+                    self.table.append_notes(notes, selected_fields)
+                    self.table.highlight_duplicates(duplicates, start_row=start_row)
+                    self._update_create_button_state()
 
-                # Check for duplicates in background
-                self._check_duplicates(notes)
+                if ignored_count > 0:
+                    note_text = "note" if ignored_count == 1 else "notes"
+                    showInfo(f"Ignored {ignored_count} fully duplicate {note_text}.", parent=self)
             else:
-                showInfo("No notes were generated.")
+                showInfo("No notes were generated.", parent=self)
 
         def on_failure(e: Exception) -> None:
             progress.cleanup()
             self.generate_btn.setEnabled(True)
             self.generate_btn.setText("Generate notes")
-            showWarning(f"Generation failed: {e!s}")
+            showWarning(f"Generation failed: {e!s}", parent=self)
 
         QueryOp(
             parent=self,
@@ -366,60 +401,10 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             success=on_success,
         ).failure(on_failure).run_in_background()
 
-    def _check_duplicates(self, notes: list[dict[str, str]]) -> None:
-        """
-        Check for duplicates in the generated notes.
-        """
-        # The notes were just appended to the table.
-        # So they start at (current_row_count - len(notes)).
-        # We should capture this immediately.
-        start_row = self.table.rowCount() - len(notes)
-        if start_row < 0:
-            start_row = 0
-
-        self._check_duplicates_batch(notes, 0, start_row)
-
-    def _check_duplicates_batch(self, all_notes: list[dict[str, str]], batch_start_index: int, table_start_row: int) -> None:
-        """
-        Process a batch of notes to check for duplicates.
-
-        Args:
-            all_notes: The list of all notes generated in this session.
-            batch_start_index: The index within all_notes where this batch starts.
-            table_start_row: The row index in the table where all_notes starts.
-        """
-        batch_size = 10
-        if batch_start_index >= len(all_notes):
-            return
-
-        batch_end = min(batch_start_index + batch_size, len(all_notes))
-        batch_notes = all_notes[batch_start_index:batch_end]
-
-        def find_duplicates_op(col: Collection) -> dict[int, list[str]]:
-            return find_duplicates(col, batch_notes)
-
-        def on_batch_success(duplicates: dict[int, list[str]]) -> None:
-            # Highlight duplicates for this batch
-            # The batch starts at table_start_row + batch_start_index
-            current_batch_table_start = table_start_row + batch_start_index
-            self.table.highlight_duplicates(duplicates, start_row=current_batch_table_start)
-
-            # Process next batch
-            self._check_duplicates_batch(all_notes, batch_end, table_start_row)
-
-        def on_batch_failure(e: Exception) -> None:
-            print(f"Duplicate check failed: {e}")
-
-        QueryOp(
-            parent=self,
-            op=find_duplicates_op,
-            success=on_batch_success,
-        ).failure(on_batch_failure).run_in_background()
-
     def _on_create_clicked(self) -> None:
         notes_data = self.table.get_all_notes()
         if not notes_data:
-            showInfo("No notes to create.")
+            showInfo("No notes to create.", parent=self)
             return
 
         note_type_name = self.note_type_combo.currentText()
@@ -431,7 +416,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
         deck_id = self.col.decks.id(deck_name)
         if deck_id is None:
-            showWarning(f"Deck '{deck_name}' not found.")
+            showWarning(f"Deck '{deck_name}' not found.", parent=self)
             return
 
         def add_notes(col: Collection) -> int:
@@ -446,11 +431,11 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             return count
 
         def on_success(count: int) -> None:
-            showInfo(f"Successfully added {count} notes to deck '{deck_name}'.")
+            showInfo(f"Successfully added {count} notes to deck '{deck_name}'.", parent=self)
             self.accept()
 
         def on_failure(e: Exception) -> None:
-            showWarning(f"Failed to add notes: {e!s}")
+            showWarning(f"Failed to add notes: {e!s}", parent=self)
 
         QueryOp(
             parent=self,
@@ -459,48 +444,116 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         ).failure(on_failure).run_in_background()
 
 
-def find_duplicates(col: Collection, notes: list[dict[str, str]]) -> dict[int, list[str]]:
+def find_duplicates(
+    col: Collection, notes: list[dict[str, str]], deck_name: str, field_names: Sequence[str] | None = None
+) -> dict[int, list[str]]:
     """
-    Find duplicates for a list of notes.
+    Find duplicates for a list of notes within a specific deck.
     Returns a dict mapping relative row index to a list of duplicate field names.
+
+    Args:
+        col: Anki collection
+        notes: List of note dictionaries to check for duplicates
+        deck_name: Name of the deck to search within (can include :: for subdecks)
+        field_names: Optional list of actual field names for the note type to filter keys
     """
     duplicates: dict[int, list[str]] = {}
+    batch_size = 10
 
-    for i, note in enumerate(notes):
-        duplicate_fields = get_duplicate_fields(col, note)
-        if duplicate_fields:
-            duplicates[i] = duplicate_fields
+    # Process notes in batches
+    for batch_start in range(0, len(notes), batch_size):
+        batch_end = min(batch_start + batch_size, len(notes))
+        batch_notes = notes[batch_start:batch_end]
+
+        # Get all potential duplicate note IDs for this batch
+        batch_note_ids = get_duplicate_note_ids(col, batch_notes, deck_name, field_names)
+
+        if not batch_note_ids:
+            continue
+
+        # Load all notes at once
+        existing_notes = {nid: col.get_note(nid) for nid in batch_note_ids}
+
+        # Check each note in the batch against the existing notes
+        for i, note in enumerate(batch_notes):
+            note_index = batch_start + i
+            duplicate_fields = _find_duplicate_fields_in_notes(note, existing_notes.values())
+
+            if duplicate_fields:
+                duplicates[note_index] = duplicate_fields
 
     return duplicates
 
 
-def get_duplicate_fields(col: Collection, note: dict[str, str]) -> list[str]:
-    """Check a single note for duplicates in the collection."""
-    # Construct query: (Field1:"Val1") OR (Field2:"Val2") ...
-    query_parts = []
-    for field, value in note.items():
-        if not value.strip():
-            continue
-        # Escape double quotes in value
-        escaped_value = value.replace('"', '\\"')
-        query_parts.append(f'"{field}:{escaped_value}"')
+def _find_duplicate_fields_in_notes(note: dict[str, str], existing_notes: Iterable[Note]) -> list[str]:
+    """Helper function to find which fields in a note have duplicates in existing notes.
 
-    if not query_parts:
-        return []
+    Args:
+        note: Note dictionary to check
+        existing_notes: Iterable of existing Anki notes to check against
 
-    query = " OR ".join(query_parts)
-    found_note_ids = col.find_notes(query)
-
-    if not found_note_ids:
-        return []
-
+    Returns:
+        List of field names that have duplicate values
+    """
     duplicate_fields = []
-    # Check which fields are actually duplicates
-    for nid in found_note_ids:
-        existing_note = col.get_note(nid)
+
+    for existing_note in existing_notes:
         for field, value in note.items():
             if field in existing_note and existing_note[field] == value:
                 if field not in duplicate_fields:
                     duplicate_fields.append(field)
 
     return duplicate_fields
+
+
+def get_duplicate_note_ids(
+    col: Collection, notes: list[dict[str, str]], deck_name: str, field_names: Sequence[str] | None = None
+) -> Sequence[NoteId]:
+    """Get all potential duplicate note IDs for a list of notes.
+
+    Args:
+        col: Anki collection
+        notes: A list of note dictionaries to check
+        deck_name: Name of the deck to search within
+        field_names: Optional list of actual field names for the note type to filter keys
+
+    Returns:
+        List of note IDs that potentially contain duplicates
+    """
+    if not notes:
+        return []
+
+    # Construct query: "deck:DeckName" AND (
+    #   ("Field1:Val1_1" OR "Field2:Val2_1" ...) OR
+    #   ("Field1:Val1_2" OR "Field2:Val2_2" ...) OR
+    #   ...
+    # )
+    note_queries = []
+    for note in notes:
+        field_parts = []
+        for field, value in note.items():
+            # Skip metadata keys
+            if field == "deck":
+                continue
+            # If field_names provided, skip keys that aren't actual fields
+            if field_names is not None and field not in field_names:
+                continue
+
+            if not value.strip():
+                continue
+            # Escape double quotes in value
+            escaped_value = value.replace('"', '\\"')
+            field_parts.append(f'"{field}:{escaped_value}"')
+
+        if field_parts:
+            note_queries.append(f"({' OR '.join(field_parts)})")
+
+    if not note_queries:
+        return []
+
+    # Escape deck name and construct final query
+    root_deck_name_escaped = deck_name.split("::", maxsplit=1)[0].replace('"', '\\"')
+    combined_query = " OR ".join(note_queries)
+    query = f'"deck:{root_deck_name_escaped}" AND ({combined_query})'
+
+    return col.find_notes(query)

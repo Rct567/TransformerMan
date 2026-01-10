@@ -6,8 +6,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import unittest.mock
+
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Any
     from unittest.mock import Mock
     from pytestqt.qtbot import QtBot
     from aqt.qt import QWidget
@@ -163,7 +166,7 @@ class TestGenerateNotesDialog:
 
         # Run duplicate check synchronously for testing
         # 1. Verify logic: find_duplicates
-        duplicates = find_duplicates(col, generated_notes)
+        duplicates = find_duplicates(col, generated_notes, "Default")
 
         assert 0 in duplicates
         assert "Front" in duplicates[0]
@@ -195,3 +198,97 @@ class TestGenerateNotesDialog:
         item_1_1 = dialog.table.item(1, 1)
         assert item_1_1 is not None
         assert "Duplicate content" in item_1_1.toolTip()
+
+    @with_test_collection("two_deck_collection")
+    def test_duplicate_deletion(
+        self,
+        qtbot: QtBot,
+        parent_widget: QWidget,
+        col: TestCollection,
+        dummy_lm_client: Mock,
+        addon_config: AddonConfig,
+        user_files_dir: Path,
+        is_dark_mode: bool,
+    ) -> None:
+        """Test that fully duplicate notes are automatically deleted."""
+        # 1. Create existing notes
+        basic_model = col.models.by_name("Basic")
+        deck_id = col.decks.id_for_name("decka")
+        assert basic_model is not None
+        assert deck_id is not None
+
+        note1 = col.new_note(basic_model)
+        note1["Front"] = "Duplicate Front"
+        note1["Back"] = "Duplicate Back"
+        col.add_note(note1, deck_id)
+
+        # 2. Initialize dialog
+        dialog = GenerateNotesDialog(
+            parent=parent_widget,
+            is_dark_mode=is_dark_mode,
+            col=col,
+            lm_client=dummy_lm_client,
+            addon_config=addon_config,
+            user_files_dir=user_files_dir,
+            note_ids=[],
+        )
+        qtbot.addWidget(dialog)
+        dialog.deck_combo.setCurrentText("decka")
+
+        # Mock generated notes
+        generated_notes = [
+            {"Front": "Duplicate Front", "Back": "Duplicate Back", "deck": "decka"},  # Full duplicate -> Should be deleted
+            {"Front": "Unique Front", "Back": "Duplicate Back", "deck": "decka"},  # Partial duplicate -> Should be kept & highlighted
+            {"Front": "Unique Front 2", "Back": "Unique Back 2", "deck": "decka"},  # Unique -> Should be kept
+        ]
+
+        # Mock the generator to return notes
+        with unittest.mock.patch.object(dialog.generator, "generate_notes", return_value=generated_notes):
+            # Mock showInfo to verify notification
+            with unittest.mock.patch("transformerman.ui.generate.generate_notes_dialog.showInfo") as mock_show_info:
+                # Trigger generation
+                # We need to mock QueryOp to run synchronously
+                with unittest.mock.patch("transformerman.ui.generate.generate_notes_dialog.QueryOp") as mock_query_op:
+
+                    def side_effect(parent: Any, op: Any, success: Any) -> Mock:
+                        result = op(col)
+                        success(result)
+                        mock_instance = unittest.mock.Mock()
+                        mock_instance.failure.return_value = mock_instance
+                        mock_instance.run_in_background.return_value = None
+                        return mock_instance
+
+                    mock_query_op.side_effect = side_effect
+
+                    dialog.source_text_edit.setPlainText("Some text")
+                    dialog._on_generate_clicked()  # pyright: ignore[reportPrivateUsage]
+
+                # Verify showInfo was called for ignored notes
+                mock_show_info.assert_called_once()
+                assert "Ignored 1 fully duplicate note" in mock_show_info.call_args[0][0]
+
+        # Verify final state
+        # Row 0 (Full duplicate) should be gone.
+        # Row 1 (Partial) should be at index 0.
+        # Row 2 (Unique) should be at index 1.
+        assert dialog.table.rowCount() == 2
+
+        # Check content of remaining rows
+        item_0_0 = dialog.table.item(0, 0)
+        assert item_0_0 is not None
+        assert item_0_0.text() == "Unique Front"
+
+        item_1_0 = dialog.table.item(1, 0)
+        assert item_1_0 is not None
+        assert item_1_0.text() == "Unique Front 2"
+
+        # Check highlighting on partial duplicate (now at row 0)
+        # "Back" field (col 1) should be highlighted
+        item_0_1 = dialog.table.item(0, 1)
+        assert item_0_1 is not None
+        assert "Duplicate content" in item_0_1.toolTip()
+
+        # "Front" field (col 0) should NOT be highlighted
+        item_0_0 = dialog.table.item(0, 0)
+        assert item_0_0 is not None
+        assert "Duplicate content" not in item_0_0.toolTip()
