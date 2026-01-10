@@ -6,10 +6,11 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 import re
-
+from collections.abc import Iterator, MutableMapping, Sequence
 from typing import TYPE_CHECKING, cast
 
 from .field_updates import FieldUpdates
+from .utilities import override
 
 if TYPE_CHECKING:
     from anki.notes import NoteId
@@ -48,7 +49,48 @@ def notes_from_xml(xml_response: str) -> FieldUpdates:
     return result
 
 
-def new_notes_from_xml(xml_response: str) -> list[dict[str, str]]: # noqa
+class NewNote(MutableMapping[str, str]):
+    """
+    Represents a new note to be created in Anki, parsed from XML.
+    Acts like a dictionary for field access.
+    """
+
+    deck_name: str | None
+    model_name: str | None
+    _fields: dict[str, str]
+
+    def __init__(
+        self,
+        fields: dict[str, str],
+        deck_name: str | None = None,
+        model_name: str | None = None,
+    ) -> None:
+        self._fields = fields
+        self.deck_name = deck_name
+        self.model_name = model_name
+
+    @override
+    def __getitem__(self, key: str) -> str:
+        return self._fields[key]
+
+    @override
+    def __setitem__(self, key: str, value: str) -> None:
+        self._fields[key] = value
+
+    @override
+    def __delitem__(self, key: str) -> None:
+        del self._fields[key]
+
+    @override
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._fields)
+
+    @override
+    def __len__(self) -> int:
+        return len(self._fields)
+
+
+def new_notes_from_xml(xml_response: str) -> Sequence[NewNote]:
     """
     Parse XML-like LM response and extract new notes.
 
@@ -56,12 +98,14 @@ def new_notes_from_xml(xml_response: str) -> list[dict[str, str]]: # noqa
         xml_response: The XML-like response from the LM containing new notes.
 
     Returns:
-        List of dictionaries, each representing a new note's fields and optionally its deck.
-        Example: [{"Front": "Hello", "Back": "World", "deck": "Default"}]
+        Sequence of NewNote objects, each representing a new note's fields, deck and model.
     """
-    # Find root deck if present
+    # Find root deck and model if present
     root_deck_match = re.search(r'<notes[^>]*deck="([^"]+)"', xml_response)
     root_deck = root_deck_match.group(1) if root_deck_match else None
+
+    root_model_match = re.search(r'<notes[^>]*model="([^"]+)"', xml_response)
+    root_model = root_model_match.group(1) if root_model_match else None
 
     # Find all note blocks
     note_pattern = r"<note\b([^>]*)>(.*?)</note>"
@@ -70,23 +114,24 @@ def new_notes_from_xml(xml_response: str) -> list[dict[str, str]]: # noqa
     result = []
 
     for note_attrs, note_content in notes:
-        note_data = {}
-
         # Check for deck attribute in note tag
         note_deck_match = re.search(r'deck=["\'](.*?)["\']', note_attrs)
         deck = note_deck_match.group(1) if note_deck_match else root_deck
-        if deck:
-            note_data["deck"] = deck
+
+        # Check for model attribute in note tag
+        note_model_match = re.search(r'model=["\'](.*?)["\']', note_attrs)
+        model = note_model_match.group(1) if note_model_match else root_model
 
         # Find all fields within this note
         field_pattern = r'<field name="([^"]+)">([^<]*)</field>'
         fields = re.findall(field_pattern, note_content)
 
+        note_fields = {}
         for field_name, field_value in fields:
-            note_data[field_name] = unescape_xml_content(field_value)
+            note_fields[field_name] = unescape_xml_content(field_value)
 
-        if note_data:
-            result.append(note_data)
+        if note_fields or deck or model:
+            result.append(NewNote(fields=note_fields, deck_name=deck, model_name=model))
 
     return result
 

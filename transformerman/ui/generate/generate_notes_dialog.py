@@ -6,6 +6,10 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
+from collections.abc import Sequence
+from collections.abc import MutableMapping
+from collections.abc import Iterable
+from pathlib import Path
 
 from aqt.qt import (
     QVBoxLayout,
@@ -35,7 +39,7 @@ from ...lib.response_middleware import LogLastRequestResponseMiddleware, Respons
 from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Sequence, MutableMapping
     from pathlib import Path
     from anki.collection import Collection
     from anki.notes import Note, NoteId
@@ -43,6 +47,7 @@ if TYPE_CHECKING:
     from ...lib.lm_clients import LMClient
     from ...lib.addon_config import AddonConfig
     from ...lib.http_utils import LmProgressData
+    from ...lib.xml_parser import NewNote
 
 
 class GenerateNotesDialog(TransformerManBaseDialog):
@@ -267,7 +272,8 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
             # Update table columns based on default selection (first 2 fields)
             default_fields = fields[:2] if len(fields) >= 2 else fields
-            self.table.set_notes([], default_fields)
+            self.table.update_columns(default_fields)
+            self.table.set_notes([])
 
         self._update_stats_widget()
 
@@ -308,7 +314,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         progress = ProgressDialog(1, self)
         progress.show()
 
-        def generate(col: Collection) -> tuple[list[dict[str, str]], dict[int, list[str]], int]:
+        def generate(col: Collection) -> tuple[Sequence[NewNote], dict[int, list[str]], int]:
             # Filter example notes by selected note type
             filtered_examples = None
             if self.example_notes:
@@ -345,7 +351,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             model_fields = model.get_fields()
             all_duplicates = find_duplicates(col, raw_notes, deck_name, model_fields)
             model_fields_set = set(model_fields)
-            filtered_notes: list[dict[str, str]] = []
+            filtered_notes: list[NewNote] = []
             duplicates: dict[int, list[str]] = {}
             ignored_count = 0
 
@@ -364,7 +370,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
             return filtered_notes, duplicates, ignored_count
 
-        def on_success(result: tuple[list[dict[str, str]], dict[int, list[str]], int]) -> None:
+        def on_success(result: tuple[Sequence[NewNote], dict[int, list[str]], int]) -> None:
             notes, duplicates, ignored_count = result
             progress.cleanup()
             self.generate_btn.setEnabled(True)
@@ -379,7 +385,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
                 if notes:
                     start_row = self.table.rowCount()
-                    self.table.append_notes(notes, selected_fields)
+                    self.table.append_notes(notes)
                     self.table.highlight_duplicates(duplicates, start_row=start_row)
                     self._update_create_button_state()
 
@@ -445,7 +451,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
 
 def find_duplicates(
-    col: Collection, notes: list[dict[str, str]], deck_name: str, field_names: Sequence[str] | None = None
+    col: Collection, notes: Sequence[MutableMapping[str, str]], deck_name: str, field_names: Sequence[str] | None = None
 ) -> dict[int, list[str]]:
     """
     Find duplicates for a list of notes within a specific deck.
@@ -485,7 +491,7 @@ def find_duplicates(
     return duplicates
 
 
-def _find_duplicate_fields_in_notes(note: dict[str, str], existing_notes: Iterable[Note]) -> list[str]:
+def _find_duplicate_fields_in_notes(note: MutableMapping[str, str], existing_notes: Iterable[Note]) -> list[str]:
     """Helper function to find which fields in a note have duplicates in existing notes.
 
     Args:
@@ -507,7 +513,7 @@ def _find_duplicate_fields_in_notes(note: dict[str, str], existing_notes: Iterab
 
 
 def get_duplicate_note_ids(
-    col: Collection, notes: list[dict[str, str]], deck_name: str, field_names: Sequence[str] | None = None
+    col: Collection, notes: Sequence[MutableMapping[str, str]], deck_name: str, field_names: Sequence[str] | None = None
 ) -> Sequence[NoteId]:
     """Get all potential duplicate note IDs for a list of notes.
 
@@ -532,9 +538,6 @@ def get_duplicate_note_ids(
     for note in notes:
         field_parts = []
         for field, value in note.items():
-            # Skip metadata keys
-            if field == "deck":
-                continue
             # If field_names provided, skip keys that aren't actual fields
             if field_names is not None and field not in field_names:
                 continue

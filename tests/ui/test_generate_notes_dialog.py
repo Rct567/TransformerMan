@@ -20,6 +20,7 @@ from aqt.qt import Qt
 
 from transformerman.ui.generate.generate_notes_dialog import GenerateNotesDialog, find_duplicates
 from transformerman.ui.stats_widget import StatsWidget
+from transformerman.lib.xml_parser import NewNote
 from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
 
 col = test_collection_fixture
@@ -153,16 +154,16 @@ class TestGenerateNotesDialog:
 
         # Mock the generator to return a duplicate note and a unique note
         generated_notes = [
-            {"Front": "Existing Front", "Back": "New Back"},  # Duplicate Front
-            {"Front": "New Front", "Back": "Existing Back"},  # Duplicate Back
-            {"Front": "Unique Front", "Back": "Unique Back"},  # No duplicates
+            NewNote({"Front": "Existing Front", "Back": "New Back"}),  # Duplicate Front
+            NewNote({"Front": "New Front", "Back": "Existing Back"}),  # Duplicate Back
+            NewNote({"Front": "Unique Front", "Back": "Unique Back"}),  # No duplicates
         ]
 
         # Set up the table columns
         dialog.table.update_columns(["Front", "Back"])
 
         # Append notes to table
-        dialog.table.append_notes(generated_notes, ["Front", "Back"])
+        dialog.table.append_notes(generated_notes)
 
         # Run duplicate check synchronously for testing
         # 1. Verify logic: find_duplicates
@@ -237,9 +238,9 @@ class TestGenerateNotesDialog:
 
         # Mock generated notes
         generated_notes = [
-            {"Front": "Duplicate Front", "Back": "Duplicate Back", "deck": "decka"},  # Full duplicate -> Should be deleted
-            {"Front": "Unique Front", "Back": "Duplicate Back", "deck": "decka"},  # Partial duplicate -> Should be kept & highlighted
-            {"Front": "Unique Front 2", "Back": "Unique Back 2", "deck": "decka"},  # Unique -> Should be kept
+            NewNote({"Front": "Duplicate Front", "Back": "Duplicate Back"}, deck_name="decka"),
+            NewNote({"Front": "Unique Front", "Back": "Duplicate Back"}, deck_name="decka"),
+            NewNote({"Front": "Unique Front 2", "Back": "Unique Back 2"}, deck_name="decka"),
         ]
 
         # Mock the generator to return notes

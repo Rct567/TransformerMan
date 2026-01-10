@@ -20,6 +20,7 @@ from aqt.qt import (
 )
 
 if TYPE_CHECKING:
+    from ...lib.xml_parser import NewNote
     from collections.abc import Sequence
 
 
@@ -74,14 +75,19 @@ class GeneratedNotesTable(QTableWidget):
         self.setColumnCount(len(field_names))
         self.setHorizontalHeaderLabels(field_names)
 
-    def set_notes(self, notes: list[dict[str, str]], field_names: Sequence[str]) -> None:
+    def set_notes(self, notes: Sequence[NewNote]) -> None:
         """
         Set the notes to display in the table.
+        Extracts field names from the first note to determine columns.
 
         Args:
-            notes: List of dictionaries representing notes.
-            field_names: List of field names to show as columns.
+            notes: List of NewNote objects.
         """
+        if not notes:
+            self.setRowCount(0)
+            return
+
+        field_names = list(notes[0].keys())
         self.clear()
         self.update_columns(field_names)
         self.setRowCount(len(notes))
@@ -92,24 +98,29 @@ class GeneratedNotesTable(QTableWidget):
                 item = QTableWidgetItem(content)
                 self.setItem(row, col, item)
 
-    def append_notes(self, notes: list[dict[str, str]], field_names: Sequence[str]) -> None:
+    def append_notes(self, notes: Sequence[NewNote]) -> None:
         """
         Append new notes to the existing table.
 
         Args:
             notes: List of new notes to append.
-            field_names: List of field names (must match current columns).
         """
         if self.columnCount() == 0:
-            self.set_notes(notes, field_names)
+            self.set_notes(notes)
             return
-        if self.columnCount() != len(field_names):
-            raise ValueError("Number of columns must match number of field names")
+
+        # Get current field names from horizontal header
+        field_names = []
+        for i in range(self.columnCount()):
+            header_item = self.horizontalHeaderItem(i)
+            field_names.append(header_item.text() if header_item else f"Field {i}")
 
         current_row_count = self.rowCount()
         self.setRowCount(current_row_count + len(notes))
 
         for i, note in enumerate(notes):
+            if len(note.keys()) != len(field_names):
+                raise ValueError("Number of columns must match number of field names")
             row = current_row_count + i
             for col, field in enumerate(field_names):
                 content = note.get(field, "")

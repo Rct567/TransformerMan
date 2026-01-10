@@ -15,7 +15,9 @@ if TYPE_CHECKING:
     from .lm_clients import LMClient, LmResponse
     from .http_utils import LmProgressData
     from .selected_notes import NoteModel, SelectedNotesFromType
+    from .xml_parser import NewNote
     from anki.collection import Collection
+    from collections.abc import Sequence
 
 
 class NoteGenerator(PromptProcessor):
@@ -42,7 +44,7 @@ class NoteGenerator(PromptProcessor):
         example_notes: SelectedNotesFromType | None = None,
         progress_callback: Callable[[LmProgressData], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
-    ) -> list[dict[str, str]]:
+    ) -> Sequence[NewNote]:
         """
         Generate new notes and return them as a list of dictionaries.
 
@@ -57,7 +59,7 @@ class NoteGenerator(PromptProcessor):
             should_cancel: Optional callback to check if operation should be canceled.
 
         Returns:
-            List of dictionaries, each representing a new note.
+            Sequence of NewNote objects, each representing a new note.
         """
         self.prompt = self.prompt_builder.build_prompt(
             source_text=source_text,

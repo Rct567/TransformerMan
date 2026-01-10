@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from anki.notes import NoteId
 
-from transformerman.lib.xml_parser import new_notes_from_xml, notes_from_xml, escape_xml_content, unescape_xml_content
+from transformerman.lib.xml_parser import new_notes_from_xml, notes_from_xml, escape_xml_content, unescape_xml_content, NewNote
 from transformerman.lib.field_updates import FieldUpdates
 
 
@@ -111,9 +111,11 @@ class TestXmlParser:
         notes = new_notes_from_xml(xml)
         assert len(notes) == 2
         assert notes[0]["Front"] == "Front 1"
-        assert notes[0]["deck"] == "Default"
+        assert notes[0].deck_name == "Default"
+        assert notes[0].model_name == "Basic"
         assert notes[1]["Back"] == "Back 2"
-        assert notes[1]["deck"] == "Default"
+        assert notes[1].deck_name == "Default"
+        assert notes[1].model_name == "Basic"
 
     def test_new_notes_from_xml_mixed_decks(self) -> None:
         xml = """
@@ -128,8 +130,24 @@ class TestXmlParser:
         """
         notes = new_notes_from_xml(xml)
         assert len(notes) == 2
-        assert notes[0]["deck"] == "Deck A"
-        assert notes[1]["deck"] == "Deck B"
+        assert notes[0].deck_name == "Deck A"
+        assert notes[1].deck_name == "Deck B"
+
+    def test_new_notes_from_xml_mixed_models(self) -> None:
+        xml = """
+        <notes model="RootModel">
+        <note model="NoteModel A">
+            <field name="Front">Front A</field>
+        </note>
+        <note>
+            <field name="Front">Front B</field>
+        </note>
+        </notes>
+        """
+        notes = new_notes_from_xml(xml)
+        assert len(notes) == 2
+        assert notes[0].model_name == "NoteModel A"
+        assert notes[1].model_name == "RootModel"
 
     def test_new_notes_from_xml_unescape(self) -> None:
         xml = """
@@ -141,3 +159,25 @@ class TestXmlParser:
         """
         notes = new_notes_from_xml(xml)
         assert notes[0]["Front"] == "A & B < C"
+
+    def test_new_note_class_behavior(self) -> None:
+        """Test that NewNote acts like a dict for fields but has attributes for metadata."""
+        fields = {"Front": "Q", "Back": "A"}
+        note = NewNote(fields, deck_name="MyDeck", model_name="MyModel")
+
+        # Dict-like access
+        assert note["Front"] == "Q"
+        assert note.get("Back") == "A"
+        assert "Front" in note
+        assert list(note.keys()) == ["Front", "Back"]
+        assert list(note.values()) == ["Q", "A"]
+        assert list(note.items()) == [("Front", "Q"), ("Back", "A")]
+
+        # Metadata attributes
+        assert note.deck_name == "MyDeck"
+        assert note.model_name == "MyModel"
+
+        # Modification
+        note["Front"] = "New Q"
+        assert note["Front"] == "New Q"
+        assert fields["Front"] == "New Q"  # Should modify the underlying dict

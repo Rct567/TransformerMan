@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from aqt.qt import QWidget
 
 from transformerman.ui.generate.generated_notes_table import GeneratedNotesTable
+from transformerman.lib.xml_parser import NewNote
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -20,14 +21,13 @@ class TestGeneratedNotesTable:
         table = GeneratedNotesTable(widget)
         qtbot.addWidget(table)
 
-        field_names = ["Front", "Back"]
         notes = [
-            {"Front": "F1", "Back": "B1"},
-            {"Front": "F2", "Back": "B2"},
-            {"Front": "F3", "Back": "B3"},
+            NewNote({"Front": "F1", "Back": "B1"}),
+            NewNote({"Front": "F2", "Back": "B2"}),
+            NewNote({"Front": "F3", "Back": "B3"}),
         ]
 
-        table.set_notes(notes, field_names)
+        table.set_notes(notes)
         assert table.rowCount() == 3
 
         # Test discarding a single row (index 1)
@@ -43,14 +43,13 @@ class TestGeneratedNotesTable:
         table = GeneratedNotesTable(widget)
         qtbot.addWidget(table)
 
-        field_names = ["Front", "Back"]
         notes = [
-            {"Front": "F1", "Back": "B1"},
-            {"Front": "F2", "Back": "B2"},
-            {"Front": "F3", "Back": "B3"},
+            NewNote({"Front": "F1", "Back": "B1"}),
+            NewNote({"Front": "F2", "Back": "B2"}),
+            NewNote({"Front": "F3", "Back": "B3"}),
         ]
 
-        table.set_notes(notes, field_names)
+        table.set_notes(notes)
 
         table.selectRow(0)
 
@@ -75,14 +74,13 @@ class TestGeneratedNotesTable:
         table = GeneratedNotesTable(widget)
         qtbot.addWidget(table)
 
-        field_names = ["Front", "Back"]
         notes = [
-            {"Front": "F1", "Back": "B1"},
-            {"Front": "F2", "Back": "B2"},
-            {"Front": "F3", "Back": "B3"},
+            NewNote({"Front": "F1", "Back": "B1"}),
+            NewNote({"Front": "F2", "Back": "B2"}),
+            NewNote({"Front": "F3", "Back": "B3"}),
         ]
 
-        table.set_notes(notes, field_names)
+        table.set_notes(notes)
 
         # Select row 0
         table.selectRow(0)
