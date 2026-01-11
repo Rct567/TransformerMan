@@ -81,19 +81,18 @@ class GenerationPromptBuilder(PromptBuilder):
             "",
             f"Target Number of Notes: {target_count}",
             "",
-            (
-                f"Please generate exactly {target_count} new Anki notes based on the source text above.\n\n"
-                "Return the notes in the following XML format. Ensure all fields are filled appropriately."
-            ),
+            f"Please generate exactly {target_count} new Anki notes based on the source text above.",
             "",
-            f'<notes model="{escape_xml_content(note_type.name)}" deck="{escape_xml_content(deck_name)}">',
-            "  <note>",
+            "Return the notes in the following XML format. Ensure all fields are filled appropriately.",
+            "",
         ])
 
-        for field in field_names:
-            parts.append(f'    <field name="{escape_xml_content(field)}">...</field>')
+        fields_xml = [f'    <field name="{escape_xml_content(field)}">...</field>' for field in field_names]
 
         parts.extend([
+            f'<notes model="{escape_xml_content(note_type.name)}" deck="{escape_xml_content(deck_name)}">',
+            "  <note>",
+            *fields_xml,
             "  </note>",
             "</notes>",
             "",
