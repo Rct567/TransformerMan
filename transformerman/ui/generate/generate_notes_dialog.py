@@ -193,7 +193,11 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         # Decks (only those who share the same root with any card of selected notes)
         used_decks = self.example_notes.get_most_common_decks(2000, all_cards=True)
         used_deck_roots = set(deck.split("::")[0] for deck in used_decks)
-        decks = [deck for deck in self.col.decks.all_names() if not used_deck_roots or deck.split("::")[0] in used_deck_roots]
+        decks = [
+            deck.name for deck
+            in self.col.decks.all_names_and_ids(include_filtered=False)
+            if not used_deck_roots or deck.name.split("::")[0] in used_deck_roots
+        ]
         self.deck_combo.addItems(decks)
 
         self._update_stats_widget()
