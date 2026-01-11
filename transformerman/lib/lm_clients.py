@@ -16,7 +16,7 @@ import requests
 
 from .field_updates import FieldUpdates
 from .http_utils import LmProgressData, LmRequestStage, make_api_request_json
-from .utilities import override
+from .utilities import get_lorem_sentences_generator, override
 from .xml_parser import notes_from_xml
 
 ApiKey = NewType("ApiKey", str)
@@ -222,19 +222,7 @@ class DummyLMClient(LMClient):
         progress_callback: Callable[[LmProgressData], None] | None = None,
         should_cancel: Optional[Callable[[], bool]] = None,
     ) -> LmResponse:
-        """Dummy process_prompt implementation for testing.
-
-        Args:
-            prompt: The prompt to send to the LM.
-            progress_callback: Optional callback for progress reporting.
-            should_cancel: Optional callback to check if operation should be canceled.
-
-        Returns:
-            An LmResponse object containing the content, error, or cancellation status.
-        """
-        # Extract note IDs and field names from the prompt
-        # This is a simple implementation that looks for empty fields
-
+        """Dummy process_prompt implementation for testing."""
         # Report sending stage
         if progress_callback:
             progress_callback(LmProgressData.in_sending_state())
@@ -245,12 +233,24 @@ class DummyLMClient(LMClient):
             else:
                 time.sleep(random.uniform(8.0, 10.0))
 
+        # Detect prompt type
+        if "Please generate " in prompt:
+            full_text = self._handle_generation_prompt(prompt)
+        elif "Please fill " in prompt and "empty fields" in prompt:
+            full_text = self._handle_transform_prompt(prompt)
+        else:
+            raise ValueError(f"Unknown prompt type: {prompt}")
+
+        return self._simulate_streaming(full_text, progress_callback, should_cancel)
+
+    def _handle_transform_prompt(self, prompt: str) -> str:
+        """Handle prompts for transforming existing notes."""
         # Find all note blocks
         note_pattern = r'<note nid="(\d+)"[^>]*>(.*?)</note>'
         notes = re.findall(note_pattern, prompt, re.DOTALL)
 
         if not notes:
-            return LmResponse("<notes></notes>")
+            return "<notes></notes>"
 
         # Extract model name
         model_match = re.search(r'<notes model="([^"]+)">', prompt)
@@ -259,33 +259,67 @@ class DummyLMClient(LMClient):
         # Build response
         response_parts = [f'<notes model="{model_name}">']
 
+        generate_lorem_sentence = get_lorem_sentences_generator(1, (6, 10))
+
         for nid, note_content in notes:
             # Extract deck name
             deck_match = re.search(r'deck="([^"]+)"', note_content)
             deck_name = deck_match.group(1) if deck_match else ""
 
-            response_parts.append(f'  <note nid="{nid}" deck="{deck_name}">')
-
-            # Find all fields
+            # Find empty fields
             field_pattern = r'<field name="([^"]+)">([^<]*)</field>'
             fields = re.findall(field_pattern, note_content)
+            field_updates: dict[str, str] = {}
 
             for field_name, field_value in fields:
                 if field_value.strip():
-                    # Keep existing content
-                    response_parts.append(f'    <field name="{field_name}">{field_value}</field>')
-                else:
-                    # Fill empty field with Lorem ipsum content
-                    lorem_content = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-                    response_parts.append(f'    <field name="{field_name}">{lorem_content}</field>')
+                    continue
 
+                field_updates[field_name] = generate_lorem_sentence()
+
+            if field_updates:
+                response_parts.append(f'  <note nid="{nid}" deck="{deck_name}">')
+                for field_name, field_value in field_updates.items():
+                    response_parts.append(f'    <field name="{field_name}">{field_value}</field>')
+                response_parts.append("  </note>")
+
+        response_parts.append("</notes>")
+        return "\n".join(response_parts)
+
+    def _handle_generation_prompt(self, prompt: str) -> str:
+        """Handle prompts for generating new notes."""
+        # Extract metadata
+        model_match = re.search(r"Target Note Type: (.*)", prompt)
+        deck_match = re.search(r"Target Deck: (.*)", prompt)
+        fields_match = re.search(r"Available Fields: (.*)", prompt)
+        count_match = re.search(r"Target Number of Notes: (\d+)", prompt)
+
+        model_name = model_match.group(1).strip() if model_match else "Unknown"
+        deck_name = deck_match.group(1).strip() if deck_match else "Default"
+        field_names = [f.strip() for f in fields_match.group(1).split(",")] if fields_match else []
+        target_count = int(count_match.group(1)) if count_match else 1
+
+        # Build response
+        response_parts = [f'<notes model="{model_name}" deck="{deck_name}">']
+        generate_lorem_sentence = get_lorem_sentences_generator(1, (6, 10))
+
+        for _ in range(target_count):
+            response_parts.append("  <note>")
+            for field_name in field_names:
+                lorem_content = generate_lorem_sentence()
+                response_parts.append(f'    <field name="{field_name}">{lorem_content}</field>')
             response_parts.append("  </note>")
 
         response_parts.append("</notes>")
+        return "\n".join(response_parts)
 
-        full_text = "\n".join(response_parts)
-
-        # Simulate streaming if progress_callback is provided
+    def _simulate_streaming(
+        self,
+        full_text: str,
+        progress_callback: Callable[[LmProgressData], None] | None = None,
+        should_cancel: Optional[Callable[[], bool]] = None,
+    ) -> LmResponse:
+        """Simulate streaming of the response text."""
         if progress_callback:
             start_time = time.time()
             # Split into small chunks to simulate real streaming

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-
 import io
 import cProfile
 from contextlib import contextmanager
 from pathlib import Path
 import pstats
-
+import random
 
 import itertools
 import re
@@ -15,8 +14,8 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import TypeVar
 
-
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from typing import Union, IO
     from collections.abc import Iterable, Iterator, Sequence
     from typing_extensions import TypeAlias
@@ -139,3 +138,66 @@ def profile_context(amount: int = 40) -> Iterator[cProfile.Profile]:
         dump_file = Path(__file__).parent.parent.parent / "profiling_results.txt"
         with dump_file.open("w", encoding="utf-8") as f:
             f.write(profiling_results)
+
+
+# Lorem Ipsum generation
+
+LOREM_WORDS: list[str] = [
+    "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing",
+    "elit", "sed", "do", "eiusmod", "tempor", "incididunt", "ut", "labore",
+    "et", "dolore", "magna", "aliqua", "enim", "ad", "minim", "veniam",
+    "quis", "nostrud", "exercitation", "ullamco", "laboris", "nisi", "aliquip",
+    "ex", "ea", "commodo", "consequat", "duis", "aute", "irure", "in",
+    "reprehenderit", "voluptate", "velit", "esse", "cillum", "fugiat",
+    "nulla", "pariatur", "excepteur", "sint", "occaecat", "cupidatat",
+    "non", "proident", "sunt", "culpa", "qui", "officia", "deserunt",
+    "mollit", "anim", "id", "est", "laborum"
+]
+
+
+def get_lorem_sentences_generator(
+    num_sentences: int = 1,
+    words_per_sentence: int | tuple[int, int] = 10
+) -> Callable[[], str]:
+    """
+    Create a lorem sentence generator function.
+
+    Args:
+        num_sentences: Number of sentences to generate per call
+        words_per_sentence: Approximate words per sentence
+
+    Returns:
+        A callable that generates deterministic lorem sentences
+    """
+    seed = 0
+
+    def generate() -> str:
+        nonlocal seed
+        rng = random.Random(seed)
+
+        if isinstance(words_per_sentence, tuple):
+            word_count = rng.randint(*words_per_sentence)
+        else:
+            word_count = words_per_sentence
+
+        sentences: list[str] = []
+        for _ in range(num_sentences):
+            words = rng.choices(LOREM_WORDS, k=word_count)
+            sentence = " ".join(words)
+            sentence = sentence[0].upper() + sentence[1:] + "."
+            sentences.append(sentence)
+
+        seed += 1
+        return " ".join(sentences)
+
+    return generate
+
+
+def is_lorem_ipsum_text(text: str, min_words: int = 5) -> bool:
+    words = [word.strip(".,!?") for word in text.lower().split()]
+    if len(words) < min_words:
+        return False
+    for word in words:
+        if not word in LOREM_WORDS:
+            return False
+    return True

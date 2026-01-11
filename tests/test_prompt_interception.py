@@ -4,6 +4,7 @@ from transformerman.lib.selected_notes import NoteModel, SelectedNotesFromType
 from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.response_middleware import ResponseMiddleware, LogLastRequestResponseMiddleware
+from transformerman.lib.utilities import is_lorem_ipsum_text
 from transformerman.ui.transform.field_widgets import FieldSelection
 from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
@@ -120,7 +121,7 @@ class TestPromptInterception:
         assert results.num_notes_updated == 1
         assert len(field_updates) == 1
         assert note.id in field_updates
-        assert field_updates[note.id]["Back"] == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+        assert is_lorem_ipsum_text(field_updates[note.id]["Back"])
 
         # Verify the prompt actually sent to the client contained the interception string
         # using the LogLastRequestResponseMiddleware

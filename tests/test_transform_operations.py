@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional, cast
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
+from transformerman.lib.utilities import is_lorem_ipsum_text
 from transformerman.ui.transform.transform_notes import apply_field_updates_with_operation
 from transformerman.ui.transform.field_widgets import FieldSelection
 from transformerman.lib.transform_operations import NoteTransformer
@@ -142,7 +143,7 @@ class TestNoteTransformer:
         for nid in note_ids:
             assert nid in field_updates
             assert "Front" in field_updates[nid]
-            assert field_updates[nid]["Front"] == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+            assert is_lorem_ipsum_text(field_updates[nid]["Front"])
 
         # Verify notes were NOT updated in the collection (preview mode)
         for nid in note_ids:
@@ -405,7 +406,7 @@ class TestNoteTransformer:
             if i < 2:
                 # Empty field should have update
                 assert nid in field_updates
-                assert field_updates[nid]["Front"] == "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+                assert is_lorem_ipsum_text(field_updates[nid]["Front"])
             else:
                 # Non-empty field should not have update
                 assert nid not in field_updates

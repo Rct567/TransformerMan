@@ -1,8 +1,6 @@
-"""
-Tests for LM client.
-"""
-
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from unittest.mock import patch
 
@@ -14,74 +12,100 @@ from transformerman.lib.lm_clients import (
     GrokLMClient,
     ModelName,
 )
+from transformerman.lib.selected_notes import SelectedNotes
+from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
+from transformerman.lib.utilities import is_lorem_ipsum_text
+from transformerman.lib.xml_parser import new_notes_from_xml, notes_from_xml
+from transformerman.lib.generation_prompt_builder import GenerationPromptBuilder
+from transformerman.lib.collection_data import NoteModel
+from transformerman.ui.transform.field_widgets import FieldSelection
+
+if TYPE_CHECKING:
+    from tests.tools import TestCollection
+
+from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
+
+col = test_collection_fixture
 
 
 class TestLmClient:
     """Test class for LM client."""
 
-    def test_dummy_client_basic_response(self) -> None:
-        """Test that DummyLMClient returns valid XML response."""
-        client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
+    @with_test_collection("two_deck_collection")
+    def test_dummy_client_transformation_notes(self, col: TestCollection) -> None:
 
-        prompt = """<notes model="Basic">
-  <note nid="123" deck="Test Deck">
-    <field name="Front">Hello</field>
-    <field name="Back"></field>
-  </note>
-</notes>"""
+        client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
+        note_ids = sorted(col.find_notes(""))
+        assert len(note_ids) >= 1
+        note_id = note_ids[0]
+        note = col.get_note(note_id)
+        note["Front"] = ""  # Empty field
+        col.update_note(note)
+
+        selected_notes = SelectedNotes(col, [note_id])
+        builder = TransformPromptBuilder(col)
+
+        # Set field instructions
+        instructions = {"Front": "Provide a concise question", "Back": "Provide detailed answer"}
+        builder.update_field_instructions(instructions)
+
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
+        # Build prompt
+        prompt = builder.get_prompt_renderer(
+            target_notes=selected_notes.filter_by_note_type(note_type),
+            field_selection=FieldSelection(
+                selected=["Front", "Back"],
+                writable=["Front"],
+                overwritable=[],
+            ),
+            max_examples=3,
+        )(None)
 
         response = client.process_prompt(prompt)
+        assert response.content
+        assert not response.error
 
-        assert '<notes model="Basic">' in response.content
-        assert 'nid="123"' in response.content
-        assert '<field name="Front">Hello</field>' in response.content
-        assert '<field name="Back">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</field>' in response.content
+        field_updates = notes_from_xml(response.content)
+        assert len(field_updates) == 1
+        assert note_id in field_updates
+        assert "Front" in field_updates[note_id]
+        assert is_lorem_ipsum_text(field_updates[note_id]["Front"])
 
-    def test_dummy_client_multiple_notes(self) -> None:
-        """Test DummyLMClient with multiple notes."""
+    @with_test_collection("empty_collection")
+    def test_dummy_client_generation_response(self, col: TestCollection) -> None:
+        """Test that DummyLMClient handles generation prompts."""
+
         client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
 
-        prompt = """<notes model="Basic">
-  <note nid="123" deck="Test">
-    <field name="Front">Q1</field>
-    <field name="Back"></field>
-  </note>
-  <note nid="456" deck="Test">
-    <field name="Front">Q2</field>
-    <field name="Back"></field>
-  </note>
-</notes>"""
+        prompt_builder = GenerationPromptBuilder(col)
+
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
+        prompt = prompt_builder.build_prompt(
+            source_text="Python programming language",
+            note_type=note_type,
+            deck_name="Default",
+            target_count=2,
+            selected_fields=None,
+            example_notes=None,
+            max_examples=0,
+        )
 
         response = client.process_prompt(prompt)
+        assert response.content
+        assert not response.error
 
-        assert 'nid="123"' in response.content
-        assert 'nid="456"' in response.content
-        assert response.content.count("Lorem ipsum dolor sit amet, consectetur adipiscing elit.") == 2
+        notes = new_notes_from_xml(response.content)
 
-    def test_dummy_client_preserves_existing_content(self) -> None:
-        """Test that DummyLMClient preserves existing field content."""
-        client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
-
-        prompt = """<notes model="Basic">
-  <note nid="123" deck="Test">
-    <field name="Front">Existing Front</field>
-    <field name="Back">Existing Back</field>
-  </note>
-</notes>"""
-
-        response = client.process_prompt(prompt)
-
-        assert '<field name="Front">Existing Front</field>' in response.content
-        assert '<field name="Back">Existing Back</field>' in response.content
-        assert "Lorem ipsum" not in response.content
-
-    def test_dummy_client_empty_prompt(self) -> None:
-        """Test DummyLMClient with empty prompt."""
-        client = DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
-
-        response = client.process_prompt("")
-
-        assert response.content == "<notes></notes>"
+        assert len(notes) == 2
+        assert notes[0].model_name == "Basic"
+        assert notes[0].deck_name == "Default"
+        assert "Front" in notes[0]
+        assert "Back" in notes[0]
+        assert is_lorem_ipsum_text(notes[0]["Front"])
 
     def test_gemini_client_request_construction(self) -> None:
         """Test GeminiLMClient request construction."""
