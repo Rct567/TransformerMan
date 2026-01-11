@@ -55,6 +55,7 @@ class CollectionData:
 
     def __init__(self, col: Collection) -> None:
         self.col = col
+        self.db = col.db
         self.note_cache: dict[NoteId, Note] = {}
         self.card_cache: dict[CardId, Card] = {}
         self.deck_cache: dict[DeckId, str] = {}  # deck_id to deck_name

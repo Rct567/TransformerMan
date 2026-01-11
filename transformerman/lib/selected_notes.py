@@ -35,18 +35,16 @@ class SelectedNotes:
 
     def __init__(
         self,
-        col: Collection,
+        col: Collection | CollectionData,
         note_ids: Sequence[NoteId],
         card_ids: Sequence[CardId] | None = None,
-        col_data: CollectionData | None = None,
         _parent: SelectedNotes | None = None,
     ) -> None:
         """Initialize with collection and selected note IDs and optional card IDs."""
-        self.col = col
         self._note_ids = note_ids
         self._card_ids = card_ids if card_ids else None  # these might represent cards selected by the user
         self._card_ids_set = None
-        self._col_data = col_data if col_data else CollectionData(col)
+        self.col = col if isinstance(col, CollectionData) else CollectionData(col)
         self.logger = logging.getLogger(__name__)
         self.batching_stats = None
         self._parent = _parent
@@ -63,7 +61,7 @@ class SelectedNotes:
         Returns:
             Note object if found and no error, otherwise None.
         """
-        return self._col_data.get_note(nid)
+        return self.col.get_note(nid)
 
     def get_ids(self) -> Sequence[NoteId]:
         """Return the note IDs in the selection."""
@@ -95,7 +93,6 @@ class SelectedNotes:
             filtered_note_ids,
             note_type,
             self._card_ids,
-            col_data=self._col_data,
             _parent=self,
         )
 
@@ -110,7 +107,7 @@ class SelectedNotes:
 
         for nid in self._note_ids:
             note = self.get_note(nid)
-            model = NoteModel.by_id(self.col, note.mid)
+            model = NoteModel.by_id(self.col.col, note.mid)
             if model:
                 name = model.name
                 counts[name] = counts.get(name, 0) + 1
@@ -211,7 +208,6 @@ class SelectedNotes:
             selected_notes.col,
             note_ids,
             new_card_ids,
-            col_data=selected_notes._col_data,
             _parent=selected_notes,
         )
 
@@ -272,11 +268,11 @@ class SelectedNotes:
         Returns:
             Deck name (full path) or empty string if card not found.
         """
-        card = self._col_data.get_card(card_id)
+        card = self.col.get_card(card_id)
         if not card:
             return ""
 
-        return self._col_data.get_deck_name(card.did)
+        return self.col.get_deck_name(card.did)
 
     def _get_card_ids_from_notes(self, note_ids: Sequence[NoteId]) -> Sequence[CardId]:
         """Get card IDs associated with the given note IDs."""
@@ -333,9 +329,9 @@ class SelectedNotes:
     def clear_cache(self, clear_notes_cache: bool = True, clear_deck_cache: bool = True) -> None:
         """Clear the cache for notes and/or decks."""
         if clear_notes_cache:
-            self._col_data.note_cache.clear()
+            self.col.note_cache.clear()
         if clear_deck_cache:
-            self._col_data.deck_cache.clear()
+            self.col.deck_cache.clear()
 
     def parent(self) -> SelectedNotes | None:  # noqa
         """Return to the previous selection in the chain (jQuery-style)."""
@@ -355,14 +351,13 @@ class SelectedNotesFromType(SelectedNotes):
 
     def __init__(
         self,
-        col: Collection,
+        col: Collection | CollectionData,
         note_ids: Sequence[NoteId],
         note_type: NoteModel,
         card_ids: Sequence[CardId] | None = None,
-        col_data: CollectionData | None = None,
         _parent: SelectedNotes | None = None,
     ) -> None:
-        super().__init__(col, note_ids, card_ids, col_data, _parent)
+        super().__init__(col, note_ids, card_ids, _parent)
         self.note_type = note_type
 
     @override
@@ -378,7 +373,6 @@ class SelectedNotesFromType(SelectedNotes):
             note_ids,
             selected_notes.note_type,
             new_card_ids,
-            col_data=selected_notes._col_data,
             _parent=selected_notes,
         )
 

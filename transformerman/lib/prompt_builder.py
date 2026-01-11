@@ -23,7 +23,7 @@ class PromptBuilder:
     note_xml_cache: dict[tuple[NoteId, tuple[str, ...], tuple[str, ...], bool], str]
 
     def __init__(self, col: Collection) -> None:
-        self._col_data = CollectionData(col)
+        self.col = CollectionData(col)
         self.note_xml_cache = {}
 
     def select_example_notes(
@@ -58,12 +58,12 @@ class PromptBuilder:
             target_note_ids = set(target_notes.get_ids())
 
         # Find the note type
-        model = self._col_data.get_note_model_by_name(note_type.name)
+        model = self.col.get_note_model_by_name(note_type.name)
         if not model:
             return []
 
         def find_candidate_notes(query: str) -> list[NoteId]:
-            note_ids = self._col_data.find_notes(query)
+            note_ids = self.col.find_notes(query)
             # Filter out target notes
             return [nid for nid in note_ids if nid not in target_note_ids]
 
@@ -110,7 +110,7 @@ class PromptBuilder:
 
         for nid in candidate_note_ids[:300]:  # Limit to first 300 for performance
             try:
-                note = self._col_data.get_note(nid)
+                note = self.col.get_note(nid)
 
                 # Count non-empty selected fields and words
                 non_empty_count = 0
@@ -146,7 +146,7 @@ class PromptBuilder:
             return self.note_xml_cache[cache_key]
 
         # Get deck name
-        deck_name = self._col_data.get_deck_name_for_note(note)
+        deck_name = self.col.get_deck_name_for_note(note)
 
         # Build XML lines for this note
         if include_deck:
@@ -196,8 +196,8 @@ class PromptBuilder:
         # Check if all notes have the same deck
         common_deck: str | None = None
         if notes:
-            first_deck = self._col_data.get_deck_name_for_note(notes[0])
-            all_same_deck = all(self._col_data.get_deck_name_for_note(note) == first_deck for note in notes)
+            first_deck = self.col.get_deck_name_for_note(notes[0])
+            all_same_deck = all(self.col.get_deck_name_for_note(note) == first_deck for note in notes)
             if all_same_deck:
                 common_deck = first_deck
 
