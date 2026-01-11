@@ -67,6 +67,8 @@ class GenerationPromptBuilder(PromptBuilder):
             for note in self.select_example_notes(note_type, None, field_names, max_examples, target_deck_name=deck_name):
                 if note.id not in notes_from_examples:
                     notes_from_examples[note.id] = note
+                if len(notes_from_examples) >= max_examples:
+                    break
 
         if notes_from_examples:
             parts.append("Here are some existing notes of this type from the collection to show the desired style and level of detail:")

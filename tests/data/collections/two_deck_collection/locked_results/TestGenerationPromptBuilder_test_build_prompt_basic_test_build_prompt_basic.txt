@@ -1,0 +1,21 @@
+You are an expert Anki note creator. Your goal is to extract or generate high-quality learning material from the provided text and format it as Anki notes.
+
+Target Note Type: Basic
+Target Deck: Default
+Available Fields: Front, Back
+
+Source Text/Keywords:
+"Python programming language"
+
+Target Number of Notes: 2
+
+Please generate exactly 2 new Anki notes based on the source text above.
+
+Return the notes in the following XML format. Ensure all fields are filled appropriately.
+
+<notes model="Basic" deck="Default">
+  <note>
+    <field name="Front">...</field>
+    <field name="Back">...</field>
+  </note>
+</notes>

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import pytest
 
+from transformerman.lib.generation_prompt_builder import GenerationPromptBuilder
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.ui.transform.field_widgets import FieldSelection
@@ -14,7 +15,7 @@ from tests.tools import test_collection as test_collection_fixture, with_test_co
 col = test_collection_fixture
 
 
-class TestPromptBuilder:
+class TestTransformPromptBuilder:
     """Test class for TransformPromptBuilder."""
 
     @with_test_collection("two_deck_collection")
@@ -264,3 +265,57 @@ class TestPromptBuilder:
         assert prompt.count('deck="decka"') == 10
         assert prompt.count('deck="deckb"') == 6
         assert prompt.count('<notes model="Basic">') == 1
+
+
+class TestGenerationPromptBuilder:
+    @with_test_collection("two_deck_collection")
+    def test_build_prompt_basic(
+        self,
+        col: TestCollection,
+    ) -> None:
+
+        prompt_builder = GenerationPromptBuilder(col)
+
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
+        prompt = prompt_builder.build_prompt(
+            source_text="Python programming language",
+            note_type=note_type,
+            deck_name="Default",
+            target_count=2,
+            selected_fields=None,
+            example_notes=None,
+            max_examples=0,
+        )
+
+        assert prompt.count("nid=") == 0  # No examples should be included
+        col.lock_and_assert_result("test_build_prompt_basic", prompt)
+
+    @with_test_collection("two_deck_collection")
+    def test_build_prompt_with_examples_section(
+        self,
+        col: TestCollection,
+    ) -> None:
+        prompt_builder = GenerationPromptBuilder(col)
+
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
+        example_notes = SelectedNotes(col, col.find_notes("")[0:3]).filter_by_note_type(note_type)
+
+        prompt = prompt_builder.build_prompt(
+            source_text="Python programming language",
+            note_type=note_type,
+            deck_name="Default",
+            target_count=2,
+            selected_fields=None,
+            example_notes=example_notes,
+            max_examples=5,
+        )
+
+        col.lock_and_assert_result("test_build_prompt_with_examples_section", prompt)
+
+        assert prompt.count("Here are some existing notes") == 1  # Examples section should be present exactly once
+        assert prompt.count('<notes model="Basic"') == 2  # examples + target
+        assert prompt.count('<note nid="') == 5  # 5 examples
