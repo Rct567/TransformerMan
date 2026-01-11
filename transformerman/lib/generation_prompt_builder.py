@@ -61,17 +61,17 @@ class GenerationPromptBuilder(PromptBuilder):
             "",
         ]
 
-        # Add examples if provided
-        if example_notes:
-            # We use the public select_example_notes and format_notes_as_xml from PromptBuilder
-            # to maintain consistency in example selection and formatting.
-            selected_examples = self.select_example_notes(
-                note_type, example_notes, field_names, max_examples
-            )
-            if selected_examples:
-                parts.append("Here are some existing notes of this type from the collection to show the desired style and level of detail:")
-                parts.append(self.format_notes_as_xml(selected_examples, note_type, field_names))
-                parts.append("")
+        notes_from_examples = {note.id: note for note in example_notes.get_notes()} if example_notes else {}
+
+        if len(notes_from_examples) < max_examples:
+            for note in self.select_example_notes(note_type, None, field_names, max_examples, target_deck_name=deck_name):
+                if note.id not in notes_from_examples:
+                    notes_from_examples[note.id] = note
+
+        if notes_from_examples:
+            parts.append("Here are some existing notes of this type from the collection to show the desired style and level of detail:")
+            parts.append(self.format_notes_as_xml(list(notes_from_examples.values()), note_type, field_names))
+            parts.append("")
 
         parts.extend([
             "Source Text/Keywords:",
@@ -80,10 +80,10 @@ class GenerationPromptBuilder(PromptBuilder):
             f"Target Number of Notes: {target_count}",
             "",
             (
-                f"Please generate exactly {target_count} new Anki notes based on the source text above. "
+                f"Please generate exactly {target_count} new Anki notes based on the source text above.\n\n"
                 "Return the notes in the following XML format. Ensure all fields are filled appropriately."
             ),
-            "```xml",
+            "",
             f'<notes model="{escape_xml_content(note_type.name)}" deck="{escape_xml_content(deck_name)}">',
             "  <note>",
         ])
@@ -94,7 +94,7 @@ class GenerationPromptBuilder(PromptBuilder):
         parts.extend([
             "  </note>",
             "</notes>",
-            "```",
+            "",
         ])
 
         return "\n".join(parts)

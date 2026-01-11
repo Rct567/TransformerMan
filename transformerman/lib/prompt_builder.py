@@ -29,9 +29,10 @@ class PromptBuilder:
     def select_example_notes(
         self,
         note_type: NoteModel,
-        target_notes: SelectedNotes,
+        target_notes: SelectedNotes | None,
         selected_fields: Sequence[str],
         max_examples: int,
+        target_deck_name: str | None = None,
     ) -> Sequence[Note]:
         """
         Select up to max_examples example notes from the collection.
@@ -46,11 +47,15 @@ class PromptBuilder:
             target_notes: SelectedNotes instance (to avoid selecting them as examples).
             selected_fields: Sequence of field names to consider.
             max_examples: Maximum number of example notes to produce.
+            target_deck_name: Optional target deck name to prioritize examples from.
         Returns:
             List of example notes.
         """
         # Get target note IDs
-        target_note_ids = set(target_notes.get_ids())
+        if target_notes is None:
+            target_note_ids: set[NoteId] = set()
+        else:
+            target_note_ids = set(target_notes.get_ids())
 
         # Find the note type
         model = self._col_data.get_note_model_by_name(note_type.name)
@@ -71,10 +76,14 @@ class PromptBuilder:
 
         # Attempt 1/3 Use deck and refined query
 
-        deck_name = target_notes.get_most_common_deck()
+        if target_deck_name:
+            deck_name = target_deck_name
+        elif target_notes:
+            deck_name = target_notes.get_most_common_deck()
+        else:
+            raise ValueError("Either target_deck_name or target_notes must be provided")
 
-        if deck_name:
-            candidate_note_ids = find_candidate_notes(refined_query + f' "deck:{deck_name}"')
+        candidate_note_ids = find_candidate_notes(refined_query + f' "deck:{deck_name}"')
 
         # Attempt 2/3 Try just the refined query
 
