@@ -5,13 +5,29 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
-from aqt.qt import QSpinBox, QValidator
-from typing import TYPE_CHECKING
+from aqt.qt import QSpinBox, QValidator, QTableWidget, QWidget
 
 from ..lib.utilities import override
 
-if TYPE_CHECKING:
-    from aqt.qt import QWidget
+
+class TableWidget(QTableWidget):
+    """A custom QTableWidget with additional functionality."""
+
+    def _set_column_widths(self) -> None:
+
+        horizontal_header = self.horizontalHeader()
+        assert horizontal_header
+
+        column_count = self.columnCount()
+        for col_index in range(column_count):
+            horizontal_header.setSectionResizeMode(col_index, horizontal_header.ResizeMode.Interactive)
+
+        # Set default column widths
+        if table_viewport := self.viewport():
+            table_width = table_viewport.width()
+            default_column_width = min(table_width // column_count, 400)
+            for col_index in range(column_count):
+                self.setColumnWidth(col_index, default_column_width)
 
 
 class FormattedSpinBox(QSpinBox):

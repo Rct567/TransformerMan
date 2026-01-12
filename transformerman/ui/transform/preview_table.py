@@ -7,13 +7,11 @@ note previews with background loading and highlighting capabilities.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QTimer
-
 from typing import TYPE_CHECKING, TypedDict
 import difflib
 
 from aqt.qt import (
-    QTableWidget,
+    QTimer,
     QTableWidgetItem,
     QColor,
     QWidget,
@@ -24,6 +22,8 @@ from aqt.qt import (
     QContextMenuEvent,
 )
 from aqt.operations import QueryOp
+
+from ..custom_widgets import TableWidget
 
 from ...lib.utilities import batched, override
 from ...lib.field_updates import FieldUpdates
@@ -126,7 +126,7 @@ class TableNoteData(TypedDict):
     note_updates: dict[str, str]  # Field updates from preview transformation (field_name -> new_value)
 
 
-class PreviewTable(QTableWidget):
+class PreviewTable(TableWidget):
     """Table widget for displaying note previews with background loading."""
 
     highlight_color: QColor
@@ -184,22 +184,6 @@ class PreviewTable(QTableWidget):
         self.current_selected_fields = None  # currently displayed fields
         self.current_field_updates = None  # highlighted mode
 
-    def _set_column_widths(self) -> None:
-
-        horizontal_header = self.horizontalHeader()
-        assert horizontal_header
-
-        column_count = self.columnCount()
-        for col_index in range(column_count):
-            horizontal_header.setSectionResizeMode(col_index, horizontal_header.ResizeMode.Interactive)
-
-        # Set default column widths
-        if table_viewport := self.viewport():
-            table_width = table_viewport.width()
-            default_column_width = min(table_width // column_count, 400)
-            for col_index in range(column_count):
-                self.setColumnWidth(col_index, default_column_width)
-
     def show_notes(
         self,
         selected_notes: SelectedNotes,
@@ -235,11 +219,6 @@ class PreviewTable(QTableWidget):
 
         # Set row count
         self.setRowCount(len(selected_notes))
-
-        # Make the last column stretch to fill remaining space
-        horizontal_header = self.horizontalHeader()
-        assert horizontal_header
-        horizontal_header.setStretchLastSection(True)
 
         # Load notes in background
         self._load_notes_in_background()

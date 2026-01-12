@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from aqt.qt import (
-    QTableWidget,
+    QTimer,
     QTableWidgetItem,
     QColor,
     QWidget,
@@ -19,12 +19,14 @@ from aqt.qt import (
     QPoint,
 )
 
+from ..custom_widgets import TableWidget
+
 if TYPE_CHECKING:
     from ...lib.xml_parser import NewNote
     from collections.abc import Sequence
 
 
-class GeneratedNotesTable(QTableWidget):
+class GeneratedNotesTable(TableWidget):
     """
     Editable table for displaying and modifying generated notes.
     """
@@ -74,6 +76,11 @@ class GeneratedNotesTable(QTableWidget):
             raise ValueError("Cannot update columns when table is not empty")
         self.setColumnCount(len(field_names))
         self.setHorizontalHeaderLabels(field_names)
+
+        # Make the last column stretch to fill remaining space
+        horizontal_header = self.horizontalHeader()
+        if horizontal_header:
+            QTimer.singleShot(0, self._set_column_widths)
 
     def set_notes(self, notes: Sequence[NewNote]) -> None:
         """
