@@ -350,7 +350,14 @@ class TransformerManMainWindow(TransformerManBaseDialog):
 
         # Create FieldWidget for each field
         for row_index, field_name in enumerate(self.current_note_model.get_fields()):
-            widget = FieldWidget(field_name, self.current_note_model.id, self.addon_config, self.field_widgets.event_manager)
+            widget = FieldWidget(
+                field_name,
+                self.current_note_model.id,
+                self.addon_config,
+                self.field_widgets.event_manager,
+                None,
+                self.selected_notes.get_common_root_deck(),
+            )
             # Select first two fields by default
             if row_index < 2:
                 widget.set_context_checked(True)

@@ -767,6 +767,50 @@ class TestSelectedNotes:
         assert deck_name == "Deck1"
 
     @with_test_collection("empty_collection")
+    def test_get_common_root_deck(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test get_common_root_deck returns root deck name when all notes share it."""
+        # Create decks
+        deck1_id = col.decks.id("Spanish::Vocabulary")
+        deck2_id = col.decks.id("Spanish::Sentences")
+        deck3_id = col.decks.id("French::Vocabulary")
+        assert deck1_id and deck2_id and deck3_id
+
+        model = col.models.by_name("Basic")
+        assert model is not None
+
+        # Case 1: All notes in same root deck (Spanish)
+        note_ids_spanish = []
+        for did in [deck1_id, deck2_id]:
+            note = col.new_note(model)
+            note["Front"] = "Front"
+            note["Back"] = "Back"
+            col.add_note(note, did)
+            note_ids_spanish.append(note.id)
+
+        selected_spanish = SelectedNotes(col, note_ids_spanish)
+        assert selected_spanish.get_common_root_deck() == "Spanish"
+
+        # Case 2: Mixed root decks (Spanish and French)
+        note_french = col.new_note(model)
+        note_french["Front"] = "Front"
+        note_french["Back"] = "Back"
+        col.add_note(note_french, deck3_id)
+
+        selected_mixed = SelectedNotes(col, note_ids_spanish + [note_french.id])
+        assert selected_mixed.get_common_root_deck() is None
+
+        # Case 3: Single note
+        selected_single = SelectedNotes(col, [note_french.id])
+        assert selected_single.get_common_root_deck() == "French"
+
+        # Case 4: Empty selection
+        selected_empty = SelectedNotes(col, [])
+        assert selected_empty.get_common_root_deck() is None
+
+    @with_test_collection("empty_collection")
     def test_new_selected_notes_card_ids(
         self,
         col: TestCollection,

@@ -44,12 +44,14 @@ class FieldWidget(QWidget):
         addon_config: AddonConfig,
         event_manager: EventManager,
         parent: QWidget | None = None,
+        root_deck: str | None = None,
     ) -> None:
         super().__init__(parent)
         self.field_name = field_name
         self.note_model_id = note_model_id
         self.addon_config = addon_config
         self.event_manager = event_manager
+        self.root_deck = root_deck
         self.is_overwritable = False
 
         # Create widgets
@@ -176,25 +178,39 @@ class FieldWidget(QWidget):
         """Set context checkbox state."""
         self.read_checkbox.setChecked(checked)
 
-    def _get_config_key(self) -> str:
+    def _get_config_key(self, include_deck: bool = True) -> str:
         """Get the config key for this field's instruction."""
         field_slug = create_slug(self.field_name)
-        return f"field_instructions_{self.note_model_id}_{field_slug}"
+        base_key = f"field_instructions_{self.note_model_id}_{field_slug}"
+        if include_deck and self.root_deck:
+            deck_slug = create_slug(self.root_deck)
+            return f"field_instructions_{deck_slug}_{self.note_model_id}_{field_slug}"
+        return base_key
 
     def _save_instruction(self) -> None:
         """Save field instruction to config."""
         if self.note_model_id == 0:
             return
         instruction = self.get_instruction()
-        config_key = self._get_config_key()
+        config_key = self._get_config_key(include_deck=True)
         self.addon_config.update_setting(config_key, instruction)
 
     def _load_instruction(self) -> None:
         """Load field instruction from config."""
         if self.note_model_id == 0:
             return
-        config_key = self._get_config_key()
-        instruction = self.addon_config.get(config_key, "")
+
+        # Try with deck first
+        config_key = self._get_config_key(include_deck=True)
+        if config_key in self.addon_config:
+            instruction = self.addon_config.get(config_key, "")
+        elif self.root_deck:
+            # Fallback to without deck
+            config_key_no_deck = self._get_config_key(include_deck=False)
+            instruction = self.addon_config.get(config_key_no_deck, "")
+        else:
+            instruction = ""
+
         if isinstance(instruction, str) and instruction:
             self.instruction_input.setText(instruction)
 

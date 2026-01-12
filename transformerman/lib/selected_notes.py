@@ -1,4 +1,4 @@
-"""
+""""
 TransformerMan by Rick Zuidhoek. Licensed under the GNU GPL-3.0.
 See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 """
@@ -325,6 +325,37 @@ class SelectedNotes:
         """
         most_common_decks = self.get_most_common_decks(sample_size, all_cards)
         return most_common_decks[0] if most_common_decks else ""
+
+    def get_common_root_deck(self, all_cards: bool = False) -> str | None:
+        """
+        Return the root deck name if all selected notes belong to the same root deck.
+        Otherwise return None.
+        """
+        card_ids = self.get_selected_card_ids()
+        if not card_ids or all_cards:
+            card_ids = self._get_all_card_ids()
+
+        if not card_ids:
+            return None
+
+        assert self.col.db
+        query = f"SELECT DISTINCT did FROM cards WHERE id IN {ids2str(card_ids)}"
+        deck_ids = self.col.db.list(query)
+
+        if not deck_ids:
+            return None
+
+        root_decks = set()
+        for did in deck_ids:
+            deck_name = self.col.get_deck_name(did)
+            if not deck_name:
+                continue
+            root_deck = deck_name.split("::")[0]
+            root_decks.add(root_deck)
+            if len(root_decks) > 1:
+                return None
+
+        return next(iter(root_decks)) if root_decks else None
 
     def clear_cache(self, clear_notes_cache: bool = True, clear_deck_cache: bool = True) -> None:
         """Clear the cache for notes and/or decks."""
