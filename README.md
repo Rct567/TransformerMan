@@ -38,10 +38,10 @@ __1033047802__
    - Enter your API key (if needed)
    - Select your preferred model
 
-2. **Transform Notes**:
+2. **Transform Notes (fill fields)**:
    - Open the card browser
    - Select one or more notes
-   - Right-click and select **TransformerMan**
+   - Right-click and select **TransformerMan > Fill Fields**
    - Select which fields to include via the "__Read__" checkbox
    - Click the "__Write__" checkbox to allow writing to the field
    - CTRL or shift click on the "__Write__" checkbox to allow overwriting existing content
@@ -76,6 +76,8 @@ Access via **Tools → TransformerMan Settings**:
 Note: both **Max Prompt Size** and **Max Notes Per Batch** limit the number of notes processed in a single batch, and thus the amount of API calls needed.
 
 ## How It Works
+
+### Fill fields
 
 1. **Note Selection**: Select notes in the Anki browser and open TransformerMan from the menu or right-click context menu
 
