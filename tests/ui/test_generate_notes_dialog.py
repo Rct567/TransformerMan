@@ -262,7 +262,7 @@ class TestGenerateNotesDialog:
                     mock_query_op.side_effect = side_effect
 
                     dialog.source_text_edit.setPlainText("Some text")
-                    dialog._on_generate_clicked()  # pyright: ignore[reportPrivateUsage]
+                    qtbot.mouseClick(dialog.generate_btn, Qt.MouseButton.LeftButton)
 
                 # Verify showInfo was called for ignored notes
                 mock_show_info.assert_called_once()
