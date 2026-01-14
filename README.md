@@ -1,6 +1,6 @@
 # TransformerMan
 
-A powerful Anki AI add-on that allows you to **create new notes** and **enhance existing** ones using 🤖 LMs, by using existing notes as context.
+A powerful Anki AI add-on that allows you to **create new notes** and **enhance existing** ones using 🤖 LMs.
 
 ##
 
