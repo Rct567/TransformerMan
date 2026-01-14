@@ -26,7 +26,7 @@ from ..base_dialog import TransformerManBaseDialog
 from .preview_table import PreviewTable
 from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent, FieldInstructionChangedEvent
 from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
-from .prompt_preview_dialog import PromptPreviewDialog
+from ..prompt_preview_dialog import PromptPreviewDialog
 
 from .notes_transformer import NotesTransformer
 from ...lib.response_middleware import LogLastRequestResponseMiddleware, CacheResponseMiddleware, ResponseMiddleware

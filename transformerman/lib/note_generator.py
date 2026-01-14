@@ -44,6 +44,7 @@ class NoteGenerator(PromptProcessor):
         example_notes: SelectedNotesFromType | None = None,
         progress_callback: Callable[[LmProgressData], None] | None = None,
         should_cancel: Callable[[], bool] | None = None,
+        prompt: str | None = None,
     ) -> Sequence[NewNote]:
         """
         Generate new notes and return them as a list of dictionaries.
@@ -57,18 +58,22 @@ class NoteGenerator(PromptProcessor):
             example_notes: Optional selection of notes to use as style examples.
             progress_callback: Optional callback for progress reporting.
             should_cancel: Optional callback to check if operation should be canceled.
+            prompt: Optional pre-built prompt to use.
 
         Returns:
             Sequence of NewNote objects, each representing a new note.
         """
-        self.prompt = self.prompt_builder.build_prompt(
-            source_text=source_text,
-            note_type=note_type,
-            deck_name=deck_name,
-            target_count=target_count,
-            selected_fields=selected_fields,
-            example_notes=example_notes,
-        )
+        if prompt:
+            self.prompt = prompt
+        else:
+            self.prompt = self.prompt_builder.build_prompt(
+                source_text=source_text,
+                note_type=note_type,
+                deck_name=deck_name,
+                target_count=target_count,
+                selected_fields=selected_fields,
+                example_notes=example_notes,
+            )
 
         # Initial response
         self.response = None

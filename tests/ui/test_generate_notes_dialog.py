@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING
 import unittest.mock
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
     from pathlib import Path
-    from typing import Any
     from unittest.mock import Mock
     from pytestqt.qtbot import QtBot
     from aqt.qt import QWidget
@@ -18,7 +18,8 @@ if TYPE_CHECKING:
 
 from aqt.qt import Qt
 
-from transformerman.ui.generate.generate_notes_dialog import GenerateNotesDialog, find_duplicates
+from transformerman.ui.generate.generate_notes_dialog import GenerateNotesDialog
+from transformerman.ui.generate.notes_generator import find_duplicates, GenerationRequest
 from transformerman.ui.stats_widget import StatsWidget
 from transformerman.lib.xml_parser import NewNote
 from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture
@@ -244,25 +245,42 @@ class TestGenerateNotesDialog:
         ]
 
         # Mock the generator to return notes
-        with unittest.mock.patch.object(dialog.generator, "generate_notes", return_value=generated_notes):
+        with unittest.mock.patch.object(dialog.notes_generator, "generate") as mock_generate:
             # Mock showInfo to verify notification
             with unittest.mock.patch("transformerman.ui.generate.generate_notes_dialog.showInfo") as mock_show_info:
                 # Trigger generation
-                # We need to mock QueryOp to run synchronously
-                with unittest.mock.patch("transformerman.ui.generate.generate_notes_dialog.QueryOp") as mock_query_op:
+                def mock_generate_side_effect(
+                    parent: QWidget,
+                    request: GenerationRequest,
+                    on_success: Callable[[Sequence[NewNote], dict[int, list[str]], int], None],
+                    on_failure: Callable[[Exception], None],
+                    prompt_interceptor: bool = False,
+                ) -> None:
+                    # Simulate successful generation with duplicates
+                    # We need to manually calculate duplicates and ignored count for the mock
+                    model_fields = request.note_type.get_fields()
+                    all_duplicates = find_duplicates(col, generated_notes, "decka", model_fields)
+                    model_fields_set = set(model_fields)
+                    filtered_notes: list[NewNote] = []
+                    duplicates: dict[int, list[str]] = {}
+                    ignored_count = 0
 
-                    def side_effect(parent: Any, op: Any, success: Any) -> Mock:
-                        result = op(col)
-                        success(result)
-                        mock_instance = unittest.mock.Mock()
-                        mock_instance.failure.return_value = mock_instance
-                        mock_instance.run_in_background.return_value = None
-                        return mock_instance
+                    for i, note in enumerate(generated_notes):
+                        dup_fields = all_duplicates.get(i, [])
+                        actual_fields = [k for k in note if k in model_fields_set]
+                        if dup_fields and len(dup_fields) == len(actual_fields):
+                            ignored_count += 1
+                        else:
+                            if dup_fields:
+                                duplicates[len(filtered_notes)] = dup_fields
+                            filtered_notes.append(note)
 
-                    mock_query_op.side_effect = side_effect
+                    on_success(filtered_notes, duplicates, ignored_count)
 
-                    dialog.source_text_edit.setPlainText("Some text")
-                    qtbot.mouseClick(dialog.generate_btn, Qt.MouseButton.LeftButton)
+                mock_generate.side_effect = mock_generate_side_effect
+
+                dialog.source_text_edit.setPlainText("Some text")
+                qtbot.mouseClick(dialog.generate_btn, Qt.MouseButton.LeftButton)
 
                 # Verify showInfo was called for ignored notes
                 mock_show_info.assert_called_once()
