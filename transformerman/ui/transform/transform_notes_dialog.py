@@ -28,7 +28,7 @@ from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent
 from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
 from .prompt_preview_dialog import PromptPreviewDialog
 
-from .transform_notes import TransformNotesWithProgress
+from .notes_transformer import NotesTransformer
 from ...lib.response_middleware import LogLastRequestResponseMiddleware, CacheResponseMiddleware, ResponseMiddleware
 from ...lib.selected_notes import SelectedNotes, NoteModel
 
@@ -53,8 +53,8 @@ except ImportError:
     tm_version = ""
 
 
-class TransformerManMainWindow(TransformerManBaseDialog):
-    """Main window for TransformerMan plugin."""
+class TransformNotesDialog(TransformerManBaseDialog):
+    """Main dialog for transforming notes (TransformerMan > Fill fields)."""
 
     preview_results: FieldUpdates | None
 
@@ -99,7 +99,7 @@ class TransformerManMainWindow(TransformerManBaseDialog):
         self._setup_event_listeners()
 
         # Initialize transformer
-        self.transformer = TransformNotesWithProgress(
+        self.transformer = NotesTransformer(
             parent=self,
             col=col,
             selected_notes=self.selected_notes,

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from aqt.qt import QWidget
     from anki.collection import Collection, OpChanges
     from ...lib.field_updates import FieldUpdates
-    from ...ui.transform.field_widgets import FieldSelection
+    from .field_widgets import FieldSelection
     from ...lib.http_utils import LmProgressData
     from ...lib.response_middleware import ResponseMiddleware
     from ...lib.addon_config import AddonConfig
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from ...lib.selected_notes import SelectedNotes, SelectedNotesFromType
 
 
-class TransformNotesWithProgress:
+class NotesTransformer:
     """
     Manages note transformation with progress tracking and caching.
 

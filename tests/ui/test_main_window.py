@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 from aqt.qt import QWidget, QLineEdit, QComboBox, QPushButton, Qt
 
-from transformerman.ui.transform.main_window import TransformerManMainWindow, FieldWidget
+from transformerman.ui.transform.transform_notes_dialog import TransformNotesDialog, FieldWidget
 from transformerman.ui.stats_widget import StatsWidget
 from transformerman.lib.field_updates import FieldUpdates
 from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
@@ -44,7 +44,7 @@ class TestTransformerManMainWindow:
         """Test that main window can be created with all required dependencies."""
         note_ids = list(col.find_notes("*")[0:3])
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
@@ -93,7 +93,7 @@ class TestTransformerManMainWindow:
         """Test that all UI components are created."""
         note_ids = list(col.find_notes("*")[0:3])
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
@@ -177,7 +177,7 @@ class TestTransformerManMainWindow:
         col.add_note(cloze_note, deck_id)
         note_ids.append(cloze_note.id)
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
@@ -212,7 +212,7 @@ class TestTransformerManMainWindow:
         """Test that field checkboxes and instruction inputs are created."""
         note_ids = list(col.find_notes("*")[0:2])
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
@@ -266,7 +266,7 @@ class TestTransformerManMainWindow:
         """Test that checking/unchecking fields enables/disables instruction inputs."""
         note_ids = list(col.find_notes("*")[0:2])
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
@@ -317,7 +317,7 @@ class TestTransformerManMainWindow:
         """Test that preview button state reflects whether there are empty fields to fill."""
         note_ids = list(col.find_notes("*")[0:2])
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
@@ -353,7 +353,7 @@ class TestTransformerManMainWindow:
         """Test that apply button starts disabled."""
         note_ids = list(col.find_notes("*")[0:2])
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
@@ -368,8 +368,8 @@ class TestTransformerManMainWindow:
         assert not window.apply_button.isEnabled()
 
     @with_test_collection("empty_collection")
-    @patch("transformerman.ui.transform.main_window.TransformNotesWithProgress")
-    @patch("transformerman.ui.transform.main_window.showInfo")
+    @patch("transformerman.ui.transform.transform_notes_dialog.NotesTransformer")
+    @patch("transformerman.ui.transform.transform_notes_dialog.showInfo")
     def test_preview_button_click_triggers_transformation(
         self,
         mock_show_info: Mock,
@@ -403,7 +403,7 @@ class TestTransformerManMainWindow:
         mock_transformer_instance.get_num_api_calls_needed.return_value = 1
         mock_transformer_class.return_value = mock_transformer_instance
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
@@ -477,7 +477,7 @@ class TestTransformerManMainWindow:
             col.add_note(cloze_note, deck_id)
             note_ids.append(cloze_note.id)
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,
@@ -539,7 +539,7 @@ class TestTransformerManMainWindow:
             col.add_note(note, deck_id)
             note_ids.append(note.id)
 
-        window = TransformerManMainWindow(
+        window = TransformNotesDialog(
             parent=parent_widget,
             is_dark_mode=is_dark_mode,
             col=col,

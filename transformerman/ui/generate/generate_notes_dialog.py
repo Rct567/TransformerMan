@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 
 
 class GenerateNotesDialog(TransformerManBaseDialog):
-    """Dialog for generating and adding new Anki notes."""
+    """Main dialog for generating notes (TransformerMan > Generate notes)."""
 
     _is_locked_by_context: tuple[NoteModel, str] | Literal[False]
 

@@ -9,7 +9,7 @@ from unittest.mock import Mock, MagicMock, patch
 import pytest
 
 from transformerman.lib.utilities import is_lorem_ipsum_text
-from transformerman.ui.transform.transform_notes import apply_field_updates_with_operation
+from transformerman.ui.transform.notes_transformer import apply_field_updates_with_operation
 from transformerman.ui.transform.field_widgets import FieldSelection
 from transformerman.lib.transform_operations import NoteTransformer
 from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware

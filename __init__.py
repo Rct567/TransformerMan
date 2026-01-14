@@ -14,7 +14,7 @@ from aqt.main import AnkiQt
 from aqt.qt import QAction, QWidget
 from aqt.utils import showInfo, showWarning
 
-from .transformerman.ui.transform.main_window import TransformerManMainWindow  # type: ignore[import-not-found]
+from .transformerman.ui.transform.transform_notes_dialog import TransformNotesDialog  # type: ignore[import-not-found]
 from .transformerman.ui.settings_dialog import SettingsDialog  # type: ignore[import-not-found]
 from .transformerman.ui.generate.generate_notes_dialog import GenerateNotesDialog  # type: ignore[import-not-found]
 from .transformerman.ui.ui_utilities import insert_action_after, get_tm_icon  # type: ignore[import-not-found]
@@ -81,7 +81,7 @@ def open_main_window(mw: AnkiQt, browser: Browser, addon_config: AddonConfig) ->
         )
         return
 
-    window = TransformerManMainWindow(
+    window = TransformNotesDialog(
         parent=browser,
         is_dark_mode=is_dark_mode(mw),
         col=mw.col,
