@@ -20,8 +20,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class NoteGenerator(PromptProcessor):
-    """Handles the generation of new Anki notes using a language model."""
+class NotesGenerator(PromptProcessor):
+    """Handles the generation of new Anki notes using a language model (UI-agnostic)."""
 
     prompt: str | None
     response: LmResponse | None

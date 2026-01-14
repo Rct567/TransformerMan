@@ -12,7 +12,7 @@ from aqt import mw
 from aqt.operations import QueryOp, CollectionOp
 from aqt.utils import showInfo
 
-from ...lib.transform_operations import CacheKey, NoteTransformer, TransformResults
+from ...lib.transform_operations import CacheKey, NotesTransformer, TransformResults
 from ...lib.transform_prompt_builder import TransformPromptBuilder
 
 from ..progress_dialog import ProgressDialog
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from ...lib.selected_notes import SelectedNotes, SelectedNotesFromType
 
 
-class NotesTransformer:
+class TransformingNotesManager:
     """
     Manages note transformation with progress tracking and caching.
 
@@ -185,7 +185,7 @@ class NotesTransformer:
             return
 
         # Create NoteTransformer (UI-agnostic)
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=self.col,
             selected_notes=selected_notes,
             lm_client=self.lm_client,

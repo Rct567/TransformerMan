@@ -9,9 +9,9 @@ from unittest.mock import Mock, MagicMock, patch
 import pytest
 
 from transformerman.lib.utilities import is_lorem_ipsum_text
-from transformerman.ui.transform.notes_transformer import apply_field_updates_with_operation
+from transformerman.ui.transform.transforming_notes import apply_field_updates_with_operation
 from transformerman.ui.transform.field_widgets import FieldSelection
-from transformerman.lib.transform_operations import NoteTransformer
+from transformerman.lib.transform_operations import NotesTransformer
 from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
@@ -67,7 +67,7 @@ class TestNoteTransformer:
         # The collection's notes have no empty fields in "Front" or "Back"
         # So validation should raise ValueError
         with pytest.raises(ValueError, match="No notes with empty writable fields found"):
-            NoteTransformer(
+            NotesTransformer(
                 col=col,
                 selected_notes=selected_notes.filter_by_note_type(note_type),
                 lm_client=dummy_client,
@@ -115,7 +115,7 @@ class TestNoteTransformer:
         prompt_builder = TransformPromptBuilder(col)
 
         # Create NoteTransformer with max prompt size of 1000
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             lm_client=dummy_client,
@@ -185,7 +185,7 @@ class TestNoteTransformer:
         prompt_builder = TransformPromptBuilder(col)
 
         # Create NoteTransformer with max prompt size
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             lm_client=dummy_client,
@@ -245,7 +245,7 @@ class TestNoteTransformer:
         prompt_builder = TransformPromptBuilder(col)
 
         # Create NoteTransformer with max prompt size
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             lm_client=dummy_client,
@@ -314,7 +314,7 @@ class TestNoteTransformer:
         mock_response.is_canceled = False
 
         # Create NoteTransformer with max prompt size
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             lm_client=dummy_client,
@@ -377,7 +377,7 @@ class TestNoteTransformer:
         prompt_builder = TransformPromptBuilder(col)
 
         # Create NoteTransformer with max prompt size
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=col,
             selected_notes=selected_notes.filter_by_note_type(NoteModel(col, model)),
             lm_client=dummy_client,

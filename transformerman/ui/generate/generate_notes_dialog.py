@@ -30,7 +30,7 @@ from aqt.operations import QueryOp
 
 from ..base_dialog import TransformerManBaseDialog
 from .generated_notes_table import GeneratedNotesTable
-from .notes_generator import NotesGenerator, GenerationRequest
+from .generating_notes import GeneratingNotesManager, GenerationRequest
 from ...lib.selected_notes import NoteModel
 from ...lib.selected_notes import SelectedNotes
 from ...lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
@@ -72,7 +72,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         # Setup middleware (for logging)
         self.middleware = ResponseMiddleware(LogLastRequestResponseMiddleware(self.addon_config, user_files_dir))
 
-        self.notes_generator = NotesGenerator(col, lm_client, self.middleware)
+        self.notes_generator = GeneratingNotesManager(col, lm_client, self.middleware)
         self._is_locked_by_context = False
 
         self.setWindowTitle("TransformerMan: Generate notes")

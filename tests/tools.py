@@ -341,7 +341,7 @@ def mock_collection_op(col: Collection) -> Generator[Mock, None, None]:
         mock_op.run_in_background = Mock()
         return mock_op
 
-    with patch("transformerman.ui.transform.notes_transformer.CollectionOp") as MockCollectionOp:
+    with patch("transformerman.ui.transform.transforming_notes.CollectionOp") as MockCollectionOp:
         MockCollectionOp.side_effect = mock_collection_op_call
         with patch("aqt.mw") as mock_mw:
             mock_mw.taskman = Mock()

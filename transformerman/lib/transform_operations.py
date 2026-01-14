@@ -52,7 +52,7 @@ class CacheKey(NamedTuple):
     field_instructions_hash: int
 
 
-class NoteTransformer(PromptProcessor):
+class NotesTransformer(PromptProcessor):
     """Transforms notes in batches (UI-agnostic)."""
 
     target_notes: SelectedNotesFromType

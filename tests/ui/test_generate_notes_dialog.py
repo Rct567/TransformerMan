@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 from aqt.qt import Qt
 
 from transformerman.ui.generate.generate_notes_dialog import GenerateNotesDialog
-from transformerman.ui.generate.notes_generator import find_duplicates, GenerationRequest
+from transformerman.ui.generate.generating_notes import find_duplicates, GenerationRequest
 from transformerman.ui.stats_widget import StatsWidget
 from transformerman.lib.xml_parser import NewNote
 from tests.tools import with_test_collection, TestCollection, test_collection as test_collection_fixture

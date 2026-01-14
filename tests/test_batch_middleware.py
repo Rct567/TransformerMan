@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from transformerman.lib.transform_operations import NoteTransformer
+from transformerman.lib.transform_operations import NotesTransformer
 from transformerman.lib.response_middleware import LogLastRequestResponseMiddleware, CacheResponseMiddleware, ResponseMiddleware
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.selected_notes import NoteModel, SelectedNotes, SelectedNotesFromType
@@ -81,7 +81,7 @@ class TestLmLoggingMiddleware:
         middleware.register(log_middleware)
 
         # Create and run NoteTransformer
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=col,
             selected_notes=selected_notes,
             lm_client=dummy_client,
@@ -122,7 +122,7 @@ class TestLmLoggingMiddleware:
         middleware.register(log_middleware)
 
         # Create and run NoteTransformer
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=col,
             selected_notes=selected_notes,
             lm_client=dummy_client,
@@ -178,7 +178,7 @@ class TestCacheBatchMiddleware:
             middleware.register(cache_middleware)
 
             # Create and run NoteTransformer
-            transformer = NoteTransformer(
+            transformer = NotesTransformer(
                 col=col,
                 selected_notes=selected_notes,
                 lm_client=dummy_client,
@@ -222,7 +222,7 @@ class TestCacheBatchMiddleware:
         middleware.register(cache_middleware)
 
         # Create NoteTransformer
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=col,
             selected_notes=selected_notes,
             lm_client=dummy_client,

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Callable, NamedTuple
 from aqt import mw
 from aqt.operations import QueryOp
 
-from ...lib.note_generator import NoteGenerator
+from ...lib.generate_operations import NotesGenerator
 from ..progress_dialog import ProgressDialog
 from ..prompt_preview_dialog import PromptPreviewDialog
 
@@ -37,7 +37,7 @@ class GenerationRequest(NamedTuple):
     example_notes: SelectedNotesFromType | None
 
 
-class NotesGenerator:
+class GeneratingNotesManager:
     """
     Manages note generation with progress tracking and prompt preview.
     UI-side wrapper for the library NoteGenerator.
@@ -47,7 +47,7 @@ class NotesGenerator:
         self.col = col
         self.lm_client = lm_client
         self.middleware = middleware
-        self.generator = NoteGenerator(col, lm_client, middleware)
+        self.generator = NotesGenerator(col, lm_client, middleware)
 
     def generate(
         self,

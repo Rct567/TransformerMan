@@ -368,7 +368,7 @@ class TestTransformerManMainWindow:
         assert not window.apply_button.isEnabled()
 
     @with_test_collection("empty_collection")
-    @patch("transformerman.ui.transform.transform_notes_dialog.NotesTransformer")
+    @patch("transformerman.ui.transform.transform_notes_dialog.TransformingNotesManager")
     @patch("transformerman.ui.transform.transform_notes_dialog.showInfo")
     def test_preview_button_click_triggers_transformation(
         self,

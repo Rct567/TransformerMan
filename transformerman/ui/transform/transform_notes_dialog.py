@@ -28,7 +28,7 @@ from .field_widgets import FieldWidget, FieldWidgets, FieldSelectionChangedEvent
 from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
 from ..prompt_preview_dialog import PromptPreviewDialog
 
-from .notes_transformer import NotesTransformer
+from .transforming_notes import TransformingNotesManager
 from ...lib.response_middleware import LogLastRequestResponseMiddleware, CacheResponseMiddleware, ResponseMiddleware
 from ...lib.selected_notes import SelectedNotes, NoteModel
 
@@ -99,7 +99,7 @@ class TransformNotesDialog(TransformerManBaseDialog):
         self._setup_event_listeners()
 
         # Initialize transformer
-        self.transformer = NotesTransformer(
+        self.transformer = TransformingNotesManager(
             parent=self,
             col=col,
             selected_notes=self.selected_notes,

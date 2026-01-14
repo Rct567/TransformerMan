@@ -1,7 +1,7 @@
 import pytest
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from transformerman.lib.selected_notes import NoteModel, SelectedNotesFromType
-from transformerman.lib.transform_operations import NoteTransformer
+from transformerman.lib.transform_operations import NotesTransformer
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
 from transformerman.lib.response_middleware import ResponseMiddleware, LogLastRequestResponseMiddleware
 from transformerman.lib.utilities import is_lorem_ipsum_text
@@ -99,7 +99,7 @@ class TestPromptInterception:
         logs_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize NoteTransformer with interceptor
-        transformer = NoteTransformer(
+        transformer = NotesTransformer(
             col=col,
             selected_notes=selected_notes,
             lm_client=dummy_client,
@@ -160,7 +160,7 @@ class TestPromptInterception:
             raise Exception("Canceled")
 
         with pytest.raises(Exception, match="Canceled"):
-            NoteTransformer(
+            NotesTransformer(
                 col=col,
                 selected_notes=selected_notes,
                 lm_client=dummy_client,
