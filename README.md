@@ -22,7 +22,7 @@ A powerful Anki AI add-on that allows you to **create new notes** and **enhance 
 - 🧠 **Mnemonics**: Create memory aids and associations to help retention
 - 🎨 **Visual Content**: Generate SVG images to visualize concepts
 - 📚 **Definitions & Examples**: Fill in explanations, examples, or clarifications
-- 🏷️ **Classification**: Tag, annotate or categorize learning material
+- 🏷️ **Classification**: Tag, annotate, or categorize learning material
 - 📦 **Deck Standardization**: Fill missing information in decks you've downloaded or imported
 - ❓ **Active Recall**: Generate cloze deletions or question-answer pairs from content
 - 🆕 **Deck Expansion**: Rapidly create new notes based on patterns from existing ones
@@ -81,7 +81,7 @@ Access via **Tools → TransformerMan Settings**:
 - **LM Client**: Choose from available language model clients (Dummy, OpenAI, Claude, Gemini, DeepSeek, OpenAI Custom)
 - **Model**: Select model based on chosen client (e.g., OpenAI: GPT-4o/GPT-4o-mini/o1/o3 series, Claude: various models, etc.)
 - **API Key**: Your language model API key
-- **Max Prompt Size**: Maximum prompt size in characters (lower number would require more batches)
+- **Max Prompt Size**: Maximum prompt size in characters (a lower number would require more batches)
 - **Timeout**: Request timeout in seconds
 - **Max Notes Per Batch**: Maximum number of notes to process in a single batch
 - **Max Examples**: Maximum number of example notes to use for generated prompt
@@ -96,7 +96,7 @@ Note: both **Max Prompt Size** and **Max Notes Per Batch** limit the number of n
 1. **Note Selection**: Select notes in the Anki browser and open TransformerMan from the menu or right-click context menu
 
 2. **Field Configuration**: For each field in your note type, you can:
-   - **Context (read)**: Include field in the prompt to provide context
+   - **Context (read)**: Include a field in the prompt to provide context
    - **Writable (write)**: Allow empty fields to be filled
    - **Overwritable**: Ctrl+click on 'Write' checkbox to allow overwriting existing content
    - **Instructions**: Add field-specific instructions to guide the LM
