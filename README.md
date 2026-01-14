@@ -1,6 +1,8 @@
 # TransformerMan
 
-An Anki add-on that uses LM's to intelligently __fill empty fields__ based on context, examples, and custom instructions.
+An Anki AI add-on that allows you to **create new notes** and **enhance existing** ones using 🤖 LMs, by using existing notes as context.
+
+##
 
 ![TransformerMan](tranformerman_showcase_1.gif)
 
@@ -8,9 +10,10 @@ An Anki add-on that uses LM's to intelligently __fill empty fields__ based on co
 ## Features
 
 - 🤖 **AI-Powered Field Completion**: Fill empty fields in bulk using language models
-- 📝 **Context-Aware**: Automatically uses related notes as examples
-- 📋 **Custom Instructions**: Add field-specific instructions to guide the LM
-- 🔍 **Preview Before Applying**: See what changes will be made before applying them
+- ✨ **Generate New Notes**: Create fresh flashcards based on prompts and existing note patterns
+- 📝 **Context-Aware**: Automatically uses related notes as examples to guide generation
+- 📋 **Custom Instructions**: Add field-specific instructions to guide the AI
+- 🔍 **Preview Before Applying**: See what changes will be made before committing them
 - ✅ **Multiple LM Support**: Gemini, DeepSeek, Claude, OpenAI, and a Dummy client for testing
 
 ## Use Cases
@@ -22,6 +25,7 @@ An Anki add-on that uses LM's to intelligently __fill empty fields__ based on co
 - 🏷️ **Classification**: Tag, annotate or categorize learning material
 - 📦 **Deck Standardization**: Fill missing information in decks you've downloaded or imported
 - ❓ **Active Recall**: Generate cloze deletions or question-answer pairs from content
+- 🆕 **Deck Expansion**: Rapidly create new notes based on patterns from existing ones
 
 ## Installation
 
@@ -32,29 +36,39 @@ __1033047802__
 
 ### Quick Start
 
-1. **Configure Settings** (first time only):
+#### **Configure Settings** (first time only):
    - Go to **Tools → TransformerMan Settings**
    - Select a LM Client (e.g., Gemini, DeepSeek)
    - Enter your API key (if needed)
    - Select your preferred model
 
-2. **Transform Notes (fill fields)**:
+#### **Fill Fields in Existing Notes**:
    - Open the card browser
    - Select one or more notes
    - Right-click and select **TransformerMan > Fill Fields**
-   - Select which fields to include via the "__Read__" checkbox
-   - Click the "__Write__" checkbox to allow writing to the field
-   - CTRL or shift click on the "__Write__" checkbox to allow overwriting existing content
+   - Select which fields to include via the "**Read**" checkbox
+   - Click the "**Write**" checkbox to allow writing to the field
+   - CTRL or shift click on the "**Write**" checkbox to allow overwriting existing content
    - (Optional) Add custom instructions for specific fields
    - Click **Preview** to see what changes will be made
    - Review the changes and click **Apply** to save changes
 
-Note: You can hold shift and click on "Preview" to view and change the generated prompt.
+**Tip**: You can hold shift and click on "Preview" to view and modify the generated prompt before sending it to the LM.
+
+#### **Generate New Notes**:
+   - Open the card browser
+   - Select one or more example notes to guide generation
+   - Right-click and select **TransformerMan > Generate Notes**
+   - Enter a prompt describing what notes you want to create
+   - Select which fields to include
+   - Click **Generate notes**
+   - Review, change and/or discard the generated notes
+   - Click **Create new notes** to add them to your collection
 
 ## Free Options
 
 - **Gemini**: Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
-- **LM Studio**: Download [LM Studio](https://lmstudio.ai/), run local LLMs like gpt-oss, Qwen3, DeepSeek on your computer.
+- **LM Studio**: Download [LM Studio](https://lmstudio.ai/), run local LLMs like gpt-oss, Qwen3, DeepSeek on your computer
 - **DeepSeek**: Free tier with generous limits, get API key from [DeepSeek Platform](https://platform.deepseek.com/)
 - **Groq**: Free tier available with rate limits, get API key from [Groq Console](https://console.groq.com/)
 
@@ -73,11 +87,11 @@ Access via **Tools → TransformerMan Settings**:
 - **Max Examples**: Maximum number of example notes to use for generated prompt
 - **Custom Settings**: Client-specific settings (e.g., Organization ID for OpenAI)
 
-Note: both **Max Prompt Size** and **Max Notes Per Batch** limit the number of notes processed in a single batch, and thus the amount of API calls needed.
+Note: both **Max Prompt Size** and **Max Notes Per Batch** limit the number of notes processed in a single batch, and thus the number of API calls needed.
 
 ## How It Works
 
-### Fill fields
+### Fill Fields
 
 1. **Note Selection**: Select notes in the Anki browser and open TransformerMan from the menu or right-click context menu
 
