@@ -181,3 +181,33 @@ class TestXmlParser:
         note["Front"] = "New Q"
         assert note["Front"] == "New Q"
         assert fields["Front"] == "New Q"  # Should modify the underlying dict
+
+    def test_notes_from_xml_unescaped_html(self) -> None:
+        """Test parsing XML response with unescaped HTML content."""
+        xml = """<notes>
+        <note nid="123">
+            <field name="Front"><b>Bold</b> and <i>Italic</i></field>
+            <field name="Back">1 < 2</field>
+        </note>
+        </notes>"""
+
+        result = notes_from_xml(xml)
+
+        assert NoteId(123) in result
+        assert result[NoteId(123)]["Front"] == "<b>Bold</b> and <i>Italic</i>"
+        assert result[NoteId(123)]["Back"] == "1 < 2"
+
+    def test_new_notes_from_xml_unescaped_html(self) -> None:
+        """Test parsing new notes XML response with unescaped HTML content."""
+        xml = """<notes model="Basic">
+        <note>
+            <field name="Front"><b>Bold</b> and <i>Italic</i></field>
+            <field name="Back">1 < 2</field>
+        </note>
+        </notes>"""
+
+        notes = new_notes_from_xml(xml)
+
+        assert len(notes) == 1
+        assert notes[0]["Front"] == "<b>Bold</b> and <i>Italic</i>"
+        assert notes[0]["Back"] == "1 < 2"

@@ -5,6 +5,7 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 
 from __future__ import annotations
 
+import html
 import re
 from collections.abc import Iterator, MutableMapping, Sequence
 from typing import TYPE_CHECKING, cast
@@ -27,24 +28,18 @@ def notes_from_xml(xml_response: str) -> FieldUpdates:
         FieldUpdates instance mapping note IDs to dictionaries of field updates.
         Example: FieldUpdates({123: {"Front": "Hello", "Back": "World"}})
     """
-
-    # Find all note blocks
-    note_pattern = r'<note nid="(\d+)"[^>]*>(.*?)</note>'
-    notes = re.findall(note_pattern, xml_response, re.DOTALL)
-
     result = FieldUpdates()
 
-    for nid, note_content in notes:
-        # Find all fields within this note
-        field_pattern = r'<field name="([^"]+)">([^<]*)</field>'
-        fields = re.findall(field_pattern, note_content)
+    for note_attrs, note_content in _find_tags(xml_response, "note"):
+        nid_str = _get_attribute(note_attrs, "nid")
+        if not nid_str:
+            continue
 
-        for field_name, field_value in fields:
-            result.add_field_update(
-                cast("NoteId", int(nid)),
-                field_name,
-                unescape_xml_content(field_value)
-            )
+        nid = cast("NoteId", int(nid_str))
+        for field_attrs, field_content in _find_tags(note_content, "field"):
+            name = _get_attribute(field_attrs, "name")
+            if name:
+                result.add_field_update(nid, name, unescape_xml_content(field_content))
 
     return result
 
@@ -100,40 +95,51 @@ def new_notes_from_xml(xml_response: str) -> Sequence[NewNote]:
     Returns:
         Sequence of NewNote objects, each representing a new note's fields, deck and model.
     """
-    # Find root deck and model if present
-    root_deck_match = re.search(r'<notes[^>]*deck="([^"]+)"', xml_response)
-    root_deck = root_deck_match.group(1) if root_deck_match else None
-
-    root_model_match = re.search(r'<notes[^>]*model="([^"]+)"', xml_response)
-    root_model = root_model_match.group(1) if root_model_match else None
-
-    # Find all note blocks
-    note_pattern = r"<note\b([^>]*)>(.*?)</note>"
-    notes = re.findall(note_pattern, xml_response, re.DOTALL)
+    # Find root notes tag to get default deck/model
+    notes_match = re.search(r"<notes\b([^>]*)>", xml_response)
+    root_attrs = notes_match.group(1) if notes_match else ""
+    root_deck = _get_attribute(root_attrs, "deck")
+    root_model = _get_attribute(root_attrs, "model")
 
     result = []
 
-    for note_attrs, note_content in notes:
-        # Check for deck attribute in note tag
-        note_deck_match = re.search(r'deck=["\'](.*?)["\']', note_attrs)
-        deck = note_deck_match.group(1) if note_deck_match else root_deck
+    for note_attrs, note_content in _find_tags(xml_response, "note"):
+        deck = _get_attribute(note_attrs, "deck") or root_deck
+        model = _get_attribute(note_attrs, "model") or root_model
 
-        # Check for model attribute in note tag
-        note_model_match = re.search(r'model=["\'](.*?)["\']', note_attrs)
-        model = note_model_match.group(1) if note_model_match else root_model
+        fields = {}
+        for field_attrs, field_content in _find_tags(note_content, "field"):
+            name = _get_attribute(field_attrs, "name")
+            if name:
+                fields[name] = unescape_xml_content(field_content)
 
-        # Find all fields within this note
-        field_pattern = r'<field name="([^"]+)">([^<]*)</field>'
-        fields = re.findall(field_pattern, note_content)
-
-        note_fields = {}
-        for field_name, field_value in fields:
-            note_fields[field_name] = unescape_xml_content(field_value)
-
-        if note_fields or deck or model:
-            result.append(NewNote(fields=note_fields, deck_name=deck, model_name=model))
+        if fields:
+            result.append(NewNote(fields=fields, deck_name=deck, model_name=model))
 
     return result
+
+
+def _get_attribute(tag_attrs: str, attr_name: str) -> str | None:
+    """Extract an attribute value from a tag's attribute string."""
+    pattern = rf'{attr_name}=["\']([^"\']*)["\']'
+    match = re.search(pattern, tag_attrs)
+    return match.group(1) if match else None
+
+
+def _find_tags(xml: str, tag_name: str) -> Iterator[tuple[str, str]]:
+    """
+    Find all occurrences of a tag and return its attributes and content.
+
+    Args:
+        xml: The XML string to search.
+        tag_name: The name of the tag to find.
+
+    Yields:
+        Tuples of (attributes_string, content_string).
+    """
+    pattern = rf"<{tag_name}\b([^>]*)>(.*?)</{tag_name}>"
+    for match in re.finditer(pattern, xml, re.DOTALL):
+        yield match.group(1), match.group(2)
 
 
 def escape_xml_content(content: str) -> str:
@@ -146,13 +152,7 @@ def escape_xml_content(content: str) -> str:
     Returns:
         Escaped content safe for XML.
     """
-    return (
-        content.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&apos;")
-    )
+    return html.escape(content, quote=True).replace("&#x27;", "&apos;")
 
 
 def unescape_xml_content(content: str) -> str:
@@ -165,10 +165,4 @@ def unescape_xml_content(content: str) -> str:
     Returns:
         Unescaped content.
     """
-    return (
-        content.replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", '"')
-        .replace("&apos;", "'")
-        .replace("&amp;", "&")
-    )
+    return html.unescape(content)
