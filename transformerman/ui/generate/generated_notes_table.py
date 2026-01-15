@@ -82,6 +82,27 @@ class GeneratedNotesTable(TableWidget):
         if horizontal_header:
             QTimer.singleShot(0, self._set_column_widths)
 
+    def _filter_valid_notes(
+        self, notes: Sequence[NewNote], field_names: Sequence[str]
+    ) -> list[NewNote]:
+        """Filter out notes that don't have at least one of the required fields."""
+        valid_notes = []
+        for note in notes:
+            if any(note.get(field) for field in field_names):
+                valid_notes.append(note)
+        return valid_notes
+
+    def _populate_rows(
+        self, notes: Sequence[NewNote], field_names: Sequence[str], start_row: int
+    ) -> None:
+        """Populate table rows with note data."""
+        for i, note in enumerate(notes):
+            row = start_row + i
+            for col, field in enumerate(field_names):
+                content = note.get(field, "")
+                item = QTableWidgetItem(content)
+                self.setItem(row, col, item)
+
     def set_notes(self, notes: Sequence[NewNote]) -> None:
         """
         Set the notes to display in the table.
@@ -97,13 +118,10 @@ class GeneratedNotesTable(TableWidget):
         field_names = list(notes[0].keys())
         self.clear()
         self.update_columns(field_names)
-        self.setRowCount(len(notes))
 
-        for row, note in enumerate(notes):
-            for col, field in enumerate(field_names):
-                content = note.get(field, "")
-                item = QTableWidgetItem(content)
-                self.setItem(row, col, item)
+        valid_notes = self._filter_valid_notes(notes, field_names)
+        self.setRowCount(len(valid_notes))
+        self._populate_rows(valid_notes, field_names, 0)
 
     def append_notes(self, notes: Sequence[NewNote]) -> None:
         """
@@ -122,17 +140,13 @@ class GeneratedNotesTable(TableWidget):
             header_item = self.horizontalHeaderItem(i)
             field_names.append(header_item.text() if header_item else f"Field {i}")
 
-        current_row_count = self.rowCount()
-        self.setRowCount(current_row_count + len(notes))
+        valid_notes = self._filter_valid_notes(notes, field_names)
+        if not valid_notes:
+            return
 
-        for i, note in enumerate(notes):
-            if len(note.keys()) != len(field_names):
-                raise ValueError("Number of columns must match number of field names")
-            row = current_row_count + i
-            for col, field in enumerate(field_names):
-                content = note.get(field, "")
-                item = QTableWidgetItem(content)
-                self.setItem(row, col, item)
+        current_row_count = self.rowCount()
+        self.setRowCount(current_row_count + len(valid_notes))
+        self._populate_rows(valid_notes, field_names, current_row_count)
 
     def get_all_notes(self) -> list[dict[str, str]]:
         """

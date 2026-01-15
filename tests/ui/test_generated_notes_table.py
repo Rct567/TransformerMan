@@ -93,3 +93,40 @@ class TestGeneratedNotesTable:
         remaining_notes = table.get_all_notes()
         assert remaining_notes[0]["Front"] == "F1"
         assert remaining_notes[1]["Front"] == "F2"
+
+    def test_filter_invalid_notes(self, qtbot: QtBot) -> None:
+        widget = QWidget()
+        table = GeneratedNotesTable(widget)
+        qtbot.addWidget(table)
+
+        notes = [
+            NewNote({"Front": "F1", "Back": "B1"}),
+            NewNote({"Front": "", "Back": ""}),  # Invalid
+            NewNote({"Front": "F3", "Back": ""}),  # Valid (has 1 field)
+            NewNote({"Other": "Value"}),  # Invalid (no matching fields)
+        ]
+
+        table.set_notes(notes)
+        # Should only have F1 and F3
+        assert table.rowCount() == 2
+        remaining_notes = table.get_all_notes()
+        assert remaining_notes[0]["Front"] == "F1"
+        assert remaining_notes[1]["Front"] == "F3"
+
+    def test_append_invalid_notes(self, qtbot: QtBot) -> None:
+        widget = QWidget()
+        table = GeneratedNotesTable(widget)
+        qtbot.addWidget(table)
+
+        table.set_notes([NewNote({"Front": "F1", "Back": "B1"})])
+        assert table.rowCount() == 1
+
+        new_notes = [
+            NewNote({"Front": "", "Back": ""}),  # Invalid
+            NewNote({"Front": "F2", "Back": "B2"}),  # Valid
+        ]
+
+        table.append_notes(new_notes)
+        assert table.rowCount() == 2
+        remaining_notes = table.get_all_notes()
+        assert remaining_notes[1]["Front"] == "F2"
