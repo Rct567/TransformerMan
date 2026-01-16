@@ -28,10 +28,27 @@ from tests.tools import with_test_collection, TestCollection, test_collection as
 col = test_collection_fixture
 
 
+patch_generating_query_op = unittest.mock.patch("transformerman.ui.generate.generating_notes.QueryOp")
+
+
+def run_sync(col: TestCollection) -> Callable[..., unittest.mock.Mock]:
+    """Helper to make QueryOp run synchronously."""
+
+    def _run_sync(*args: Any, **kwargs: Any) -> unittest.mock.Mock:
+        op = kwargs.get("op") or args[1]
+        success = kwargs.get("success") or args[2]
+        success(op(col))
+        m = unittest.mock.Mock()
+        m.failure.return_value = m
+        return m
+
+    return _run_sync
+
+
 class TestGenerateNotesDialog:
     """Test class for GenerateNotesDialog."""
 
-    @unittest.mock.patch("transformerman.ui.generate.generating_notes.QueryOp")
+    @patch_generating_query_op
     @with_test_collection("two_deck_collection")
     def test_dialog_creation_and_generate_notes(
         self,
@@ -45,14 +62,7 @@ class TestGenerateNotesDialog:
         is_dark_mode: bool,
     ) -> None:
         """Test that dialog can be created with all required dependencies."""
-        def run_sync(parent: QWidget, op: Callable[[TestCollection], Any], success: Callable[[Any], None]) -> Mock:
-            res = op(col)
-            success(res)
-            m = unittest.mock.Mock()
-            m.failure.return_value = m
-            return m
-
-        mock_query_op_generating.side_effect = run_sync
+        mock_query_op_generating.side_effect = run_sync(col)
         addon_config.update_setting("max_examples", 9)
         note_ids = list(col.find_notes("*")[0:3])
 
