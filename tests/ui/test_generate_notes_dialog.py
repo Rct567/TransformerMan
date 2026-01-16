@@ -43,7 +43,9 @@ class TestGenerateNotesDialog:
         is_dark_mode: bool,
     ) -> None:
         """Test that dialog can be created with all required dependencies."""
-        addon_config.update_setting("max_examples", 9)
+        max_examples = 9
+        num_notes_generate = 11
+        addon_config.update_setting("max_examples", max_examples)
         note_ids = list(col.find_notes("*")[0:3])
 
         dialog = GenerateNotesDialog(
@@ -79,17 +81,23 @@ class TestGenerateNotesDialog:
 
         # add some text to textarea and click generate button
         dialog.source_text_edit.setPlainText("Some text")
-        dialog.count_spin.setValue(11)
+        dialog.count_spin.setValue(num_notes_generate)
         qtbot.mouseClick(dialog.generate_btn, Qt.MouseButton.LeftButton)
 
         # check prompt
         qtbot.waitUntil(lambda: dialog.notes_generator.generator.prompt is not None)
         assert dialog.notes_generator.generator.prompt
-        assert dialog.notes_generator.generator.prompt.count("<note nid=") == 9
+        assert dialog.notes_generator.generator.prompt.count("<note nid=") == max_examples
 
         assert dialog.create_btn.isEnabled()  # create button should be enabled now
         assert dialog.generate_btn.isEnabled()
-        assert dialog.table.rowCount() == 11
+        assert dialog.table.rowCount() == num_notes_generate
+        assert len(col.find_notes("added:1")) == 0
+
+        # check result (self.accept should have been called)
+        qtbot.mouseClick(dialog.create_btn, Qt.MouseButton.LeftButton)
+        qtbot.waitUntil(lambda: dialog.result() == 1)
+        assert len(col.find_notes("added:1")) == num_notes_generate
 
     @with_test_collection("two_deck_collection")
     def test_stats_update(
