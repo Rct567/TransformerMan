@@ -99,12 +99,17 @@ class TestGenerateNotesDialog:
 
         # add some text to textarea and click generate button
         dialog.source_text_edit.setPlainText("Some text")
+        dialog.count_spin.setValue(11)
         qtbot.mouseClick(dialog.generate_btn, Qt.MouseButton.LeftButton)
 
         # check prompt
         qtbot.waitUntil(lambda: dialog.notes_generator.generator.prompt is not None)
         assert dialog.notes_generator.generator.prompt
         assert dialog.notes_generator.generator.prompt.count("<note nid=") == 9
+
+        assert dialog.create_btn.isEnabled()  # create button should be enabled now
+        assert dialog.generate_btn.isEnabled()
+        assert dialog.table.rowCount() == 11
 
     @with_test_collection("two_deck_collection")
     def test_stats_update(
