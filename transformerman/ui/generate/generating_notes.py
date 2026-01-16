@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Callable, NamedTuple
 from aqt import mw
 from aqt.operations import QueryOp
 
+
 from ...lib.generate_operations import NotesGenerator
 from ..progress_dialog import ProgressDialog
 from ..prompt_preview_dialog import PromptPreviewDialog
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
     from ...lib.selected_notes import NoteModel, SelectedNotesFromType
     from ...lib.xml_parser import NewNote
     from ...lib.http_utils import LmProgressData
+    from ...lib.addon_config import AddonConfig
 
 
 class GenerationRequest(NamedTuple):
@@ -43,11 +45,12 @@ class GeneratingNotesManager:
     UI-side wrapper for the library NoteGenerator.
     """
 
-    def __init__(self, col: Collection, lm_client: LMClient, middleware: ResponseMiddleware) -> None:
+    def __init__(self, col: Collection, lm_client: LMClient, middleware: ResponseMiddleware, addon_config: AddonConfig) -> None:
         self.col = col
         self.lm_client = lm_client
         self.middleware = middleware
-        self.generator = NotesGenerator(col, lm_client, middleware)
+        self.generator = NotesGenerator(col, lm_client, middleware, addon_config)
+        self.addon_config = addon_config
 
     def generate(
         self,
@@ -68,6 +71,7 @@ class GeneratingNotesManager:
             target_count=request.target_count,
             selected_fields=request.selected_fields,
             example_notes=request.example_notes,
+            max_examples=self.addon_config.get_max_examples(),
         )
 
         # Handle prompt preview if requested

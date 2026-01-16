@@ -27,9 +27,9 @@ class GenerationPromptBuilder(PromptBuilder):
         note_type: NoteModel,
         deck_name: str,
         target_count: int,
-        selected_fields: list[str] | None = None,
-        example_notes: SelectedNotesFromType | None = None,
-        max_examples: int = 5,
+        selected_fields: list[str] | None,
+        example_notes: SelectedNotesFromType | None,
+        max_examples: int,
     ) -> str:
         """
         Build a prompt for generating new notes.
@@ -61,7 +61,7 @@ class GenerationPromptBuilder(PromptBuilder):
             "",
         ]
 
-        notes_from_examples = {note.id: note for note in example_notes.get_notes()} if example_notes else {}
+        notes_from_examples = {note.id: note for note in example_notes.get_notes()[:max_examples]} if example_notes else {}
 
         if len(notes_from_examples) < max_examples:
             for note in self.select_example_notes(note_type, None, field_names, max_examples, target_deck_name=deck_name):

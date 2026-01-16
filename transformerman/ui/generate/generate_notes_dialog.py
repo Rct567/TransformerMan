@@ -72,7 +72,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         # Setup middleware (for logging)
         self.middleware = ResponseMiddleware(LogLastRequestResponseMiddleware(self.addon_config, user_files_dir))
 
-        self.notes_generator = GeneratingNotesManager(col, lm_client, self.middleware)
+        self.notes_generator = GeneratingNotesManager(col, lm_client, self.middleware, self.addon_config)
         self._is_locked_by_context = False
 
         self.setWindowTitle("TransformerMan: Generate notes")

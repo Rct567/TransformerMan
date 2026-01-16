@@ -4,7 +4,7 @@ Tests for GenerateNotesDialog.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 import unittest.mock
 
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
     from aqt.qt import QWidget
     from transformerman.lib.addon_config import AddonConfig
+    from transformerman.lib.lm_clients import DummyLMClient
 
 from aqt.qt import Qt
 
@@ -30,18 +31,29 @@ col = test_collection_fixture
 class TestGenerateNotesDialog:
     """Test class for GenerateNotesDialog."""
 
+    @unittest.mock.patch("transformerman.ui.generate.generating_notes.QueryOp")
     @with_test_collection("two_deck_collection")
-    def test_dialog_creation(
+    def test_dialog_creation_and_generate_notes(
         self,
+        mock_query_op_generating: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: TestCollection,
-        dummy_lm_client: Mock,
+        dummy_lm_client: DummyLMClient,
         addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
     ) -> None:
         """Test that dialog can be created with all required dependencies."""
+        def run_sync(parent: QWidget, op: Callable[[TestCollection], Any], success: Callable[[Any], None]) -> Mock:
+            res = op(col)
+            success(res)
+            m = unittest.mock.Mock()
+            m.failure.return_value = m
+            return m
+
+        mock_query_op_generating.side_effect = run_sync
+        addon_config.update_setting("max_examples", 9)
         note_ids = list(col.find_notes("*")[0:3])
 
         dialog = GenerateNotesDialog(
@@ -70,6 +82,19 @@ class TestGenerateNotesDialog:
         assert "selected" in containers
         assert "api_client" in containers
         assert "client_model" in containers
+
+        # assert button is enabled
+        assert not dialog.create_btn.isEnabled()
+        assert dialog.generate_btn.isEnabled()
+
+        # add some text to textarea and click generate button
+        dialog.source_text_edit.setPlainText("Some text")
+        qtbot.mouseClick(dialog.generate_btn, Qt.MouseButton.LeftButton)
+
+        # check prompt
+        qtbot.waitUntil(lambda: dialog.notes_generator.generator.prompt is not None)
+        assert dialog.notes_generator.generator.prompt
+        assert dialog.notes_generator.generator.prompt.count("<note nid=") == 9
 
     @with_test_collection("two_deck_collection")
     def test_stats_update(

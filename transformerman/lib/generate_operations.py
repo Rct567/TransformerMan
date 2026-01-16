@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .http_utils import LmProgressData
     from .selected_notes import NoteModel, SelectedNotesFromType
     from .xml_parser import NewNote
+    from .addon_config import AddonConfig
     from anki.collection import Collection
     from collections.abc import Sequence
 
@@ -26,13 +27,14 @@ class NotesGenerator(PromptProcessor):
     prompt: str | None
     response: LmResponse | None
 
-    def __init__(self, col: Collection, lm_client: LMClient, middleware: ResponseMiddleware) -> None:
+    def __init__(self, col: Collection, lm_client: LMClient, middleware: ResponseMiddleware, addon_config: AddonConfig) -> None:
         self.col = col
         self.lm_client = lm_client
         self.middleware = middleware
         self.prompt_builder = GenerationPromptBuilder(col)
         self.prompt = None
         self.response = None
+        self.addon_config = addon_config
 
     def generate_notes(
         self,
@@ -73,6 +75,7 @@ class NotesGenerator(PromptProcessor):
                 target_count=target_count,
                 selected_fields=selected_fields,
                 example_notes=example_notes,
+                max_examples=self.addon_config.get_max_examples()
             )
 
         # Initial response
