@@ -8,7 +8,7 @@ Follows project guideline: "Use pytest fixtures, but try to use the real thing w
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,6 +16,11 @@ import pytest
 import aqt.operations
 from tests.conftest import FakeQueryOp
 aqt.operations.QueryOp = FakeQueryOp  # type: ignore
+
+# Global patch for showInfo and showWarning in UI tests
+import aqt.utils
+aqt.utils.showInfo = MagicMock()
+aqt.utils.showWarning = MagicMock()
 
 from aqt.qt import QWidget, QMessageBox
 
@@ -58,6 +63,22 @@ def parent_widget(qtbot: QtBot) -> QWidget:
 def dummy_lm_client() -> DummyLMClient:
     """Real DummyLMClient instance for testing."""
     return DummyLMClient(ApiKey(""), ModelName("lorem_ipsum"))
+
+
+@pytest.fixture
+def mock_show_info() -> MagicMock:
+    """Fixture to access and reset the global showInfo mock."""
+    mock: MagicMock = aqt.utils.showInfo  # type: ignore
+    mock.reset_mock()
+    return mock
+
+
+@pytest.fixture
+def mock_show_warning() -> MagicMock:
+    """Fixture to access and reset the global showWarning mock."""
+    mock: MagicMock = aqt.utils.showWarning  # type: ignore
+    mock.reset_mock()
+    return mock
 
 
 @pytest.fixture

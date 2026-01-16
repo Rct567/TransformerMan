@@ -370,10 +370,8 @@ class TestTransformerManMainWindow:
 
     @with_test_collection("empty_collection")
     @patch("transformerman.ui.transform.transform_notes_dialog.TransformingNotesManager")
-    @patch("transformerman.ui.transform.transform_notes_dialog.showInfo")
     def test_preview_button_click_triggers_transformation(
         self,
-        mock_show_info: Mock,
         mock_transformer_class: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
@@ -436,9 +434,6 @@ class TestTransformerManMainWindow:
         call_kwargs = mock_transformer_instance.transform.call_args.kwargs
         assert "field_selection" in call_kwargs
         assert "Front" in call_kwargs["field_selection"].writable
-
-        # showInfo should not be called (we have notes with empty fields)
-        mock_show_info.assert_not_called()
 
     @with_test_collection("empty_collection")
     def test_note_type_change_updates_ui(

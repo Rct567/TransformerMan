@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Callable
 import unittest.mock
 
 if TYPE_CHECKING:
+    from unittest.mock import MagicMock
     from collections.abc import Callable, Sequence
     from pathlib import Path
     from pytestqt.qtbot import QtBot
@@ -230,6 +231,7 @@ class TestGenerateNotesDialog:
         addon_config: AddonConfig,
         user_files_dir: Path,
         is_dark_mode: bool,
+        mock_show_info: MagicMock,
     ) -> None:
         """Test that fully duplicate notes are automatically deleted."""
         # 1. Create existing notes
@@ -265,45 +267,43 @@ class TestGenerateNotesDialog:
 
         # Mock the generator to return notes
         with unittest.mock.patch.object(dialog.notes_generator, "generate") as mock_generate:
-            # Mock showInfo to verify notification
-            with unittest.mock.patch("transformerman.ui.generate.generate_notes_dialog.showInfo") as mock_show_info:
-                # Trigger generation
-                def mock_generate_side_effect(
-                    parent: QWidget,
-                    request: GenerationRequest,
-                    on_success: Callable[[Sequence[NewNote], dict[int, list[str]], int], None],
-                    on_failure: Callable[[Exception], None],
-                    prompt_interceptor: bool = False,
-                ) -> None:
-                    # Simulate successful generation with duplicates
-                    # We need to manually calculate duplicates and ignored count for the mock
-                    model_fields = request.note_type.get_fields()
-                    all_duplicates = find_duplicates(col, generated_notes, "decka", model_fields)
-                    model_fields_set = set(model_fields)
-                    filtered_notes: list[NewNote] = []
-                    duplicates: dict[int, list[str]] = {}
-                    ignored_count = 0
+            # Trigger generation
+            def mock_generate_side_effect(
+                parent: QWidget,
+                request: GenerationRequest,
+                on_success: Callable[[Sequence[NewNote], dict[int, list[str]], int], None],
+                on_failure: Callable[[Exception], None],
+                prompt_interceptor: bool = False,
+            ) -> None:
+                # Simulate successful generation with duplicates
+                # We need to manually calculate duplicates and ignored count for the mock
+                model_fields = request.note_type.get_fields()
+                all_duplicates = find_duplicates(col, generated_notes, "decka", model_fields)
+                model_fields_set = set(model_fields)
+                filtered_notes: list[NewNote] = []
+                duplicates: dict[int, list[str]] = {}
+                ignored_count = 0
 
-                    for i, note in enumerate(generated_notes):
-                        dup_fields = all_duplicates.get(i, [])
-                        actual_fields = [k for k in note if k in model_fields_set]
-                        if dup_fields and len(dup_fields) == len(actual_fields):
-                            ignored_count += 1
-                        else:
-                            if dup_fields:
-                                duplicates[len(filtered_notes)] = dup_fields
-                            filtered_notes.append(note)
+                for i, note in enumerate(generated_notes):
+                    dup_fields = all_duplicates.get(i, [])
+                    actual_fields = [k for k in note if k in model_fields_set]
+                    if dup_fields and len(dup_fields) == len(actual_fields):
+                        ignored_count += 1
+                    else:
+                        if dup_fields:
+                            duplicates[len(filtered_notes)] = dup_fields
+                        filtered_notes.append(note)
 
-                    on_success(filtered_notes, duplicates, ignored_count)
+                on_success(filtered_notes, duplicates, ignored_count)
 
-                mock_generate.side_effect = mock_generate_side_effect
+            mock_generate.side_effect = mock_generate_side_effect
 
-                dialog.source_text_edit.setPlainText("Some text")
-                qtbot.mouseClick(dialog.generate_btn, Qt.MouseButton.LeftButton)
+            dialog.source_text_edit.setPlainText("Some text")
+            qtbot.mouseClick(dialog.generate_btn, Qt.MouseButton.LeftButton)
 
-                # Verify showInfo was called for ignored notes
-                mock_show_info.assert_called_once()
-                assert "Ignored 1 fully duplicate note" in mock_show_info.call_args[0][0]
+            # Verify showInfo was called for ignored notes
+            mock_show_info.assert_called_once()
+            assert "Ignored 1 fully duplicate note" in mock_show_info.call_args[0][0]
 
         # Verify final state
         # Row 0 (Full duplicate) should be gone.
