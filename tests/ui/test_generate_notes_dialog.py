@@ -4,14 +4,13 @@ Tests for GenerateNotesDialog.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
 import unittest.mock
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from pathlib import Path
-    from unittest.mock import Mock
     from pytestqt.qtbot import QtBot
     from aqt.qt import QWidget
     from transformerman.lib.addon_config import AddonConfig
@@ -28,31 +27,12 @@ from tests.tools import with_test_collection, TestCollection, test_collection as
 col = test_collection_fixture
 
 
-patch_generating_query_op = unittest.mock.patch("transformerman.ui.generate.generating_notes.QueryOp")
-
-
-def run_sync(col: TestCollection) -> Callable[..., unittest.mock.Mock]:
-    """Helper to make QueryOp run synchronously."""
-
-    def _run_sync(*args: Any, **kwargs: Any) -> unittest.mock.Mock:
-        op = kwargs.get("op") or args[1]
-        success = kwargs.get("success") or args[2]
-        success(op(col))
-        m = unittest.mock.Mock()
-        m.failure.return_value = m
-        return m
-
-    return _run_sync
-
-
 class TestGenerateNotesDialog:
     """Test class for GenerateNotesDialog."""
 
-    @patch_generating_query_op
     @with_test_collection("two_deck_collection")
     def test_dialog_creation_and_generate_notes(
         self,
-        mock_query_op_generating: Mock,
         qtbot: QtBot,
         parent_widget: QWidget,
         col: TestCollection,
@@ -62,7 +42,6 @@ class TestGenerateNotesDialog:
         is_dark_mode: bool,
     ) -> None:
         """Test that dialog can be created with all required dependencies."""
-        mock_query_op_generating.side_effect = run_sync(col)
         addon_config.update_setting("max_examples", 9)
         note_ids = list(col.find_notes("*")[0:3])
 
