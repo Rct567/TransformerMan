@@ -668,10 +668,11 @@ class GeminiLMClient(LMClient):
     @override
     def get_available_models() -> list[str]:
         return [
+            "gemini-flash-latest",  # Alias for the latest Flash experimental (auto-updates)
             "gemini-2.5-flash",  # Stable Gemini 2.5 Flash (fast, balanced, recommended for most apps)
             "gemini-2.5-pro",  # Stable Gemini 2.5 Pro (advanced reasoning, complex tasks)
             "gemini-2.5-flash-lite",  # Stable lite variant (cheapest/fastest for high-volume)
-            "gemini-flash-latest",  # Alias for the absolute latest Flash experimental (auto-updates)
+            "gemini-3-flash-preview",
         ]
 
 

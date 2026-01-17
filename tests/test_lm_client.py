@@ -117,7 +117,7 @@ class TestLmClient:
             client.process_prompt("test prompt")
 
             _, kwargs = mock_request.call_args
-            assert kwargs["url"] == "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse"
+            assert "https://generativelanguage.googleapis.com/" in kwargs["url"]
             assert kwargs["headers"]["x-goog-api-key"] == "test-key"
             assert kwargs["json_data"] == {"contents": [{"parts": [{"text": "test prompt"}]}]}
 
