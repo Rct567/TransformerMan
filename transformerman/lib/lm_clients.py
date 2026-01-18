@@ -547,6 +547,14 @@ class CustomOpenAi(OpenAILMClient):
     def get_recommended_models() -> list[ModelName]:
         return []
 
+    @staticmethod
+    @override
+    def validate_custom_settings(settings: dict[str, str]) -> tuple[bool, str]:
+        """Validate custom settings for Custom OpenAI client."""
+        if "end_point" not in settings or not settings["end_point"].strip():
+            return False, "end_point is required for Custom OpenAI client"
+        return super(CustomOpenAi, CustomOpenAi).validate_custom_settings(settings)
+
 
 class LmStudio(OpenAILMClient):
     id = "lm-studio"
