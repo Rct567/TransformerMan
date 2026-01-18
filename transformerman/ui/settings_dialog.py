@@ -369,11 +369,14 @@ class SettingsDialog(TransformerManBaseDialog):
             self.model_warning_label.setVisible(False)
             return
 
-        # Check if model is in recommended or fetched lists
-        recommended = client_class.get_recommended_models()
-        all_known_models = set(recommended + self._fetched_models)
+        # If no fetched models, hide warning
+        if not self._fetched_models:
+            self.model_warning_label.setVisible(False)
+            return
 
-        if current_model not in all_known_models:
+        # Check if model is in recommended or fetched lists
+        known_models = set(self._fetched_models)
+        if current_model not in known_models:
             self.model_warning_label.setVisible(True)
         else:
             self.model_warning_label.setVisible(False)
