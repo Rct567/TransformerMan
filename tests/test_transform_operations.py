@@ -456,7 +456,7 @@ class TestApplyFieldUpdatesWithOperation:
         parent = Mock()
 
         # Mock CollectionOp to update notes synchronously using the context manager
-        with mock_collection_op(col) as MockCollectionOp:
+        with mock_collection_op(col, "transform.transforming_notes.CollectionOp") as MockCollectionOp:
             # Apply field updates
             apply_field_updates_with_operation(
                 parent=parent,
@@ -521,7 +521,7 @@ class TestApplyFieldUpdatesWithOperation:
         parent = Mock()
 
         # Mock CollectionOp to update notes synchronously using the context manager
-        with mock_collection_op(col) as _:
+        with mock_collection_op(col, "transform.transforming_notes.CollectionOp") as _:
             # Apply field updates
             apply_field_updates_with_operation(
                 parent=parent,

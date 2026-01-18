@@ -306,7 +306,7 @@ def freeze_time_anki(target_time_str: str) -> Generator[None, None, None]:
 
 
 @contextmanager
-def mock_collection_op(col: Collection) -> Generator[Mock, None, None]:
+def mock_collection_op(col: Collection, collection_op_location: str) -> Generator[Mock, None, None]:
     """
     Context manager that mocks CollectionOp to execute operations synchronously.
 
@@ -318,6 +318,7 @@ def mock_collection_op(col: Collection) -> Generator[Mock, None, None]:
 
     Args:
         col: The collection to pass to the operation function
+        collection_op_location: The import path of the CollectionOp to mock
 
     Yields:
         Mock: The mocked CollectionOp class
@@ -341,7 +342,7 @@ def mock_collection_op(col: Collection) -> Generator[Mock, None, None]:
         mock_op.run_in_background = Mock()
         return mock_op
 
-    with patch("transformerman.ui.transform.transforming_notes.CollectionOp") as MockCollectionOp:
+    with patch("transformerman.ui."+collection_op_location) as MockCollectionOp:
         MockCollectionOp.side_effect = mock_collection_op_call
         with patch("aqt.mw") as mock_mw:
             mock_mw.taskman = Mock()
