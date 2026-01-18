@@ -9,6 +9,9 @@ import logging
 
 from typing import TYPE_CHECKING, Callable, NamedTuple
 
+
+from .xml_parser import notes_from_xml
+
 from .response_middleware import PromptProcessor
 
 from .field_updates import FieldUpdates
@@ -22,7 +25,7 @@ if TYPE_CHECKING:
     from ..ui.transform.field_widgets import FieldSelection
     from .response_middleware import ResponseMiddleware
     from .addon_config import AddonConfig
-    from .lm_clients import LMClient
+    from .lm_clients import LMClient, LmResponse
     from .selected_notes import SelectedNotesBatch, SelectedNotesFromType
 
 
@@ -126,6 +129,13 @@ class NotesTransformer(PromptProcessor):
         )
         self.num_batches = len(self.batches)
 
+    @staticmethod
+    def _get_field_updates_from_response(response: LmResponse) -> FieldUpdates:
+        """Parse XML response and extract field updates by note ID."""
+        if response.error is not None or response.exception is not None:
+            return FieldUpdates()
+        return notes_from_xml(response.content)
+
     def _get_field_updates_for_batch(
         self,
         render_prompt: Callable[[SelectedNotesBatch], str],
@@ -181,7 +191,7 @@ class NotesTransformer(PromptProcessor):
             return num_notes_updated, num_notes_failed, field_updates, error
 
         # Parse response
-        response_field_updates = self.response.get_notes_from_xml()
+        response_field_updates = self._get_field_updates_from_response(self.response)
 
         # Collect field updates
         for note in selected_notes_batch.get_notes():

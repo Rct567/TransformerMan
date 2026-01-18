@@ -14,10 +14,8 @@ from typing import Any, Callable, NamedTuple, NewType, Optional
 
 import requests
 
-from .field_updates import FieldUpdates
 from .http_utils import LmProgressData, LmRequestStage, make_api_request_json
 from .utilities import get_lorem_sentences_generator, override
-from .xml_parser import notes_from_xml
 
 ApiKey = NewType("ApiKey", str)
 ModelName = NewType("ModelName", str)
@@ -38,12 +36,6 @@ class LmResponse:
         self.error = error
         self.exception = exception
         self.is_canceled = is_canceled
-
-    def get_notes_from_xml(self) -> FieldUpdates:
-        """Parse XML response and extract field updates by note ID."""
-        if self.error is not None or self.exception is not None:
-            return FieldUpdates()
-        return notes_from_xml(self.content)
 
     def __bool__(self) -> bool:
         return len(self.content) > 0 or self.error is not None or self.exception is not None
