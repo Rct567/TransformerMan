@@ -6,12 +6,16 @@ from unittest.mock import patch
 
 from transformerman.lib.lm_clients import (
     ApiKey,
+    ClaudeLMClient,
+    CustomOpenAi,
     DeepSeekLMClient,
     DummyLMClient,
     GeminiLMClient,
+    GroqLMClient,
     GrokLMClient,
     LmStudio,
     ModelName,
+    OpenAILMClient,
 )
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
@@ -169,3 +173,63 @@ class TestLmClient:
             assert client.fetch_available_models()
             args, _ = mock_get.call_args
             assert args[0] == "http://127.0.0.1:5678/v1/models"
+
+    def test_openai_client_request_construction(self) -> None:
+        """Test OpenAILMClient request construction."""
+        model = OpenAILMClient.get_recommended_models()[0]
+        client = OpenAILMClient(ApiKey("test-key"), ModelName(model))
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.process_prompt("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://api.openai.com/v1/chat/completions"
+            assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+    def test_claude_client_request_construction(self) -> None:
+        """Test ClaudeLMClient request construction."""
+        model = ClaudeLMClient.get_recommended_models()[0]
+        client = ClaudeLMClient(ApiKey("test-key"), ModelName(model))
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.process_prompt("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://api.anthropic.com/v1/messages"
+            assert kwargs["headers"]["x-api-key"] == "test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+    def test_groq_client_request_construction(self) -> None:
+        """Test GroqLMClient request construction."""
+        model = GroqLMClient.get_recommended_models()[0]
+        client = GroqLMClient(ApiKey("test-key"), ModelName(model))
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.process_prompt("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://api.groq.com/openai/v1/chat/completions"
+            assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+    def test_custom_openai_client_request_construction(self) -> None:
+        """Test CustomOpenAi request construction."""
+        model = ModelName("test-model")
+        client = CustomOpenAi(ApiKey("test-key"), model, custom_settings={"end_point": "https://custom.openai.com/v1"})
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.process_prompt("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://custom.openai.com/v1/chat/completions"
+            assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
