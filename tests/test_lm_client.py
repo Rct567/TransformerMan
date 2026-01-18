@@ -10,6 +10,7 @@ from transformerman.lib.lm_clients import (
     DummyLMClient,
     GeminiLMClient,
     GrokLMClient,
+    LmStudio,
     ModelName,
 )
 from transformerman.lib.selected_notes import SelectedNotes
@@ -109,7 +110,7 @@ class TestLmClient:
 
     def test_gemini_client_request_construction(self) -> None:
         """Test GeminiLMClient request construction."""
-        model = GeminiLMClient.get_available_models()[0]
+        model = GeminiLMClient.get_recommended_models()[0]
         client = GeminiLMClient(ApiKey("test-key"), ModelName(model))
 
         with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
@@ -123,7 +124,7 @@ class TestLmClient:
 
     def test_deepseek_client_request_construction(self) -> None:
         """Test DeepSeekLMClient request construction."""
-        model = DeepSeekLMClient.get_available_models()[0]
+        model = DeepSeekLMClient.get_recommended_models()[0]
         client = DeepSeekLMClient(ApiKey("test-key"), ModelName(model))
 
         with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
@@ -138,7 +139,7 @@ class TestLmClient:
 
     def test_grok_client_request_construction(self) -> None:
         """Test GrokLMClient request construction."""
-        model = GrokLMClient.get_available_models()[0]
+        model = GrokLMClient.get_recommended_models()[0]
         client = GrokLMClient(ApiKey("test-key"), ModelName(model))
 
         with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
@@ -150,3 +151,21 @@ class TestLmClient:
             assert kwargs["headers"]["Authorization"] == "Bearer test-key"
             assert kwargs["json_data"]["model"] == model
             assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+    def test_lm_studio_fetch_endpoint(self) -> None:
+        """Test that LmStudio constructs the correct endpoint from port."""
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.json.return_value = {"data": [{"id": "local-model"}]}
+            mock_get.return_value.status_code = 200
+
+            # Test default port
+            client = LmStudio(ApiKey("dummy_key"), model=None, custom_settings={})
+            assert client.fetch_available_models()
+            args, _ = mock_get.call_args
+            assert args[0] == "http://127.0.0.1:1234/v1/models"
+
+            # Test custom port
+            client = LmStudio(ApiKey("dummy_key"), model=None, custom_settings={"port": "5678"})
+            assert client.fetch_available_models()
+            args, _ = mock_get.call_args
+            assert args[0] == "http://127.0.0.1:5678/v1/models"

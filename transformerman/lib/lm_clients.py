@@ -10,7 +10,7 @@ import random
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Callable, NewType, Optional
+from typing import Any, Callable, NamedTuple, NewType, Optional
 
 import requests
 
@@ -23,12 +23,17 @@ ApiKey = NewType("ApiKey", str)
 ModelName = NewType("ModelName", str)
 
 
+class AvailableModels(NamedTuple):
+    """Result of fetching available models from an API."""
+
+    models: list[ModelName]
+    error: str | None = None
+
+
 class LmResponse:
     """Response from a language model containing the text response and parsed notes."""
 
-    def __init__(
-        self, content: str, error: str | None = None, exception: Exception | None = None, is_canceled: bool = False
-    ) -> None:
+    def __init__(self, content: str, error: str | None = None, exception: Exception | None = None, is_canceled: bool = False) -> None:
         self.content = content
         self.error = error
         self.exception = exception
@@ -52,7 +57,7 @@ class LMClient(ABC):
 
     logger: logging.Logger
     _api_key: ApiKey
-    _model: ModelName
+    _model: ModelName | None
     _connect_timeout: int
     _read_timeout: int
     _custom_settings: dict[str, str]
@@ -60,17 +65,11 @@ class LMClient(ABC):
     def __init__(
         self,
         api_key: ApiKey,
-        model: ModelName,
+        model: ModelName | None = None,
         timeout: int = 120,
         connect_timeout: int = 10,
         custom_settings: dict[str, str] | None = None,
     ) -> None:
-        if self.get_available_models() and model not in self.get_available_models():
-            raise ValueError(f"Model {model} is not available for {self.id} LMClient")
-
-        if self.api_key_required() and not api_key:
-            raise ValueError(f"API key is required for {self.id} LMClient")
-
         if timeout <= 0:
             raise ValueError(f"Timeout must be positive, got {timeout}")
         if connect_timeout <= 0:
@@ -161,7 +160,7 @@ class LMClient(ABC):
             if custom_setting_model:
                 return custom_setting_model
 
-        return self._model
+        return str(self._model)
 
     @abstractmethod
     def _get_url(self) -> str:
@@ -190,7 +189,18 @@ class LMClient(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_available_models() -> list[str]:
+    def get_recommended_models() -> list[ModelName]:
+        """Return a curated list of recommended models for this client."""
+        pass
+
+    @staticmethod
+    def supports_fetching_available_models() -> bool:
+        """Return True if this client supports fetching available models from an API."""
+        return True
+
+    @abstractmethod
+    def fetch_available_models(self) -> AvailableModels:
+        """Fetch available models from the API."""
         pass
 
     @staticmethod
@@ -366,8 +376,18 @@ class DummyLMClient(LMClient):
 
     @staticmethod
     @override
-    def get_available_models() -> list[str]:
-        return ["lorem_ipsum", "lorem_ipsum_network"]
+    def get_recommended_models() -> list[ModelName]:
+        return [ModelName("lorem_ipsum"), ModelName("lorem_ipsum_network")]
+
+    @staticmethod
+    @override
+    def supports_fetching_available_models() -> bool:
+        return False
+
+    @override
+    def fetch_available_models(self) -> AvailableModels:
+        """Dummy client doesn't support fetching models via API."""
+        return AvailableModels(models=[], error="Fetching models is not supported for this client")
 
 
 class OpenAiCompatibleLMClient(LMClient):
@@ -428,24 +448,24 @@ class OpenAILMClient(OpenAiCompatibleLMClient):
 
     @staticmethod
     @override
-    def get_available_models() -> list[str]:
+    def get_recommended_models() -> list[ModelName]:
         return [
             # GPT-5 family
-            "gpt-5",
-            "gpt-5-mini",
-            "gpt-5-nano",
-            "gpt-5-chat",
-            "gpt-5.1",
-            "gpt-5.1-chat",
+            ModelName("gpt-5"),
+            ModelName("gpt-5-mini"),
+            ModelName("gpt-5-nano"),
+            ModelName("gpt-5-chat"),
+            ModelName("gpt-5.1"),
+            ModelName("gpt-5.1-chat"),
             # GPT-4o family (still supported, but older)
-            "gpt-4o",
-            "gpt-4o-mini",
-            "chatgpt-4o-latest",
+            ModelName("gpt-4o"),
+            ModelName("gpt-4o-mini"),
+            ModelName("chatgpt-4o-latest"),
             # Reasoning models
-            "o3-mini",
-            "o3-pro",
-            "o1",
-            "o1-mini",
+            ModelName("o3-mini"),
+            ModelName("o3-pro"),
+            ModelName("o1"),
+            ModelName("o1-mini"),
         ]
 
     @staticmethod
@@ -477,6 +497,40 @@ class OpenAILMClient(OpenAiCompatibleLMClient):
 
         return True, ""
 
+    @override
+    def fetch_available_models(self) -> AvailableModels:
+        """Fetch available models from OpenAI /v1/models endpoint."""
+        # Build models URL
+        base_url = "https://api.openai.com/v1/models"
+        if self._custom_settings and "end_point" in self._custom_settings:
+            endpoint = self._custom_settings["end_point"].strip()
+            if endpoint:
+                # Extract base URL and append /models
+                if "/chat/completions" in endpoint:
+                    base_url = endpoint.replace("/chat/completions", "/models")
+                elif endpoint.endswith("/v1"):
+                    base_url = f"{endpoint}/models"
+                else:
+                    base_url = endpoint.rstrip("/") + "/models"
+
+        headers = {"Authorization": f"Bearer {self._api_key}"}
+        if self._custom_settings and "organization_id" in self._custom_settings:
+            org_id = self._custom_settings["organization_id"].strip()
+            if org_id:
+                headers["OpenAI-Organization"] = org_id
+
+        try:
+            response = requests.get(base_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            models = [ModelName(m["id"]) for m in data.get("data", [])]
+            return AvailableModels(models=models)
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else "unknown"
+            return AvailableModels(models=[], error=f"API Error {status}")
+        except Exception as e:
+            return AvailableModels(models=[], error=str(e))
+
 
 class CustomOpenAi(OpenAILMClient):
     id = "custom_openai_endpoint"
@@ -486,11 +540,11 @@ class CustomOpenAi(OpenAILMClient):
     @override
     def custom_settings() -> list[str]:
         """Return list of custom setting names for OpenAI client."""
-        return ["end_point", "model", "organization_id"]
+        return ["end_point", "organization_id"]
 
     @staticmethod
     @override
-    def get_available_models() -> list[str]:
+    def get_recommended_models() -> list[ModelName]:
         return []
 
 
@@ -502,18 +556,26 @@ class LmStudio(OpenAILMClient):
     def __init__(
         self,
         api_key: ApiKey,
-        model: ModelName,
+        model: ModelName | None = None,
         timeout: int = 120,
         connect_timeout: int = 10,
         custom_settings: dict[str, str] | None = None,
     ) -> None:
-        if custom_settings:
-            port = custom_settings.get("port", "").strip()
-            if not port or not port.isdigit():
-                port = "1234"
-            custom_settings["end_point"] = "http://127.0.0.1:{}/v1".format(port)
+        if custom_settings is None:
+            custom_settings = {}
+        custom_settings["end_point"] = self._construct_endpoint(custom_settings)
         self._api_key = ApiKey("lm-studio")
         super().__init__(api_key, model, timeout, connect_timeout, custom_settings)
+
+    @staticmethod
+    def _construct_endpoint(custom_settings: dict[str, str] | None) -> str:
+        """Construct API endpoint from port setting."""
+        port = "1234"
+        if custom_settings:
+            p = custom_settings.get("port", "").strip()
+            if p and p.isdigit():
+                port = p
+        return f"http://127.0.0.1:{port}/v1"
 
     @override
     @staticmethod
@@ -524,11 +586,11 @@ class LmStudio(OpenAILMClient):
     @override
     def custom_settings() -> list[str]:
         """Return list of custom setting names for OpenAI client."""
-        return ["model", "port"]
+        return ["port"]
 
     @staticmethod
     @override
-    def get_available_models() -> list[str]:
+    def get_recommended_models() -> list[ModelName]:
         return []
 
 
@@ -540,7 +602,7 @@ class GroqLMClient(OpenAILMClient):
     def __init__(
         self,
         api_key: ApiKey,
-        model: ModelName,
+        model: ModelName | None = None,
         timeout: int = 120,
         connect_timeout: int = 10,
         custom_settings: dict[str, str] | None = None,
@@ -549,17 +611,6 @@ class GroqLMClient(OpenAILMClient):
             custom_settings = {}
         custom_settings["end_point"] = "https://api.groq.com/openai/v1/chat/completions"
         super().__init__(api_key, model, timeout, connect_timeout, custom_settings)
-
-    @staticmethod
-    @override
-    def custom_settings() -> list[str]:
-        """Return list of custom setting names for OpenAI client."""
-        return ["model", "organization_id"]
-
-    @staticmethod
-    @override
-    def get_available_models() -> list[str]:
-        return []
 
 
 class ClaudeLMClient(LMClient):
@@ -607,12 +658,29 @@ class ClaudeLMClient(LMClient):
 
     @staticmethod
     @override
-    def get_available_models() -> list[str]:
+    def get_recommended_models() -> list[ModelName]:
         return [
-            "claude-sonnet-4-5",  # Latest Sonnet 4.5 (balanced, recommended starting point)
-            "claude-opus-4-5",  # Latest Opus 4.5 (most capable)
-            "claude-haiku-4-5",  # Latest Haiku 4.5 (fastest/cheapest)
+            ModelName("claude-sonnet-4-5"),  # Latest Sonnet 4.5 (balanced, recommended starting point)
+            ModelName("claude-opus-4-5"),  # Latest Opus 4.5 (most capable)
+            ModelName("claude-haiku-4-5"),  # Latest Haiku 4.5 (fastest/cheapest)
         ]
+
+    @override
+    def fetch_available_models(self) -> AvailableModels:
+        """Fetch available models from Anthropic /v1/models endpoint."""
+        try:
+            response = requests.get(
+                "https://api.anthropic.com/v1/models", headers={"x-api-key": self._api_key, "anthropic-version": "2023-06-01"}, timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            models = [ModelName(m["id"]) for m in data.get("data", [])]
+            return AvailableModels(models=models)
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else "unknown"
+            return AvailableModels(models=[], error=f"API Error {status}")
+        except Exception as e:
+            return AvailableModels(models=[], error=str(e))
 
 
 class GeminiLMClient(LMClient):
@@ -666,14 +734,30 @@ class GeminiLMClient(LMClient):
 
     @staticmethod
     @override
-    def get_available_models() -> list[str]:
+    def get_recommended_models() -> list[ModelName]:
         return [
-            "gemini-flash-latest",  # Alias for the latest Flash experimental (auto-updates)
-            "gemini-2.5-flash",  # Stable Gemini 2.5 Flash (fast, balanced, recommended for most apps)
-            "gemini-2.5-pro",  # Stable Gemini 2.5 Pro (advanced reasoning, complex tasks)
-            "gemini-2.5-flash-lite",  # Stable lite variant (cheapest/fastest for high-volume)
-            "gemini-3-flash-preview",
+            ModelName("gemini-flash-latest"),  # Alias for the latest Flash experimental (auto-updates)
+            ModelName("gemini-2.5-flash"),  # Stable Gemini 2.5 Flash (fast, balanced, recommended for most apps)
+            ModelName("gemini-2.5-pro"),  # Stable Gemini 2.5 Pro (advanced reasoning, complex tasks)
+            ModelName("gemini-2.5-flash-lite"),  # Stable lite variant (cheapest/fastest for high-volume)
+            ModelName("gemini-3-flash-preview"),
         ]
+
+    @override
+    def fetch_available_models(self) -> AvailableModels:
+        """Fetch available models from Google Gemini /v1beta/models endpoint."""
+        try:
+            response = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={self._api_key}", timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            # Extract model name from "models/gemini-..." format
+            models = [ModelName(m["name"].replace("models/", "")) for m in data.get("models", [])]
+            return AvailableModels(models=models)
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else "unknown"
+            return AvailableModels(models=[], error=f"API Error {status}")
+        except Exception as e:
+            return AvailableModels(models=[], error=str(e))
 
 
 class DeepSeekLMClient(OpenAiCompatibleLMClient):
@@ -703,8 +787,24 @@ class DeepSeekLMClient(OpenAiCompatibleLMClient):
 
     @staticmethod
     @override
-    def get_available_models() -> list[str]:
-        return ["deepseek-chat", "deepseek-reasoner"]
+    def get_recommended_models() -> list[ModelName]:
+        return [ModelName("deepseek-chat"), ModelName("deepseek-reasoner")]
+
+    @override
+    def fetch_available_models(self) -> AvailableModels:
+        """Fetch available models from DeepSeek /models endpoint."""
+        try:
+            # Try /v1/models first (OpenAI-compatible pattern)
+            response = requests.get("https://api.deepseek.com/v1/models", headers={"Authorization": f"Bearer {self._api_key}"}, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            models = [ModelName(m["id"]) for m in data.get("data", [])]
+            return AvailableModels(models=models)
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else "unknown"
+            return AvailableModels(models=[], error=f"API Error {status}")
+        except Exception as e:
+            return AvailableModels(models=[], error=str(e))
 
 
 class GrokLMClient(OpenAiCompatibleLMClient):
@@ -732,8 +832,29 @@ class GrokLMClient(OpenAiCompatibleLMClient):
 
     @staticmethod
     @override
-    def get_available_models() -> list[str]:
-        return ["grok-4-1-fast", "grok-4-1-fast-reasoning", "grok-4", "grok-4-fast-non-reasoning", "grok-3"]
+    def get_recommended_models() -> list[ModelName]:
+        return [
+            ModelName("grok-4-1-fast"),
+            ModelName("grok-4-1-fast-reasoning"),
+            ModelName("grok-4"),
+            ModelName("grok-4-fast-non-reasoning"),
+            ModelName("grok-3"),
+        ]
+
+    @override
+    def fetch_available_models(self) -> AvailableModels:
+        """Fetch available models from xAI /v1/models endpoint."""
+        try:
+            response = requests.get("https://api.x.ai/v1/models", headers={"Authorization": f"Bearer {self._api_key}"}, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            models = [ModelName(m["id"]) for m in data.get("data", [])]
+            return AvailableModels(models=models)
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else "unknown"
+            return AvailableModels(models=[], error=f"API Error {status}")
+        except Exception as e:
+            return AvailableModels(models=[], error=str(e))
 
 
 LM_CLIENTS_CLASSES = [
