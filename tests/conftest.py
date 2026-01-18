@@ -6,16 +6,22 @@ Follows project guideline: "Use pytest fixtures, but try to use the real thing w
 """
 
 from __future__ import annotations
+from typing import TYPE_CHECKING
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
 import pytest
 
+from tests.tools import FakeCollectionOp, FakeQueryOp
 from transformerman.lib.addon_config import AddonConfig
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
     from transformerman.lib.utilities import JSON_TYPE
+
+
+# Global patch for CollectionOp and QueryOp in all tests
+import aqt.operations
+aqt.operations.CollectionOp = FakeCollectionOp  # type: ignore
+aqt.operations.QueryOp = FakeQueryOp  # type: ignore
 
 
 @pytest.fixture
@@ -50,53 +56,3 @@ def addon_config() -> AddonConfig:
     config = AddonConfig(loader, saver)
     config.load()
     return config
-
-
-T = TypeVar("T")
-
-
-class FakeQueryOp(Generic[T]):
-    """Synchronous QueryOp for testing."""
-
-    def __init__(
-        self,
-        *,
-        parent: Any,
-        op: Callable[[Any], T],
-        success: Callable[[T], Any],
-    ) -> None:
-        self._op = op
-        self._success = success
-        self._parent = parent
-        self._failure: Callable[[Exception], Any] | None = None
-
-    def failure(self, failure: Callable[[Exception], Any] | None) -> FakeQueryOp[T]:
-        self._failure = failure
-        return self
-
-    def without_collection(self) -> FakeQueryOp[T]:
-        return self
-
-    def with_progress(self, label: str | None = None) -> FakeQueryOp[T]:
-        return self
-
-    def with_backend_progress(self, progress_update: Any) -> FakeQueryOp[T]:
-        return self
-
-    def run_in_background(self) -> None:
-        """Run synchronously instead of in background."""
-        try:
-            # Try to get collection from parent or mw
-            col = getattr(self._parent, "col", None)
-            if col is None:
-                from aqt import mw  # noqa: PLC0415
-
-                col = getattr(mw, "col", None)
-
-            result = self._op(col)
-            self._success(result)
-        except Exception as e:
-            if self._failure:
-                self._failure(e)
-            else:
-                raise

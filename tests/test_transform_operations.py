@@ -17,7 +17,7 @@ from transformerman.lib.selected_notes import NoteModel, SelectedNotes
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName, LmResponse
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
 from transformerman.lib.field_updates import FieldUpdates
-from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection, mock_collection_op
+from tests.tools import test_collection as test_collection_fixture, with_test_collection, TestCollection
 
 col = test_collection_fixture
 
@@ -450,22 +450,14 @@ class TestApplyFieldUpdatesWithOperation:
         # Mock parent widget
         parent = Mock()
 
-        # Mock CollectionOp to update notes synchronously using the context manager
-        with mock_collection_op(col, "transform.transforming_notes.CollectionOp") as MockCollectionOp:
-            # Apply field updates
-            apply_field_updates_with_operation(
-                parent=parent,
-                col=col,
-                field_updates=field_updates,
-                logger=logger,
-                on_success=on_success,
-            )
-
-            # Verify CollectionOp was called
-            assert MockCollectionOp.called, "CollectionOp was not called"
-            # Verify it was called with the right arguments
-            assert MockCollectionOp.call_args[0][0] is parent
-            # The second argument should be a lambda that calls col.update_notes
+        # Apply field updates
+        apply_field_updates_with_operation(
+            parent=parent,
+            col=col,
+            field_updates=field_updates,
+            logger=logger,
+            on_success=on_success,
+        )
 
         # Verify notes were updated in the collection
         for i, nid in enumerate(note_ids):
@@ -515,16 +507,14 @@ class TestApplyFieldUpdatesWithOperation:
         # Mock parent widget
         parent = Mock()
 
-        # Mock CollectionOp to update notes synchronously using the context manager
-        with mock_collection_op(col, "transform.transforming_notes.CollectionOp") as _:
-            # Apply field updates
-            apply_field_updates_with_operation(
-                parent=parent,
-                col=col,
-                field_updates=field_updates,
-                logger=logger,
-                on_success=on_success,
-            )
+        # Apply field updates
+        apply_field_updates_with_operation(
+            parent=parent,
+            col=col,
+            field_updates=field_updates,
+            logger=logger,
+            on_success=on_success,
+        )
 
         # Verify only valid field was updated
         updated_note = col.get_note(note.id)

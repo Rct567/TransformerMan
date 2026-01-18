@@ -6,7 +6,7 @@ from itertools import chain
 import os
 from pathlib import Path
 import shutil
-from typing import Any, Optional, NamedTuple, Callable, TypeVar, TYPE_CHECKING
+from typing import Any, Optional, NamedTuple, Callable, TypeVar, TYPE_CHECKING, Generic
 if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
 import pprint
@@ -17,8 +17,6 @@ import pytest
 
 from anki.collection import Collection
 from anki.media import media_paths_from_col_path
-from unittest.mock import Mock, patch
-
 
 CURRENT_PID = os.getpid()
 TEST_DATA_DIR = Path(__file__).parent / "data"
@@ -305,45 +303,97 @@ def freeze_time_anki(target_time_str: str) -> Generator[None, None, None]:
         time.time = original_time
 
 
-@contextmanager
-def mock_collection_op(col: Collection, collection_op_location: str) -> Generator[Mock, None, None]:
-    """
-    Context manager that mocks CollectionOp to execute operations synchronously.
+QueryResult = TypeVar("QueryResult")
 
-    This is useful for testing functions that use CollectionOp to run background
-    operations. The mock executes the operation function immediately and calls
-    the success callback with the result.
 
-    Also mocks aqt.mw.taskman to avoid AssertionError in test environment.
+class FakeQueryOp(Generic[QueryResult]):
+    """Synchronous QueryOp for testing that uses TestCollection."""
 
-    Args:
-        col: The collection to pass to the operation function
-        collection_op_location: The import path of the CollectionOp to mock
+    def __init__(
+        self,
+        *,
+        parent: Any,
+        op: Callable[[Any], QueryResult],
+        success: Callable[[QueryResult], Any],
+    ) -> None:
+        self._op = op
+        self._success = success
+        self._parent = parent
+        self._failure: Callable[[Exception], Any] | None = None
 
-    Yields:
-        Mock: The mocked CollectionOp class
-    """
+    def failure(self, failure: Callable[[Exception], Any] | None) -> FakeQueryOp[QueryResult]:
+        self._failure = failure
+        return self
 
-    def mock_collection_op_call(parent: Mock, **kwargs: Any) -> Mock:
-        # Execute the operation function synchronously
-        op_func = kwargs.get("op")
-        if op_func is None:
-            raise ValueError("Missing 'op' argument")
-        changes = op_func(col)
-        # Create a mock operation
-        mock_op = Mock()
-        # When success is called, call the callback with changes
+    def without_collection(self) -> FakeQueryOp[QueryResult]:
+        return self
 
-        def success(callback: Callable[[Any], None]) -> Mock:
-            callback(changes)
-            return mock_op
-        mock_op.success = success
-        mock_op.failure = lambda callback: mock_op  # type: ignore
-        mock_op.run_in_background = Mock()
-        return mock_op
+    def with_progress(self, label: str | None = None) -> FakeQueryOp[QueryResult]:
+        return self
 
-    with patch("transformerman.ui."+collection_op_location) as MockCollectionOp:
-        MockCollectionOp.side_effect = mock_collection_op_call
-        with patch("aqt.mw") as mock_mw:
-            mock_mw.taskman = Mock()
-            yield MockCollectionOp
+    def with_backend_progress(self, progress_update: Any) -> FakeQueryOp[QueryResult]:
+        return self
+
+    def run_in_background(self) -> None:
+        """Run synchronously instead of in background."""
+
+        assert TestCollections.last_initiated_test_collection, "TestCollections must be available for FakeQueryOp"
+
+        try:
+            result = self._op(TestCollections.last_initiated_test_collection)
+            self._success(result)
+        except Exception as e:
+            if self._failure:
+                self._failure(e)
+            else:
+                raise
+
+
+ResultWithChanges = TypeVar("ResultWithChanges")
+
+
+class FakeCollectionOp(Generic[ResultWithChanges]):
+    """Synchronous CollectionOp for testing that uses TestCollection."""
+
+    _success: Callable[[ResultWithChanges], Any] | None = None
+    _failure: Callable[[Exception], Any] | None = None
+    _progress_update: Callable[[Any, Any], None] | None = None
+
+    def __init__(
+        self,
+        parent: Any,
+        op: Callable[[Any], ResultWithChanges],
+    ) -> None:
+        self._parent = parent
+        self._op = op
+
+    def success(self, success: Callable[[ResultWithChanges], Any] | None) -> FakeCollectionOp[ResultWithChanges]:
+        self._success = success
+        return self
+
+    def failure(self, failure: Callable[[Exception], Any] | None) -> FakeCollectionOp[ResultWithChanges]:
+        self._failure = failure
+        return self
+
+    def with_backend_progress(self, progress_update: Callable[[Any, Any], None] | None) -> FakeCollectionOp[ResultWithChanges]:
+        self._progress_update = progress_update
+        return self
+
+    def run_in_background(self, *, initiator: object | None = None) -> None:
+        """Run synchronously using the real collection."""
+
+        assert TestCollections.last_initiated_test_collection, "TestCollections must be available for FakeCollectionOp"
+
+        try:
+            # Use the real collection
+            result = self._op(TestCollections.last_initiated_test_collection)
+
+            # Call success callback if provided
+            if self._success:
+                self._success(result)
+        except Exception as e:
+            # Call failure callback if provided, otherwise re-raise
+            if self._failure:
+                self._failure(e)
+            else:
+                raise

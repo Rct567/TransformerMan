@@ -12,11 +12,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Global patch for QueryOp in UI tests
-import aqt.operations
-from tests.conftest import FakeQueryOp
-aqt.operations.QueryOp = FakeQueryOp  # type: ignore
-
 # Global patch for showInfo and showWarning in UI tests
 import aqt.utils
 aqt.utils.showInfo = MagicMock()
