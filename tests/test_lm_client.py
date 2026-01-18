@@ -126,6 +126,15 @@ class TestLmClient:
             assert kwargs["headers"]["x-goog-api-key"] == "test-key"
             assert kwargs["json_data"] == {"contents": [{"parts": [{"text": "test prompt"}]}]}
 
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"models": [{"name": "models/gemini-1.5-flash"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("gemini-1.5-flash")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://generativelanguage.googleapis.com/v1beta/models?key=test-key"
+
     def test_deepseek_client_request_construction(self) -> None:
         """Test DeepSeekLMClient request construction."""
         model = DeepSeekLMClient.get_recommended_models()[0]
@@ -141,6 +150,16 @@ class TestLmClient:
             assert kwargs["json_data"]["model"] == model
             assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
 
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "deepseek-chat"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("deepseek-chat")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.deepseek.com/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
+
     def test_grok_client_request_construction(self) -> None:
         """Test GrokLMClient request construction."""
         model = GrokLMClient.get_recommended_models()[0]
@@ -155,6 +174,16 @@ class TestLmClient:
             assert kwargs["headers"]["Authorization"] == "Bearer test-key"
             assert kwargs["json_data"]["model"] == model
             assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "grok-1"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("grok-1")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.x.ai/v1/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
 
     def test_lm_studio_fetch_endpoint(self) -> None:
         """Test that LmStudio constructs the correct endpoint from port."""
@@ -189,6 +218,16 @@ class TestLmClient:
             assert kwargs["json_data"]["model"] == model
             assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
 
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "gpt-4"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("gpt-4")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.openai.com/v1/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
+
     def test_claude_client_request_construction(self) -> None:
         """Test ClaudeLMClient request construction."""
         model = ClaudeLMClient.get_recommended_models()[0]
@@ -203,6 +242,16 @@ class TestLmClient:
             assert kwargs["headers"]["x-api-key"] == "test-key"
             assert kwargs["json_data"]["model"] == model
             assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "claude-3"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("claude-3")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.anthropic.com/v1/models"
+            assert kwargs["headers"] == {"x-api-key": "test-key", "anthropic-version": "2023-06-01"}
 
     def test_groq_client_request_construction(self) -> None:
         """Test GroqLMClient request construction."""
@@ -219,6 +268,16 @@ class TestLmClient:
             assert kwargs["json_data"]["model"] == model
             assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
 
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "llama3-8b-8192"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("llama3-8b-8192")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.groq.com/openai/v1/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
+
     def test_custom_openai_client_request_construction(self) -> None:
         """Test CustomOpenAi request construction."""
         model = ModelName("test-model")
@@ -233,3 +292,13 @@ class TestLmClient:
             assert kwargs["headers"]["Authorization"] == "Bearer test-key"
             assert kwargs["json_data"]["model"] == model
             assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "custom-model"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("custom-model")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://custom.openai.com/v1/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
