@@ -6,11 +6,16 @@ from unittest.mock import patch
 
 from transformerman.lib.lm_clients import (
     ApiKey,
+    ClaudeLMClient,
+    CustomOpenAi,
     DeepSeekLMClient,
     DummyLMClient,
     GeminiLMClient,
+    GroqLMClient,
     GrokLMClient,
+    LmStudio,
     ModelName,
+    OpenAILMClient,
 )
 from transformerman.lib.selected_notes import SelectedNotes
 from transformerman.lib.transform_prompt_builder import TransformPromptBuilder
@@ -109,7 +114,7 @@ class TestLmClient:
 
     def test_gemini_client_request_construction(self) -> None:
         """Test GeminiLMClient request construction."""
-        model = GeminiLMClient.get_available_models()[0]
+        model = GeminiLMClient.get_recommended_models()[0]
         client = GeminiLMClient(ApiKey("test-key"), ModelName(model))
 
         with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
@@ -121,9 +126,18 @@ class TestLmClient:
             assert kwargs["headers"]["x-goog-api-key"] == "test-key"
             assert kwargs["json_data"] == {"contents": [{"parts": [{"text": "test prompt"}]}]}
 
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"models": [{"name": "models/gemini-1.5-flash"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("gemini-1.5-flash")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://generativelanguage.googleapis.com/v1beta/models?key=test-key"
+
     def test_deepseek_client_request_construction(self) -> None:
         """Test DeepSeekLMClient request construction."""
-        model = DeepSeekLMClient.get_available_models()[0]
+        model = DeepSeekLMClient.get_recommended_models()[0]
         client = DeepSeekLMClient(ApiKey("test-key"), ModelName(model))
 
         with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
@@ -136,9 +150,19 @@ class TestLmClient:
             assert kwargs["json_data"]["model"] == model
             assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
 
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "deepseek-chat"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("deepseek-chat")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.deepseek.com/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
+
     def test_grok_client_request_construction(self) -> None:
         """Test GrokLMClient request construction."""
-        model = GrokLMClient.get_available_models()[0]
+        model = GrokLMClient.get_recommended_models()[0]
         client = GrokLMClient(ApiKey("test-key"), ModelName(model))
 
         with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
@@ -150,3 +174,131 @@ class TestLmClient:
             assert kwargs["headers"]["Authorization"] == "Bearer test-key"
             assert kwargs["json_data"]["model"] == model
             assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "grok-1"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("grok-1")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.x.ai/v1/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
+
+    def test_lm_studio_fetch_endpoint(self) -> None:
+        """Test that LmStudio constructs the correct endpoint from port."""
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.json.return_value = {"data": [{"id": "local-model"}]}
+            mock_get.return_value.status_code = 200
+
+            # Test default port
+            client = LmStudio(ApiKey("dummy_key"), model=None, custom_settings={})
+            assert client.fetch_available_models()
+            args, _ = mock_get.call_args
+            assert args[0] == "http://127.0.0.1:1234/v1/models"
+
+            # Test custom port
+            client = LmStudio(ApiKey("dummy_key"), model=None, custom_settings={"port": "5678"})
+            assert client.fetch_available_models()
+            args, _ = mock_get.call_args
+            assert args[0] == "http://127.0.0.1:5678/v1/models"
+
+    def test_openai_client_request_construction(self) -> None:
+        """Test OpenAILMClient request construction."""
+        model = OpenAILMClient.get_recommended_models()[0]
+        client = OpenAILMClient(ApiKey("test-key"), ModelName(model))
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.process_prompt("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://api.openai.com/v1/chat/completions"
+            assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "gpt-4"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("gpt-4")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.openai.com/v1/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
+
+    def test_claude_client_request_construction(self) -> None:
+        """Test ClaudeLMClient request construction."""
+        model = ClaudeLMClient.get_recommended_models()[0]
+        client = ClaudeLMClient(ApiKey("test-key"), ModelName(model))
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.process_prompt("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://api.anthropic.com/v1/messages"
+            assert kwargs["headers"]["x-api-key"] == "test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "claude-3"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("claude-3")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.anthropic.com/v1/models"
+            assert kwargs["headers"] == {"x-api-key": "test-key", "anthropic-version": "2023-06-01"}
+
+    def test_groq_client_request_construction(self) -> None:
+        """Test GroqLMClient request construction."""
+        model = GroqLMClient.get_recommended_models()[0]
+        client = GroqLMClient(ApiKey("test-key"), ModelName(model))
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.process_prompt("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://api.groq.com/openai/v1/chat/completions"
+            assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "llama3-8b-8192"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("llama3-8b-8192")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://api.groq.com/openai/v1/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}
+
+    def test_custom_openai_client_request_construction(self) -> None:
+        """Test CustomOpenAi request construction."""
+        model = ModelName("test-model")
+        client = CustomOpenAi(ApiKey("test-key"), model, custom_settings={"end_point": "https://custom.openai.com/v1"})
+
+        with patch("transformerman.lib.lm_clients.make_api_request_json") as mock_request:
+            mock_request.return_value = {"content": "test response"}
+            client.process_prompt("test prompt")
+
+            _, kwargs = mock_request.call_args
+            assert kwargs["url"] == "https://custom.openai.com/v1/chat/completions"
+            assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+            assert kwargs["json_data"]["model"] == model
+            assert kwargs["json_data"]["messages"][0]["content"] == "test prompt"
+
+        # Test fetch_available_models
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"data": [{"id": "custom-model"}]}
+            result = client.fetch_available_models()
+            assert result.models == [ModelName("custom-model")]
+            args, kwargs = mock_get.call_args
+            assert args[0] == "https://custom.openai.com/v1/models"
+            assert kwargs["headers"] == {"Authorization": "Bearer test-key"}

@@ -21,13 +21,14 @@ from aqt.qt import (
     QLabel,
     QMessageBox,
     QCloseEvent,
+    QApplication,
 )
 from aqt.utils import showWarning
 
 if TYPE_CHECKING:
     from ..lib.addon_config import AddonConfig
 
-from ..lib.lm_clients import LM_CLIENTS, get_lm_client_class
+from ..lib.lm_clients import LM_CLIENTS, get_lm_client_class, ModelName, ApiKey
 from ..lib.utilities import override
 
 from .base_dialog import TransformerManBaseDialog
@@ -48,6 +49,7 @@ class SettingsDialog(TransformerManBaseDialog):
         super().__init__(parent, True)
         self.addon_config = addon_config
         self._is_loading_settings = False  # Flag to prevent save button from enabling during initial setup
+        self._fetched_models: list[ModelName] = []  # Store fetched models from API
 
         self._setup_ui()
         self._load_settings()
@@ -85,14 +87,26 @@ class SettingsDialog(TransformerManBaseDialog):
         # Model Selection
         self.model_label = QLabel("Model:")
         self.model_combo = QComboBox()
-        self.model_combo.currentTextChanged.connect(self._on_setting_changed)
+        self.model_combo.setEditable(True)  # Allow custom model input
+        self.model_combo.currentTextChanged.connect(self._on_model_changed)
         form_layout.addRow(self.model_label, self.model_combo)
+
+        # Fetch Models Button
+        self.fetch_models_button = QPushButton("Fetch Models")
+        self.fetch_models_button.clicked.connect(self._on_fetch_models_clicked)
+        form_layout.addRow("", self.fetch_models_button)
+
+        # Model warning label (shown when model is not in fetched list)
+        self.model_warning_label = QLabel("⚠️ Model not in available list")
+        self.model_warning_label.setStyleSheet("color: orange;")
+        self.model_warning_label.setVisible(False)
+        form_layout.addRow("", self.model_warning_label)
 
         # API Key
         self.api_key_input = QLineEdit()
         self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.api_key_input.setPlaceholderText("Enter your API key...")
-        self.api_key_input.textChanged.connect(self._on_setting_changed)
+        self.api_key_input.textChanged.connect(self._on_api_key_changed)
         form_layout.addRow("API Key:", self.api_key_input)
 
         # Max Prompt Size
@@ -282,8 +296,148 @@ class SettingsDialog(TransformerManBaseDialog):
         # Update API key field for the selected client
         api_key = self.addon_config.get_api_key(client_id)
         self.api_key_input.setText(str(api_key))
+        self._fetched_models.clear()  # Clear fetched models for previous client
         self._populate_models_for_client(client_id)
         self._populate_custom_settings_for_client(client_id)
+        self._update_fetch_button_state()
+
+    def _on_model_changed(self) -> None:
+        """Handle model selection/input changes."""
+        self._update_model_warning()
+        self._on_setting_changed()
+
+    def _on_api_key_changed(self) -> None:
+        """Handle API key input changes."""
+        self._update_fetch_button_state()
+        self._on_setting_changed()
+
+    def _on_fetch_models_clicked(self) -> None:
+        """Fetch available models from the API."""
+        client_id = self.client_combo.currentData()
+        client_class = get_lm_client_class(client_id)
+        if not client_class:
+            return
+
+        api_key = self.api_key_input.text().strip()
+        custom_settings = self._get_current_custom_settings()
+
+        # Update button state for feedback
+        original_text = "Fetch Models"  # Reset to default in case of retry
+        self.fetch_models_button.setText("Fetching...")
+        self.fetch_models_button.setEnabled(False)
+        QApplication.processEvents()
+
+        try:
+            client = client_class(ApiKey(api_key), model=None, custom_settings=custom_settings)
+            result = client.fetch_available_models()
+
+            if result.error:
+                showWarning(f"Failed to fetch models: {result.error}", parent=self)
+                self.fetch_models_button.setText(original_text)
+                self.fetch_models_button.setEnabled(True)
+                return
+
+            self._fetched_models = result.models
+            self._repopulate_model_combo()
+
+            # Show success feedback - disable button and change text
+            self.fetch_models_button.setText("Models Fetched")
+            self.fetch_models_button.setEnabled(False)
+
+        except Exception as e:
+            showWarning(f"An error occurred: {e}", parent=self)
+            self.fetch_models_button.setText(original_text)
+            self.fetch_models_button.setEnabled(True)
+
+    def _get_current_custom_settings(self) -> dict[str, str]:
+        """Get current custom settings from UI."""
+        settings: dict[str, str] = {}
+        for setting_name, widget in self.custom_settings_widgets.items():
+            settings[setting_name] = widget.text().strip()
+        return settings
+
+    def _update_model_warning(self) -> None:
+        """Show/hide warning if model is not in recommended or fetched list."""
+        client_id = self.client_combo.currentData()
+        client_class = get_lm_client_class(client_id)
+        if not client_class:
+            self.model_warning_label.setVisible(False)
+            return
+
+        current_model = self.model_combo.currentText().strip()
+        if not current_model:
+            self.model_warning_label.setVisible(False)
+            return
+
+        # If no fetched models, hide warning
+        if not self._fetched_models:
+            self.model_warning_label.setVisible(False)
+            return
+
+        # Check if model is in recommended or fetched lists
+        known_models = set(self._fetched_models)
+        if current_model not in known_models:
+            self.model_warning_label.setVisible(True)
+        else:
+            self.model_warning_label.setVisible(False)
+
+    def _update_fetch_button_state(self) -> None:
+        """Update fetch models button visibility and enabled state."""
+        client_id = self.client_combo.currentData()
+        client_class = get_lm_client_class(client_id)
+        if not client_class:
+            self.fetch_models_button.setVisible(False)
+            return
+
+        # Hide button if client doesn't support fetching
+        if not client_class.supports_fetching_available_models():
+            self.fetch_models_button.setVisible(False)
+            return
+
+        self.fetch_models_button.setVisible(True)
+
+        # Disable if API key required but not provided
+        api_key = self.api_key_input.text().strip()
+        if client_class.api_key_required() and not api_key:
+            self.fetch_models_button.setEnabled(False)
+            self.fetch_models_button.setText("Fetch Models")
+        else:
+            self.fetch_models_button.setEnabled(True)
+            # Only reset text if it was previously "Models Fetched" or "Fetching..."
+            if self.fetch_models_button.text() in {"Models Fetched", "Fetching..."}:
+                self.fetch_models_button.setText("Fetch Models")
+
+    def _repopulate_model_combo(self) -> None:
+        """Repopulate model combo with recommended + fetched models."""
+        client_id = self.client_combo.currentData()
+        client_class = get_lm_client_class(client_id)
+        if not client_class:
+            return
+
+        # Save current selection
+        current_model = self.model_combo.currentText()
+
+        # Get recommended models
+        recommended = client_class.get_recommended_models()
+
+        # Combine: recommended first, then fetched (deduplicated)
+        all_models = list(recommended)
+        for model in self._fetched_models:
+            if model not in all_models:
+                all_models.append(model)
+
+        # Repopulate combo
+        self.model_combo.clear()
+        self.model_combo.addItems(all_models)
+
+        # Restore selection (custom or from list)
+        if current_model:
+            index = self.model_combo.findText(current_model)
+            if index >= 0:
+                self.model_combo.setCurrentIndex(index)
+            else:
+                # Custom model - set it as text
+                self.model_combo.setCurrentText(current_model)
 
     def _update_state(self) -> None:
         """Update the state of UI buttons based on current conditions."""
@@ -385,7 +539,7 @@ class SettingsDialog(TransformerManBaseDialog):
                 item_widget.deleteLater()
             elif item.layout():
                 # Clear nested layout
-                if (nested_layout := item.layout()):
+                if nested_layout := item.layout():
                     while nested_layout.count():
                         sub_item = nested_layout.takeAt(0)
                         if sub_item and (sub_item_widget := sub_item.widget()):
@@ -455,22 +609,22 @@ class SettingsDialog(TransformerManBaseDialog):
         if client_class is None:
             models = []
         else:
-            models = client_class.get_available_models()
+            models = client_class.get_recommended_models()
+
         self.model_combo.clear()
+        self.model_combo.show()
+        self.model_label.show()
+
         if models:
-            self.model_combo.show()
-            self.model_label.show()
             self.model_combo.addItems(models)
 
-            current_model = self.addon_config.get_model(client_name)
-
-            if current_model:
-                index = self.model_combo.findText(current_model)
-                if index >= 0:
-                    self.model_combo.setCurrentIndex(index)
-        else:
-            self.model_combo.hide()
-            self.model_label.hide()
+        current_model = self.addon_config.get_model(client_name)
+        if current_model:
+            index = self.model_combo.findText(current_model)
+            if index >= 0:
+                self.model_combo.setCurrentIndex(index)
+            else:
+                self.model_combo.setCurrentText(current_model)
 
     def _on_restore_clicked(self) -> None:
         """Handle restore button click."""
@@ -494,10 +648,8 @@ class SettingsDialog(TransformerManBaseDialog):
                 self,
                 "Unsaved Changes",
                 "You have unsaved changes. What would you like to do?",
-                QMessageBox.StandardButton.Save |
-                QMessageBox.StandardButton.Discard |
-                QMessageBox.StandardButton.Cancel,
-                QMessageBox.StandardButton.Save
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save,
             )
 
             if reply == QMessageBox.StandardButton.Save:
