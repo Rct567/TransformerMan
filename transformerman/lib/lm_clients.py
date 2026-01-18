@@ -414,18 +414,6 @@ class OpenAiCompatibleLMClient(LMClient):
 
         return parser
 
-
-class OpenAILMClient(OpenAiCompatibleLMClient):
-    id = "openai"
-    name = "OpenAI"
-
-    @override
-    def _get_url(self) -> str:
-        url = self._custom_settings.get("end_point", "https://api.openai.com/v1/chat/completions")
-        if url.endswith("/v1"):
-            url += "/chat/completions"
-        return url
-
     @override
     def _get_headers(self) -> dict[str, str]:
         headers = {
@@ -445,6 +433,42 @@ class OpenAILMClient(OpenAiCompatibleLMClient):
             "temperature": 0.7,
             "stream": True,
         }
+
+    @override
+    def fetch_available_models(self) -> AvailableModels:
+        """Fetch available models from OpenAI /v1/models endpoint."""
+        # Build models URL
+        base_url = self._get_url().replace("/chat/completions", "/models")
+
+        headers = {"Authorization": f"Bearer {self._api_key}"}
+        if self._custom_settings and "organization_id" in self._custom_settings:
+            org_id = self._custom_settings["organization_id"].strip()
+            if org_id:
+                headers["OpenAI-Organization"] = org_id
+
+        try:
+            response = requests.get(base_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            models = [ModelName(m["id"]) for m in data.get("data", [])]
+            return AvailableModels(models=models)
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else "unknown"
+            return AvailableModels(models=[], error=f"API Error {status}")
+        except Exception as e:
+            return AvailableModels(models=[], error=str(e))
+
+
+class OpenAILMClient(OpenAiCompatibleLMClient):
+    id = "openai"
+    name = "OpenAI"
+
+    @override
+    def _get_url(self) -> str:
+        url = self._custom_settings.get("end_point", "https://api.openai.com/v1/chat/completions")
+        if url.endswith("/v1"):
+            url += "/chat/completions"
+        return url
 
     @staticmethod
     @override
@@ -497,44 +521,17 @@ class OpenAILMClient(OpenAiCompatibleLMClient):
 
         return True, ""
 
-    @override
-    def fetch_available_models(self) -> AvailableModels:
-        """Fetch available models from OpenAI /v1/models endpoint."""
-        # Build models URL
-        base_url = "https://api.openai.com/v1/models"
-        if self._custom_settings and "end_point" in self._custom_settings:
-            endpoint = self._custom_settings["end_point"].strip()
-            if endpoint:
-                # Extract base URL and append /models
-                if "/chat/completions" in endpoint:
-                    base_url = endpoint.replace("/chat/completions", "/models")
-                elif endpoint.endswith("/v1"):
-                    base_url = f"{endpoint}/models"
-                else:
-                    base_url = endpoint.rstrip("/") + "/models"
 
-        headers = {"Authorization": f"Bearer {self._api_key}"}
-        if self._custom_settings and "organization_id" in self._custom_settings:
-            org_id = self._custom_settings["organization_id"].strip()
-            if org_id:
-                headers["OpenAI-Organization"] = org_id
-
-        try:
-            response = requests.get(base_url, headers=headers, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            models = [ModelName(m["id"]) for m in data.get("data", [])]
-            return AvailableModels(models=models)
-        except requests.exceptions.HTTPError as e:
-            status = e.response.status_code if e.response else "unknown"
-            return AvailableModels(models=[], error=f"API Error {status}")
-        except Exception as e:
-            return AvailableModels(models=[], error=str(e))
-
-
-class CustomOpenAi(OpenAILMClient):
+class CustomOpenAi(OpenAiCompatibleLMClient):
     id = "custom_openai_endpoint"
     name = "Custom OpenAI"
+
+    @override
+    def _get_url(self) -> str:
+        url = self._custom_settings.get("end_point", "https://api.openai.com/v1/chat/completions")
+        if url.endswith("/v1"):
+            url += "/chat/completions"
+        return url
 
     @staticmethod
     @override
@@ -556,9 +553,16 @@ class CustomOpenAi(OpenAILMClient):
         return super(CustomOpenAi, CustomOpenAi).validate_custom_settings(settings)
 
 
-class LmStudio(OpenAILMClient):
+class LmStudio(OpenAiCompatibleLMClient):
     id = "lm-studio"
     name = "LM Studio"
+
+    @override
+    def _get_url(self) -> str:
+        url = self._construct_endpoint(self._custom_settings)
+        if url.endswith("/v1"):
+            url += "/chat/completions"
+        return url
 
     @override
     def __init__(
@@ -569,9 +573,6 @@ class LmStudio(OpenAILMClient):
         connect_timeout: int = 10,
         custom_settings: dict[str, str] | None = None,
     ) -> None:
-        if custom_settings is None:
-            custom_settings = {}
-        custom_settings["end_point"] = self._construct_endpoint(custom_settings)
         self._api_key = ApiKey("lm-studio")
         super().__init__(api_key, model, timeout, connect_timeout, custom_settings)
 
@@ -602,23 +603,20 @@ class LmStudio(OpenAILMClient):
         return []
 
 
-class GroqLMClient(OpenAILMClient):
+class GroqLMClient(OpenAiCompatibleLMClient):
     id = "groq"
     name = "Groq"
 
     @override
-    def __init__(
-        self,
-        api_key: ApiKey,
-        model: ModelName | None = None,
-        timeout: int = 120,
-        connect_timeout: int = 10,
-        custom_settings: dict[str, str] | None = None,
-    ) -> None:
-        if not custom_settings:
-            custom_settings = {}
-        custom_settings["end_point"] = "https://api.groq.com/openai/v1/chat/completions"
-        super().__init__(api_key, model, timeout, connect_timeout, custom_settings)
+    def _get_url(self) -> str:
+        return "https://api.groq.com/openai/v1/chat/completions"
+
+    @staticmethod
+    @override
+    def get_recommended_models() -> list[ModelName]:
+        return [
+            ModelName("openai/gpt-oss-120b"),
+        ]
 
 
 class ClaudeLMClient(LMClient):
@@ -798,22 +796,6 @@ class DeepSeekLMClient(OpenAiCompatibleLMClient):
     def get_recommended_models() -> list[ModelName]:
         return [ModelName("deepseek-chat"), ModelName("deepseek-reasoner")]
 
-    @override
-    def fetch_available_models(self) -> AvailableModels:
-        """Fetch available models from DeepSeek /models endpoint."""
-        try:
-            # Try /v1/models first (OpenAI-compatible pattern)
-            response = requests.get("https://api.deepseek.com/v1/models", headers={"Authorization": f"Bearer {self._api_key}"}, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            models = [ModelName(m["id"]) for m in data.get("data", [])]
-            return AvailableModels(models=models)
-        except requests.exceptions.HTTPError as e:
-            status = e.response.status_code if e.response else "unknown"
-            return AvailableModels(models=[], error=f"API Error {status}")
-        except Exception as e:
-            return AvailableModels(models=[], error=str(e))
-
 
 class GrokLMClient(OpenAiCompatibleLMClient):
     id = "grok"
@@ -848,21 +830,6 @@ class GrokLMClient(OpenAiCompatibleLMClient):
             ModelName("grok-4-fast-non-reasoning"),
             ModelName("grok-3"),
         ]
-
-    @override
-    def fetch_available_models(self) -> AvailableModels:
-        """Fetch available models from xAI /v1/models endpoint."""
-        try:
-            response = requests.get("https://api.x.ai/v1/models", headers={"Authorization": f"Bearer {self._api_key}"}, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            models = [ModelName(m["id"]) for m in data.get("data", [])]
-            return AvailableModels(models=models)
-        except requests.exceptions.HTTPError as e:
-            status = e.response.status_code if e.response else "unknown"
-            return AvailableModels(models=[], error=f"API Error {status}")
-        except Exception as e:
-            return AvailableModels(models=[], error=str(e))
 
 
 LM_CLIENTS_CLASSES = [
