@@ -28,7 +28,6 @@ class AddonConfigError(str):
 
 
 class AddonConfig:
-
     _config: Optional[dict[str, JSON_TYPE]]
     _config_load: Callable[[], Optional[dict[str, Any]]]
     _config_save: Callable[[dict[str, Any]], None]
@@ -256,13 +255,6 @@ class AddonConfig:
 
         # Model of LM client (stored with client prefix like API key)
         model_str = self.get_model(client_name)
-
-        if client_class.get_available_models():
-            if not model_str:
-                return None, AddonConfigError("No model configured")
-
-            if model_str not in client_class.get_available_models():
-                return None, AddonConfigError(f"Configured model '{model_str}' is not available for client '{client_name}'")
 
         # Api key
         api_key = self.get_api_key(client_name)
