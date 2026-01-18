@@ -6,14 +6,19 @@ from itertools import chain
 import os
 from pathlib import Path
 import shutil
-from typing import Any, Optional, NamedTuple, Callable, TypeVar, TYPE_CHECKING, Generic
+from typing import Any, Optional, NamedTuple, Callable, TypeVar, TYPE_CHECKING
+
 if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
+
 import pprint
 import time
 from dateutil.parser import parse
 import atexit
 import pytest
+
+from concurrent.futures import Future
+from unittest.mock import MagicMock
 
 from anki.collection import Collection
 from anki.media import media_paths_from_col_path
@@ -31,9 +36,11 @@ def with_test_collection(name: str) -> Callable[[T], T]:
     Decorator that attaches the collection name to the test function object.
     The 'test_collection' fixture will read that attribute from request.function.
     """
+
     def decorator(func: T) -> T:
         setattr(func, "_test_collection_name", name)
         return func
+
     return decorator
 
 
@@ -70,7 +77,6 @@ class CallerContext(NamedTuple):
 
 
 class TestCollection(Collection):
-
     __test__ = False
 
     collection_name: str
@@ -99,28 +105,28 @@ class TestCollection(Collection):
 
         # Strategy 2: Provided frame (backward compatibility)
         if context.caller_frame is not None:
-            if (context.caller_frame.function.startswith("test_") and
-                "self" in context.caller_frame.frame.f_locals and
-                context.caller_frame.frame.f_locals["self"].__class__.__name__.startswith("Test")):
+            if (
+                context.caller_frame.function.startswith("test_")
+                and "self" in context.caller_frame.frame.f_locals
+                and context.caller_frame.frame.f_locals["self"].__class__.__name__.startswith("Test")
+            ):
                 return (context.caller_frame.frame.f_locals["self"].__class__.__name__, context.caller_frame.function)
 
         # Strategy 3: Stack inspection (fallback)
         for frame_info in inspect.stack():
-            if (frame_info.function.startswith("test_") and
-                "self" in frame_info.frame.f_locals):
+            if frame_info.function.startswith("test_") and "self" in frame_info.frame.f_locals:
                 self_obj = frame_info.frame.f_locals["self"]
                 if self_obj.__class__.__name__.startswith("Test"):
                     return (self_obj.__class__.__name__, frame_info.function)
 
         # Failed to find test caller
         raise RuntimeError(
-            "Could not find test method frame. TestCollection must be called from within a test method " +
-            "(function starting with 'test_' in a class starting with 'Test'), or test_instance and " +
-            "test_function_name must be provided."
+            "Could not find test method frame. TestCollection must be called from within a test method "
+            + "(function starting with 'test_' in a class starting with 'Test'), or test_instance and "
+            + "test_function_name must be provided."
         )
 
-    def __init__(self, collection_name: str, collection_dir: Path,
-                 caller_context: Optional[CallerContext] = None) -> None:
+    def __init__(self, collection_name: str, collection_dir: Path, caller_context: Optional[CallerContext] = None) -> None:
         self.collection_name = collection_name
         self.collection_dir = collection_dir
 
@@ -134,7 +140,7 @@ class TestCollection(Collection):
         assert caller_fn_name.startswith("test_")
 
         # create temporary collection
-        collection_src_path = collection_dir / (collection_name+".anki2")
+        collection_src_path = collection_dir / (collection_name + ".anki2")
         temp_collection_file_name = "{}_{}_{}_temp.anki2".format(collection_name, self.caller_full_name, CURRENT_PID)
         temp_collection_path = collection_dir / temp_collection_file_name
         if temp_collection_path.exists():
@@ -178,8 +184,9 @@ class TestCollection(Collection):
             assert len(expected_result) == len(result_lines)
             for line_num, (expected_line, result_line) in enumerate(zip(expected_result, result_lines)):
                 assert expected_line.strip() == result_line.strip(), (
-                    "Result file '{}' for '{}' didn't match at line {}!\nDiff:\n\"{}\"\nnot equal expected:\n\"{}\""
-                    .format(result_file_path, self.collection_name, line_num, result_line, expected_line)
+                    "Result file '{}' for '{}' didn't match at line {}!\nDiff:\n\"{}\"\nnot equal expected:\n\"{}\"".format(
+                        result_file_path, self.collection_name, line_num, result_line, expected_line
+                    )
                 )
         else:
             with result_file_path.open("w", encoding="utf-8") as file:
@@ -198,8 +205,9 @@ class TestCollection(Collection):
             for line_num, expected_line in enumerate(expected_order):
                 result_item = str(sorted_items[line_num]).rstrip()
                 assert expected_line == result_item, (
-                    "Order file '{}' for '{}' didn't match on line {}!\nDiff:\n\"{}\"\nnot equal expected:\n\"{}\""
-                    .format(order_file_path, self.collection_name, line_num, result_item, expected_line)
+                    "Order file '{}' for '{}' didn't match on line {}!\nDiff:\n\"{}\"\nnot equal expected:\n\"{}\"".format(
+                        order_file_path, self.collection_name, line_num, result_item, expected_line
+                    )
                 )
         else:
             with order_file_path.open("w", encoding="utf-8") as file:
@@ -230,7 +238,6 @@ class TestCollection(Collection):
 
 
 class TestCollections:
-
     __test__ = False
 
     last_initiated_test_collection: Optional[TestCollection] = None
@@ -284,6 +291,9 @@ class TestCollections:
         return col
 
 
+# Freeze time.time() to a specific target time for testing purposes.
+
+
 @contextmanager
 def freeze_time_anki(target_time_str: str) -> Generator[None, None, None]:
     """
@@ -303,97 +313,106 @@ def freeze_time_anki(target_time_str: str) -> Generator[None, None, None]:
         time.time = original_time
 
 
-QueryResult = TypeVar("QueryResult")
+# A synchronous FakeTaskManager for testing purposes.
 
 
-class FakeQueryOp(Generic[QueryResult]):
-    """Synchronous QueryOp for testing that uses TestCollection."""
+class FakeTaskManager:
+    """Synchronous TaskManager for testing."""
 
-    def __init__(
+    def __init__(self, mw: Any = None) -> None:
+        self.mw = mw or MagicMock()
+        self._closures: list[Callable[[], None]] = []
+
+    def run_on_main(self, closure: Callable[[], None]) -> None:
+        """Run closure immediately (we're already on 'main' thread in tests)."""
+        closure()
+
+    def run_in_background(
         self,
-        *,
-        parent: Any,
-        op: Callable[[Any], QueryResult],
-        success: Callable[[QueryResult], Any],
-    ) -> None:
-        self._op = op
-        self._success = success
-        self._parent = parent
-        self._failure: Callable[[Exception], Any] | None = None
+        task: Callable[..., T],
+        on_done: Callable[[Future[T]], None] | None = None,
+        args: dict[str, Any] | None = None,
+        uses_collection: bool = True,
+    ) -> Future[T]:
+        """Run task synchronously and return a completed Future."""
+        if args is None:
+            args = {}
 
-    def failure(self, failure: Callable[[Exception], Any] | None) -> FakeQueryOp[QueryResult]:
-        self._failure = failure
-        return self
-
-    def without_collection(self) -> FakeQueryOp[QueryResult]:
-        return self
-
-    def with_progress(self, label: str | None = None) -> FakeQueryOp[QueryResult]:
-        return self
-
-    def with_backend_progress(self, progress_update: Any) -> FakeQueryOp[QueryResult]:
-        return self
-
-    def run_in_background(self) -> None:
-        """Run synchronously instead of in background."""
-
-        assert TestCollections.last_initiated_test_collection, "TestCollections must be available for FakeQueryOp"
+        # Create a Future and resolve it immediately
+        future: Future[T] = Future()
 
         try:
-            result = self._op(TestCollections.last_initiated_test_collection)
-            self._success(result)
+            result = task(**args)
+            future.set_result(result)
         except Exception as e:
-            if self._failure:
-                self._failure(e)
-            else:
-                raise
+            future.set_exception(e)
 
+        # Call on_done immediately if provided
+        if on_done is not None:
+            on_done(future)
 
-ResultWithChanges = TypeVar("ResultWithChanges")
+        return future
 
-
-class FakeCollectionOp(Generic[ResultWithChanges]):
-    """Synchronous CollectionOp for testing that uses TestCollection."""
-
-    _success: Callable[[ResultWithChanges], Any] | None = None
-    _failure: Callable[[Exception], Any] | None = None
-    _progress_update: Callable[[Any, Any], None] | None = None
-
-    def __init__(
+    def with_progress(
         self,
-        parent: Any,
-        op: Callable[[Any], ResultWithChanges],
+        task: Callable[..., T],
+        on_done: Callable[[Future[T]], None] | None = None,
+        parent: Any = None,
+        label: str | None = None,
+        immediate: bool = False,
+        uses_collection: bool = True,
+        title: str = "Anki",
     ) -> None:
-        self._parent = parent
-        self._op = op
+        """Run task synchronously without showing progress dialog."""
+        # Skip progress.start() in tests
 
-    def success(self, success: Callable[[ResultWithChanges], Any] | None) -> FakeCollectionOp[ResultWithChanges]:
-        self._success = success
-        return self
+        def wrapped_done(fut: Future[T]) -> None:
+            # Skip progress.finish() in tests
+            if on_done:
+                on_done(fut)
 
-    def failure(self, failure: Callable[[Exception], Any] | None) -> FakeCollectionOp[ResultWithChanges]:
-        self._failure = failure
-        return self
+        self.run_in_background(task, wrapped_done, uses_collection=uses_collection)
 
-    def with_backend_progress(self, progress_update: Callable[[Any, Any], None] | None) -> FakeCollectionOp[ResultWithChanges]:
-        self._progress_update = progress_update
-        return self
+    def with_backend_progress(
+        self,
+        task: Callable[..., T],
+        progress_update: Callable[[Any, Any], None],
+        on_done: Callable[[Future[T]], None] | None = None,
+        parent: Any = None,
+        start_label: str | None = None,
+        uses_collection: bool = True,
+    ) -> None:
+        """Run task synchronously without showing progress dialog."""
+        # Skip progress.start_with_backend_updates() in tests
 
-    def run_in_background(self, *, initiator: object | None = None) -> None:
-        """Run synchronously using the real collection."""
+        def wrapped_done(fut: Future[T]) -> None:
+            # Skip progress.finish() in tests
+            if on_done:
+                on_done(fut)
 
-        assert TestCollections.last_initiated_test_collection, "TestCollections must be available for FakeCollectionOp"
+        self.run_in_background(task, wrapped_done, uses_collection=uses_collection)
 
-        try:
-            # Use the real collection
-            result = self._op(TestCollections.last_initiated_test_collection)
+    def _on_closures_pending(self) -> None:
+        """Run any pending closures."""
+        closures = self._closures[:]
+        self._closures.clear()
 
-            # Call success callback if provided
-            if self._success:
-                self._success(result)
-        except Exception as e:
-            # Call failure callback if provided, otherwise re-raise
-            if self._failure:
-                self._failure(e)
-            else:
-                raise
+        for closure in closures:
+            closure()
+
+
+# MockMW is a mock of the Anki main window (aqt.mw) used in tests.
+
+
+class MockMW:
+    def __init__(self) -> None:
+        self._mock = MagicMock()
+        self.taskman = FakeTaskManager(self)
+
+    @property
+    def col(self) -> TestCollection:
+        assert TestCollections.last_initiated_test_collection
+        return TestCollections.last_initiated_test_collection
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._mock, name)

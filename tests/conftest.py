@@ -9,8 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-
-from tests.tools import FakeCollectionOp, FakeQueryOp
+from tests.tools import MockMW
 from transformerman.lib.addon_config import AddonConfig
 
 if TYPE_CHECKING:
@@ -18,10 +17,9 @@ if TYPE_CHECKING:
     from transformerman.lib.utilities import JSON_TYPE
 
 
-# Global patch for CollectionOp and QueryOp in all tests
-import aqt.operations
-aqt.operations.CollectionOp = FakeCollectionOp  # type: ignore
-aqt.operations.QueryOp = FakeQueryOp  # type: ignore
+# patch the aqt.mw global to use our mock
+import aqt
+aqt.mw = MockMW()  # type: ignore[assignment]
 
 
 @pytest.fixture
