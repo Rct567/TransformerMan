@@ -438,6 +438,7 @@ class OpenAiCompatibleLMClient(LMClient):
     def fetch_available_models(self) -> AvailableModels:
         """Fetch available models from OpenAI /v1/models endpoint."""
         # Build models URL
+        assert self._get_url().endswith("/chat/completions"), "Invalid OpenAI-compatible URL"
         base_url = self._get_url().replace("/chat/completions", "/models")
 
         headers = {"Authorization": f"Bearer {self._api_key}"}
@@ -550,7 +551,7 @@ class CustomOpenAi(OpenAiCompatibleLMClient):
         """Validate custom settings for Custom OpenAI client."""
         if "end_point" not in settings or not settings["end_point"].strip():
             return False, "end_point is required for Custom OpenAI client"
-        return super(CustomOpenAi, CustomOpenAi).validate_custom_settings(settings)
+        return OpenAiCompatibleLMClient.validate_custom_settings(settings)
 
 
 class LmStudio(OpenAiCompatibleLMClient):

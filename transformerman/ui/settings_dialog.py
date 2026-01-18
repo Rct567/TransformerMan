@@ -96,7 +96,7 @@ class SettingsDialog(TransformerManBaseDialog):
         self.fetch_models_button.clicked.connect(self._on_fetch_models_clicked)
         form_layout.addRow("", self.fetch_models_button)
 
-        # Model warning label (shown when model is not in recommended/fetched list)
+        # Model warning label (shown when model is not in fetched list)
         self.model_warning_label = QLabel("⚠️ Model not in available list")
         self.model_warning_label.setStyleSheet("color: orange;")
         self.model_warning_label.setVisible(False)
