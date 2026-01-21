@@ -38,6 +38,7 @@ class StatKeyValue:
     value: str = "-"
     visible: bool = True
     click_callback: Callable[[], None] | None = None
+    title: str | None = None
 
 
 class StatContainer(QWidget):
@@ -80,6 +81,8 @@ class StatContainer(QWidget):
         layout.addWidget(self.value_label)
 
         self.setVisible(stat.visible)
+        if stat.title:
+            self.setToolTip(stat.title)
 
     def _update_style(self) -> None:
         """Update the style based on clickability and dark mode."""
@@ -127,10 +130,14 @@ class StatContainer(QWidget):
 
     def update_stat(self, stat: StatKeyValue) -> None:
         """Update the stat display and properties."""
+        if stat.title is None:
+            stat.title = self.stat.title
+
         self.stat = stat
         self.key_label.setText(f"<span style='color: #888888;'>{stat.key}:</span>")
         self.value_label.setText(f"<b>{stat.value}</b>")
         self.setVisible(stat.visible)
+        self.setToolTip(stat.title if stat.title else "")
 
         was_clickable = self._is_clickable
         self._is_clickable = stat.click_callback is not None

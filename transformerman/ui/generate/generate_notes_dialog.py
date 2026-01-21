@@ -112,6 +112,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             "selected": StatKeyValue("Selected"),
             "api_client": StatKeyValue("Api client"),
             "client_model": StatKeyValue("Model"),
+            "examples": StatKeyValue("Examples", title="Number of examples used in the prompt."),
         }
         self.stats_widget = StatsWidget(self, self.is_dark_mode, stat_config)
         layout.addWidget(self.stats_widget)
@@ -247,10 +248,12 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             open_config_dialog(self, self.addon_config, on_client_updated)
 
         show_model = bool(self.lm_client.get_model())
+
         self.stats_widget.update_stats({
             "selected": StatKeyValue("Selected", f"{total_count} {note_text}"),
             "api_client": StatKeyValue("Api client", self.lm_client.name, click_callback=open_dialog),
             "client_model": StatKeyValue("Model", self.lm_client.get_model(), visible=show_model, click_callback=open_dialog),
+            "examples": StatKeyValue("Examples", str(self.addon_config.get_max_examples()), click_callback=open_dialog),
         })
 
     def _on_note_type_changed(self) -> None:
