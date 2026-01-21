@@ -319,3 +319,31 @@ class TestGenerationPromptBuilder:
         assert prompt.count("Here are some existing notes") == 1  # Examples section should be present exactly once
         assert prompt.count('<notes model="Basic"') == 2  # examples + target
         assert prompt.count('<note nid="') == 5  # 5 examples
+
+    @with_test_collection("two_deck_collection")
+    def test_build_prompt_no_source_text(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test build_prompt when source_text is empty."""
+        prompt_builder = GenerationPromptBuilder(col)
+
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+
+        prompt = prompt_builder.build_prompt(
+            source_text="",
+            note_type=note_type,
+            deck_name="Default",
+            target_count=3,
+            selected_fields=None,
+            example_notes=None,
+            max_examples=5,
+        )
+
+        assert "Source Text/Keywords:" not in prompt
+        assert "generate high-quality learning material similar to the provided examples" in prompt
+        assert "Please generate exactly 3 new Anki notes similar to the examples provided above." in prompt
+        assert prompt.count('<note nid="') == 5  # Should have found 5 examples from collection
+
+        col.lock_and_assert_result("test_build_prompt_no_source_text", prompt)

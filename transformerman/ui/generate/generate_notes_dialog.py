@@ -123,7 +123,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         input_layout = QVBoxLayout()
         input_layout.addWidget(QLabel("Source Text / Keywords:"))
         self.source_text_edit = QTextEdit()
-        self.source_text_edit.setPlaceholderText("Enter text to generate notes from...")
+        self.source_text_edit.setPlaceholderText("Enter text to generate notes from (optional)...")
         input_layout.addWidget(self.source_text_edit)
         top_layout.addLayout(input_layout, 2)
 
@@ -281,9 +281,6 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
     def _on_generate_clicked(self) -> None:
         source_text = self.source_text_edit.toPlainText().strip()
-        if not source_text:
-            showInfo("Please enter some source text.", parent=self)
-            return
 
         # Get selected fields
         selected_fields = []
@@ -309,13 +306,30 @@ class GenerateNotesDialog(TransformerManBaseDialog):
                 model = selected_model
             deck_name = self.deck_combo.currentText()
 
-        self.generate_btn.setEnabled(False)
-        self.generate_btn.setText("Generating...")
-
         # Filter example notes by selected note type
         filtered_examples = None
         if self.example_notes:
             filtered_examples = self.example_notes.filter_by_note_type(model)
+
+        # If no source text, we need to make sure we have some examples or can find some
+        if not source_text:
+            examples = self.notes_generator.generator.prompt_builder.get_example_notes(
+                note_type=model,
+                example_notes=filtered_examples,
+                field_names=selected_fields,
+                max_examples=self.addon_config.get_max_examples(),
+                deck_name=deck_name,
+            )
+
+            if not examples:
+                showInfo(
+                    "Please enter some source text or ensure there are existing notes of this type to use as examples.",
+                    parent=self,
+                )
+                return
+
+        self.generate_btn.setEnabled(False)
+        self.generate_btn.setText("Generating...")
 
         def on_success(notes: Sequence[NewNote], duplicates: dict[int, list[str]], ignored_count: int) -> None:
             self.generate_btn.setEnabled(True)

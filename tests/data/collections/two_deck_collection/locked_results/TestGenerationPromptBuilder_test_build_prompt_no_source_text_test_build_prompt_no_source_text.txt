@@ -1,0 +1,42 @@
+You are an expert Anki note creator. Your goal is to generate high-quality learning material similar to the provided examples and format it as Anki notes.
+
+Target Note Type: Basic
+Target Deck: Default
+Available Fields: Front, Back
+
+Here are some existing notes of this type from the collection to show the desired style and level of detail:
+<notes model="Basic" deck="decka">
+  <note nid="1701890446032">
+    <field name="Front">aaaa aaaa hh aaaa aa aa aaaa 4</field>
+    <field name="Back">aa aa aa aa hh</field>
+  </note>
+  <note nid="1701890435655">
+    <field name="Front">aaaa&amp;nbsp; hhh aaaa aaaa aa aa aaaa car</field>
+    <field name="Back">aa aa aa aa</field>
+  </note>
+  <note nid="1701890440810">
+    <field name="Front">aaaa aaaa aaaa aa aa aaaa car</field>
+    <field name="Back">aa aa aa aa</field>
+  </note>
+  <note nid="1701890444014">
+    <field name="Front">aaaa aaaa aaaa aa aa aaaa 3</field>
+    <field name="Back">aa aa aa aa</field>
+  </note>
+  <note nid="1701890448066">
+    <field name="Front">aaaa aaaa aaaa aa aa aaaa 5</field>
+    <field name="Back">aa aa aa aa</field>
+  </note>
+</notes>
+
+Target Number of Notes: 3
+
+Please generate exactly 3 new Anki notes similar to the examples provided above.
+
+Return the notes in the following XML format. Ensure all fields are filled appropriately.
+
+<notes model="Basic" deck="Default">
+  <note>
+    <field name="Front">...</field>
+    <field name="Back">...</field>
+  </note>
+</notes>
