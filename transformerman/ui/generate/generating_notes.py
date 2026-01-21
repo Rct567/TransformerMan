@@ -6,9 +6,10 @@ See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, NamedTuple
+from dataclasses import dataclass
 
 from aqt import mw
-from aqt.operations import QueryOp
+from aqt.operations import QueryOp, CollectionOp
 
 
 from ...lib.generate_operations import NotesGenerator
@@ -18,7 +19,7 @@ from ..prompt_preview_dialog import PromptPreviewDialog
 if TYPE_CHECKING:
     from collections.abc import Sequence, MutableMapping, Iterable
     from aqt.qt import QWidget
-    from anki.collection import Collection
+    from anki.collection import Collection, OpChanges
     from anki.notes import Note, NoteId
     from ...lib.lm_clients import LMClient
     from ...lib.response_middleware import ResponseMiddleware
@@ -39,6 +40,14 @@ class GenerationRequest(NamedTuple):
     example_notes: SelectedNotesFromType | None
 
 
+@dataclass
+class CreateNotesResult:
+    """Result of a note creation operation."""
+
+    notes: list[Note]
+    changes: OpChanges
+
+
 class GeneratingNotesManager:
     """
     Manages note generation with progress tracking and prompt preview.
@@ -51,6 +60,7 @@ class GeneratingNotesManager:
         self.middleware = middleware
         self.generator = NotesGenerator(col, lm_client, middleware, addon_config)
         self.addon_config = addon_config
+        self.created_notes: list[list[Note]] = []
 
     def generate(
         self,
@@ -151,6 +161,51 @@ class GeneratingNotesManager:
             op=generate_op,
             success=on_success_callback,
         ).failure(on_failure_callback).run_in_background()
+
+    def create_notes(
+        self,
+        parent: QWidget,
+        notes_data: Sequence[MutableMapping[str, str]],
+        note_type: NoteModel,
+        deck_name: str,
+        on_success: Callable[[list[Note]], None],
+        on_failure: Callable[[Exception], None],
+    ) -> None:
+        """Create notes in the collection."""
+        deck_id = self.col.decks.id(deck_name)
+        if deck_id is None:
+            on_failure(Exception(f"Deck '{deck_name}' not found."))
+            return
+
+        def add_notes_op(col: Collection) -> CreateNotesResult:
+            created: list[Note] = []
+            model = col.models.by_name(note_type.name)
+            if not model:
+                raise Exception(f"Note type '{note_type.name}' not found.")
+
+            # Start undo entry
+            pos = col.add_custom_undo_entry("Generating notes ({})".format(len(notes_data)))
+
+            for data in notes_data:
+                note = col.new_note(model)
+                for field, value in data.items():
+                    if field in note:
+                        note[field] = value
+                col.add_note(note, deck_id)
+                created.append(note)
+
+            # Merge undo entries and get changes
+            changes = col.merge_undo_entries(pos)
+            return CreateNotesResult(notes=created, changes=changes)
+
+        def on_success_wrapper(result: CreateNotesResult) -> None:
+            self.created_notes.append(result.notes)
+            on_success(result.notes)
+
+        CollectionOp(
+            parent=parent,
+            op=add_notes_op,
+        ).success(on_success_wrapper).failure(on_failure).run_in_background()
 
 
 def find_duplicates(

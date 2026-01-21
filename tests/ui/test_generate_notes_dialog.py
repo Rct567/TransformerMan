@@ -58,6 +58,7 @@ class TestGenerateNotesDialog:
             note_ids=note_ids,
         )
         qtbot.addWidget(dialog)
+        dialog.show()
 
         assert dialog.parent() is parent_widget
         assert dialog.is_dark_mode == is_dark_mode
@@ -94,10 +95,15 @@ class TestGenerateNotesDialog:
         assert dialog.table.rowCount() == num_notes_generate
         assert len(col.find_notes("added:1")) == 0
 
-        # check result (self.accept should have been called)
+        # check result (table should be cleared, dialog stays open)
         qtbot.mouseClick(dialog.create_btn, Qt.MouseButton.LeftButton)
-        qtbot.waitUntil(lambda: dialog.result() == 1)
+        qtbot.waitUntil(lambda: dialog.table.rowCount() == 0)
+        assert dialog.isVisible()
         assert len(col.find_notes("added:1")) == num_notes_generate
+
+        # Verify created_notes property
+        assert len(dialog.notes_generator.created_notes) == 1
+        assert len(dialog.notes_generator.created_notes[0]) == num_notes_generate
 
     @with_test_collection("two_deck_collection")
     def test_stats_update(

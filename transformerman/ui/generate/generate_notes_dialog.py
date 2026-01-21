@@ -26,7 +26,6 @@ from aqt.qt import (
 )
 
 from aqt.utils import showInfo, showWarning
-from aqt.operations import QueryOp
 
 from ..base_dialog import TransformerManBaseDialog
 from .generated_notes_table import GeneratedNotesTable
@@ -40,7 +39,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
     from anki.collection import Collection
-    from anki.notes import NoteId
+    from anki.notes import Note, NoteId
     from anki.cards import CardId
     from ...lib.lm_clients import LMClient
     from ...lib.addon_config import AddonConfig
@@ -393,35 +392,33 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         note_type_name = self.note_type_combo.currentText()
         deck_name = self.deck_combo.currentText()
 
-        model = self.col.models.by_name(note_type_name)
+        model = NoteModel.by_name(self.col, note_type_name)
         if not model:
             return
 
-        deck_id = self.col.decks.id(deck_name)
-        if deck_id is None:
-            showWarning(f"Deck '{deck_name}' not found.", parent=self)
-            return
-
-        def add_notes(col: Collection) -> int:
-            count = 0
-            for data in notes_data:
-                note = col.new_note(model)
-                for field, value in data.items():
-                    if field in note:
-                        note[field] = value
-                col.add_note(note, deck_id)
-                count += 1
-            return count
-
-        def on_success(count: int) -> None:
+        def on_success(notes: list[Note]) -> None:
+            count = len(notes)
             showInfo(f"Successfully added {count} notes to deck '{deck_name}'.", parent=self)
-            self.accept()
+
+            # Clear table and update UI state
+            self.table.set_notes([])
+            self._update_create_button_state()
+
+            # Unlock UI to allow further generation or changes
+            if self._is_locked_by_context:
+                self._is_locked_by_context = False
+                self.note_type_combo.setEnabled(True)
+                self.deck_combo.setEnabled(True)
+                self.field_list.setEnabled(True)
 
         def on_failure(e: Exception) -> None:
             showWarning(f"Failed to add notes: {e!s}", parent=self)
 
-        QueryOp(
+        self.notes_generator.create_notes(
             parent=self,
-            op=add_notes,
-            success=on_success,
-        ).failure(on_failure).run_in_background()
+            notes_data=notes_data,
+            note_type=model,
+            deck_name=deck_name,
+            on_success=on_success,
+            on_failure=on_failure,
+        )
