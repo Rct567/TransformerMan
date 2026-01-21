@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from aqt.qt import QWidget
     from anki.collection import Collection, OpChanges
     from anki.notes import Note, NoteId
+    from anki.decks import DeckId
     from ...lib.lm_clients import LMClient
     from ...lib.response_middleware import ResponseMiddleware
     from ...lib.selected_notes import NoteModel, SelectedNotesFromType
@@ -167,27 +168,24 @@ class GeneratingNotesManager:
         parent: QWidget,
         notes_data: Sequence[MutableMapping[str, str]],
         note_type: NoteModel,
-        deck_name: str,
+        deck_id: DeckId,
         on_success: Callable[[list[Note]], None],
         on_failure: Callable[[Exception], None],
     ) -> None:
         """Create notes in the collection."""
-        deck_id = self.col.decks.id(deck_name)
-        if deck_id is None:
-            on_failure(Exception(f"Deck '{deck_name}' not found."))
+
+        if not notes_data:
+            on_success([])
             return
 
         def add_notes_op(col: Collection) -> CreateNotesResult:
             created: list[Note] = []
-            model = col.models.by_name(note_type.name)
-            if not model:
-                raise Exception(f"Note type '{note_type.name}' not found.")
 
             # Start undo entry
             pos = col.add_custom_undo_entry("Generating notes ({})".format(len(notes_data)))
 
             for data in notes_data:
-                note = col.new_note(model)
+                note = col.new_note(note_type.data)
                 for field, value in data.items():
                     if field in note:
                         note[field] = value

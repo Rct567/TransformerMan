@@ -170,14 +170,39 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         layout.addLayout(action_layout)
 
         # Connect table changes to update create button state
-        self.table.itemChanged.connect(self._update_create_button_state)
+        self.table.itemChanged.connect(self._update_state)
         model = self.table.model()
         if model:
-            model.rowsInserted.connect(self._update_create_button_state)
-            model.rowsRemoved.connect(self._update_create_button_state)
+            model.rowsInserted.connect(self._update_state)
+            model.rowsRemoved.connect(self._update_state)
 
-    def _update_create_button_state(self) -> None:
+    def _update_state(self) -> None:
+        """Update the UI state based on current selections."""
+        self._update_stats_widget()
+        self._update_buttons_state()
+
+        # Handle locking
+        is_locked = bool(self._is_locked_by_context)
+        self.note_type_combo.setEnabled(not is_locked)
+        self.deck_combo.setEnabled(not is_locked)
+        self.field_list.setEnabled(not is_locked)
+
+        if not is_locked and self.table.rowCount() == 0:
+            selected_fields = self._get_selected_fields()
+            self.table.update_columns(selected_fields)
+
+    def _update_buttons_state(self) -> None:
+        """Update the enabled/disabled state of all buttons based on current state."""
         self.create_btn.setEnabled(self.table.rowCount() > 0)
+
+    def _get_selected_fields(self) -> list[str]:
+        """Get the list of currently selected fields."""
+        selected_fields = []
+        for i in range(self.field_list.count()):
+            item = self.field_list.item(i)
+            if item and item.checkState() == Qt.CheckState.Checked:
+                selected_fields.append(item.text())
+        return selected_fields
 
     def _populate_dropdowns(self) -> None:
         # Note Types
@@ -197,7 +222,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         ]
         self.deck_combo.addItems(decks)
 
-        self._update_stats_widget()
+        self._update_state()
 
     def _set_defaults(self) -> None:
         if self.example_notes:
@@ -215,16 +240,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
     def _on_field_selection_changed(self, _item: QListWidgetItem) -> None:
         """Update table columns when field selection changes (if not locked)."""
-        if self._is_locked_by_context:
-            return
-
-        selected_fields = []
-        for i in range(self.field_list.count()):
-            item = self.field_list.item(i)
-            if item and item.checkState() == Qt.CheckState.Checked:
-                selected_fields.append(item.text())
-
-        self.table.update_columns(selected_fields)
+        self._update_state()
 
     def _update_stats_widget(self) -> None:
         """Update the stats widget."""
@@ -241,7 +257,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             self.lm_client = new_lm_client
             self.notes_generator.lm_client = new_lm_client
             self.notes_generator.generator.lm_client = new_lm_client
-            self._update_stats_widget()
+            self._update_state()
 
         def open_dialog() -> None:
             open_config_dialog(self, self.addon_config, on_client_updated)
@@ -274,14 +290,14 @@ class GenerateNotesDialog(TransformerManBaseDialog):
                 self.field_list.addItem(item)
             self.field_list.blockSignals(False)
 
-            # Update table columns based on default selection (first 2 fields)
-            default_fields = fields[:2] if len(fields) >= 2 else fields
-            self.table.update_columns(default_fields)
             self.table.set_notes([])
 
-        self._update_stats_widget()
+        self._update_state()
 
     def _on_generate_clicked(self) -> None:
+
+        print("_on_generate_clicked")
+
         source_text = self.source_text_edit.toPlainText().strip()
 
         # Get selected fields
@@ -340,15 +356,11 @@ class GenerateNotesDialog(TransformerManBaseDialog):
                 # Lock note type, deck and field selection after first successful generation
                 if not self._is_locked_by_context:
                     self._is_locked_by_context = (model, deck_name)
-                    self.note_type_combo.setEnabled(False)
-                    self.deck_combo.setEnabled(False)
-                    self.field_list.setEnabled(False)
 
                 if notes:
                     start_row = self.table.rowCount()
                     self.table.append_notes(notes)
                     self.table.highlight_duplicates(duplicates, start_row=start_row)
-                    self._update_create_button_state()
 
                 if ignored_count > 0:
                     note_text = "note" if ignored_count == 1 else "notes"
@@ -356,12 +368,16 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             else:
                 showInfo("No notes were generated.", parent=self)
 
+            self._update_state()
+
         def on_failure(e: Exception) -> None:
             self.generate_btn.setEnabled(True)
             self.generate_btn.setText("Generate notes")
             if str(e) == "Prompt preview canceled by user":
+                self._update_state()
                 return
             showWarning(f"Generation failed: {e!s}", parent=self)
+            self._update_state()
 
         # Check for Shift key modifier
         prompt_interceptor = bool(QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier)
@@ -384,6 +400,13 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         )
 
     def _on_create_clicked(self) -> None:
+
+        # Disable button during creation
+        self.create_btn.setEnabled(False)
+        self.create_btn.repaint()
+
+        print("_on_create_clicked")
+
         notes_data = self.table.get_all_notes()
         if not notes_data:
             showInfo("No notes to create.", parent=self)
@@ -396,20 +419,21 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         if not model:
             return
 
+        deck_id = self.col.decks.id(deck_name)
+        if deck_id is None:
+            showWarning(f"Deck '{deck_name}' not found.", parent=self)
+            return
+
         def on_success(notes: list[Note]) -> None:
             count = len(notes)
             showInfo(f"Successfully added {count} notes to deck '{deck_name}'.", parent=self)
 
             # Clear table and update UI state
             self.table.set_notes([])
-            self._update_create_button_state()
 
             # Unlock UI to allow further generation or changes
-            if self._is_locked_by_context:
-                self._is_locked_by_context = False
-                self.note_type_combo.setEnabled(True)
-                self.deck_combo.setEnabled(True)
-                self.field_list.setEnabled(True)
+            self._is_locked_by_context = False
+            self._update_state()
 
         def on_failure(e: Exception) -> None:
             showWarning(f"Failed to add notes: {e!s}", parent=self)
@@ -418,7 +442,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             parent=self,
             notes_data=notes_data,
             note_type=model,
-            deck_name=deck_name,
+            deck_id=deck_id,
             on_success=on_success,
             on_failure=on_failure,
         )
