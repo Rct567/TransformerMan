@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from aqt import mw
 from aqt.operations import QueryOp, CollectionOp
+from anki.collection import AddNoteRequest
 
 
 from ...lib.generate_operations import NotesGenerator
@@ -179,18 +180,21 @@ class GeneratingNotesManager:
             return
 
         def add_notes_op(col: Collection) -> CreateNotesResult:
+            requests: list[AddNoteRequest] = []
             created: list[Note] = []
-
-            # Start undo entry
-            pos = col.add_custom_undo_entry("Generating notes ({})".format(len(notes_data)))
 
             for data in notes_data:
                 note = col.new_note(note_type.data)
                 for field, value in data.items():
                     if field in note:
                         note[field] = value
-                col.add_note(note, deck_id)
+                requests.append(AddNoteRequest(note=note, deck_id=deck_id))
                 created.append(note)
+
+            # Start undo entry
+            pos = col.add_custom_undo_entry("Generating notes ({})".format(len(notes_data)))
+
+            col.add_notes(requests)
 
             # Merge undo entries and get changes
             changes = col.merge_undo_entries(pos)
