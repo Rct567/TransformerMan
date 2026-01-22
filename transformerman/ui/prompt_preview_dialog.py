@@ -19,13 +19,14 @@ from aqt.qt import (
 class PromptPreviewDialog(QDialog):
     """Dialog for previewing and editing the prompt template."""
 
-    def __init__(self, parent: QWidget, prompt_template: str) -> None:
+    def __init__(self, parent: QWidget, prompt_template: str, instruction: str | None = None) -> None:
         """
         Initialize the dialog.
 
         Args:
             parent: Parent widget.
             prompt_template: The initial prompt template string.
+            instruction: Optional instruction text to display.
         """
         super().__init__(parent)
         self.setWindowTitle("Prompt Preview")
@@ -33,6 +34,7 @@ class PromptPreviewDialog(QDialog):
         self.setMinimumHeight(500)
 
         self.prompt_template = prompt_template
+        self.instruction = instruction
         self.modified_template: str | None = None
 
         self._setup_ui()
@@ -42,7 +44,8 @@ class PromptPreviewDialog(QDialog):
 
         # Instructions
         layout.addWidget(QLabel("You can modify the prompt template below before it is sent to the model."))
-        layout.addWidget(QLabel("Note: {target_notes_xml} is a placeholder for the notes to be transformed."))
+        if self.instruction:
+            layout.addWidget(QLabel(self.instruction))
 
         # Text area
         self.text_edit = QPlainTextEdit()

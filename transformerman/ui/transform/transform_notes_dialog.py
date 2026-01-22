@@ -565,7 +565,11 @@ class TransformNotesDialog(TransformerManBaseDialog):
         if QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier:
 
             def interceptor(template: str) -> str:
-                dialog = PromptPreviewDialog(self, template)
+                dialog = PromptPreviewDialog(
+                    self,
+                    template,
+                    "Note: {target_notes_xml} is a placeholder for the notes to be transformed.",
+                )
                 if dialog.exec():
                     return dialog.get_template() or ""
                 # If canceled, we raise an exception to stop the process
