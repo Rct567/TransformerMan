@@ -296,8 +296,6 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
     def _on_generate_clicked(self) -> None:
 
-        print("_on_generate_clicked")
-
         source_text = self.source_text_edit.toPlainText().strip()
 
         # Get selected fields
@@ -404,8 +402,6 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         # Disable button during creation
         self.create_btn.setEnabled(False)
         self.create_btn.repaint()
-
-        print("_on_create_clicked")
 
         notes_data = self.table.get_all_notes()
         if not notes_data:
