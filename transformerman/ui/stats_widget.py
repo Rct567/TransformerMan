@@ -128,19 +128,17 @@ class StatContainer(QWidget):
                 self.stat.click_callback()
         super().mousePressEvent(a0)
 
-    def update_stat(self, stat: StatKeyValue) -> None:
+    def update_stat(self, new_stat: StatKeyValue) -> None:
         """Update the stat display and properties."""
-        if stat.title is None:
-            stat.title = self.stat.title
-
-        self.stat = stat
-        self.key_label.setText(f"<span style='color: #888888;'>{stat.key}:</span>")
-        self.value_label.setText(f"<b>{stat.value}</b>")
-        self.setVisible(stat.visible)
-        self.setToolTip(stat.title if stat.title else "")
+        self.stat = new_stat
+        self.key_label.setText(f"<span style='color: #888888;'>{new_stat.key}:</span>")
+        self.value_label.setText(f"<b>{new_stat.value}</b>")
+        self.setVisible(new_stat.visible)
+        if new_stat.title is not None:
+            self.setToolTip(new_stat.title)
 
         was_clickable = self._is_clickable
-        self._is_clickable = stat.click_callback is not None
+        self._is_clickable = new_stat.click_callback is not None
         if was_clickable != self._is_clickable:
             self._update_style()
 
@@ -178,15 +176,15 @@ class StatsWidget(QWidget):
         self.stat_containers[stat_id] = container
         self.main_layout.addWidget(container)
 
-    def update_stat(self, stat_id: str, stat: StatKeyValue) -> None:
+    def update_stat(self, stat_id: str, new_stat: StatKeyValue) -> None:
         """Update a single stat badge."""
         if stat_id not in self.stat_containers:
             raise KeyError(f"Stat ID '{stat_id}' not found in StatsWidget.")
-        self.stat_containers[stat_id].update_stat(stat)
+        self.stat_containers[stat_id].update_stat(new_stat)
 
-    def update_stats(self, stats: dict[str, StatKeyValue]) -> None:
+    def update_stats(self, new_stats: dict[str, StatKeyValue]) -> None:
         """Update the values displayed in the badges."""
-        for stat_id, stat in stats.items():
+        for stat_id, stat in new_stats.items():
             self.update_stat(stat_id, stat)
 
 
