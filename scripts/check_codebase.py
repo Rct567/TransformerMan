@@ -22,8 +22,8 @@ from transformerman.lib.utilities import override
 
 
 @dataclass
-class DocstringError:
-    """Represents a docstring validation error."""
+class CheckError:
+    """Represents a codebase validation error."""
 
     filepath: Path
     line: int
@@ -32,7 +32,9 @@ class DocstringError:
 
     @override
     def __str__(self) -> str:
-        return f"{self.filepath}:{self.line}: Function '{self.function_name}' {self.message}"
+        if self.function_name:
+            return f"{self.filepath}:{self.line}: Function '{self.function_name}' {self.message}"
+        return f"{self.filepath}:{self.line}: {self.message}"
 
 
 class DocstringChecker(ast.NodeVisitor):
@@ -40,7 +42,7 @@ class DocstringChecker(ast.NodeVisitor):
 
     def __init__(self, filepath: Path) -> None:
         self.filepath = filepath
-        self.errors: list[DocstringError] = []
+        self.errors: list[CheckError] = []
 
     @override
     def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
@@ -63,7 +65,7 @@ class DocstringChecker(ast.NodeVisitor):
         # Check for documented parameters that don't exist
         for param in doc_params - actual_params:
             self.errors.append(
-                DocstringError(
+                CheckError(
                     filepath=self.filepath,
                     line=node.lineno,
                     function_name=node.name,
@@ -74,7 +76,7 @@ class DocstringChecker(ast.NodeVisitor):
         # Check for documented return when function doesn't return
         if doc_has_return and not has_return:
             self.errors.append(
-                DocstringError(
+                CheckError(
                     filepath=self.filepath,
                     line=node.lineno,
                     function_name=node.name,
@@ -88,7 +90,7 @@ class DocstringChecker(ast.NodeVisitor):
             undocumented_params -= {"self", "cls"}
             if undocumented_params:
                 self.errors.append(
-                    DocstringError(
+                    CheckError(
                         filepath=self.filepath,
                         line=node.lineno,
                         function_name=node.name,
@@ -139,7 +141,7 @@ class DocstringChecker(ast.NodeVisitor):
                 param: str = stripped_line.split(":param ")[1].split(":")[0].strip()
                 params.add(param)
             # Google/Numpy style: param_name: description or param_name (type): description
-            elif ":" in stripped_line and not stripped_line.startswith((
+            elif ":" in stripped_line and not stripped_line.startswith((  # Commented out to resolve SyntaxError
                 "Returns",
                 "Raises",
                 "Yields",
@@ -164,6 +166,52 @@ class DocstringChecker(ast.NodeVisitor):
         """Check if docstring has an Args section."""
         lower = docstring.lower()
         return "args:" in lower
+
+
+class PrintStatementChecker(ast.NodeVisitor):
+    """AST visitor that checks for print statements."""
+
+    def __init__(self, filepath: Path) -> None:
+        self.filepath = filepath
+        self.errors: list[CheckError] = []
+        self.has_main_block = False
+
+    @override
+    def visit_Call(self, node: ast.Call) -> None:
+        """Check for print statements."""
+        if isinstance(node.func, ast.Name) and node.func.id == "print":
+            self.errors.append(
+                CheckError(
+                    filepath=self.filepath,
+                    line=node.lineno,
+                    function_name="",
+                    message="Found print statement",
+                )
+            )
+        self.generic_visit(node)
+
+    @override
+    def visit_If(self, node: ast.If) -> None:
+        """Check for if __name__ == '__main__': block."""
+        if self._is_main_block(node):
+            self.has_main_block = True
+        self.generic_visit(node)
+
+    def _is_main_block(self, node: ast.If) -> bool:
+        """Check if the If node is a 'if __name__ == "__main__":' block."""
+        if not isinstance(node.test, ast.Compare):
+            return False
+
+        test = node.test
+        is_name = isinstance(test.left, ast.Name) and test.left.id == "__name__"
+        is_eq = len(test.ops) == 1 and isinstance(test.ops[0], ast.Eq)
+        is_main = (
+            len(test.comparators) == 1
+            and isinstance(test.comparators[0], ast.Constant)
+            and test.comparators[0].value == "__main__"
+        )
+
+        return is_name and is_eq and is_main
 
 
 def get_python_files(search_path: Path) -> list[Path]:
@@ -195,20 +243,28 @@ def _fallback_file_search(search_path: Path) -> list[Path]:
     return list(search_path.rglob("*.py"))
 
 
-def check_file(filepath: Path) -> list[DocstringError]:
-    """Analyze a Python file for docstring inconsistencies."""
+def check_file(filepath: Path) -> list[CheckError]:
+    """Analyze a Python file for codebase inconsistencies."""
     try:
         source = filepath.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(filepath))
 
-        checker = DocstringChecker(filepath)
-        checker.visit(tree)
-        return checker.errors
+        doc_checker = DocstringChecker(filepath)
+        doc_checker.visit(tree)
+
+        print_checker = PrintStatementChecker(filepath)
+        print_checker.visit(tree)
+
+        errors = doc_checker.errors
+        if not print_checker.has_main_block:
+            errors.extend(print_checker.errors)
+
+        return errors
 
     except SyntaxError:
-        return [DocstringError(filepath, 0, "", "Syntax error, skipping")]
+        return [CheckError(filepath, 0, "", "Syntax error, skipping")]
     except Exception as e:
-        return [DocstringError(filepath, 0, "", f"Error processing: {e}")]
+        return [CheckError(filepath, 0, "", f"Error processing: {e}")]
 
 
 def main() -> NoReturn:
@@ -228,14 +284,14 @@ def main() -> NoReturn:
         print("No Python files found", file=sys.stderr)
         sys.exit(0)
 
-    all_errors: list[DocstringError] = [error for filepath in python_files for error in check_file(filepath)]
+    all_errors: list[CheckError] = [error for filepath in python_files for error in check_file(filepath)]
 
     if all_errors:
         for error in all_errors:
             print(error)
         sys.exit(1)
 
-    print(f"No incorrect docstrings found in {len(python_files)} files")
+    print(f"No codebase issues found in {len(python_files)} files")
     sys.exit(0)
 
 
