@@ -6,6 +6,7 @@ from itertools import chain
 import os
 from pathlib import Path
 import shutil
+import warnings
 from typing import Any, Optional, NamedTuple, Callable, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -191,7 +192,7 @@ class TestCollection(Collection):
         else:
             with result_file_path.open("w", encoding="utf-8") as file:
                 file.write(result_data_str)
-            print("WARNING: Result file '{}' for '{}' didn't exist yet!".format(result_file_path, self.collection_name))
+            warnings.warn(f"Result file '{result_file_path}' for '{self.collection_name}' didn't exist yet!", stacklevel=2)
 
     # helper function used to lock-in and assert order
 
@@ -212,7 +213,7 @@ class TestCollection(Collection):
         else:
             with order_file_path.open("w", encoding="utf-8") as file:
                 file.write("\n".join(map(str, sorted_items)))
-            print("WARNING: Order file '{}' for '{}' didn't exist yet!".format(order_file_path, self.collection_name))
+            warnings.warn(f"Order file '{order_file_path}' for '{self.collection_name}' didn't exist yet!", stacklevel=2)
 
     def remove(self) -> None:
 
@@ -263,7 +264,7 @@ class TestCollections:
                 except OSError:
                     pass
         except FileNotFoundError as e:
-            print("File '{}' got lost during cleanup routine. {}".format(e.filename, e.strerror))
+            warnings.warn(f"File '{e.filename}' got lost during cleanup routine. {e.strerror}", stacklevel=2)
 
         for path in test_collection_folder.glob("*/*"):
             if path.is_dir() and path.name.endswith("_temp.media"):
