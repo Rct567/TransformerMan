@@ -27,6 +27,7 @@ from aqt.qt import (
 
 from aqt.utils import showInfo, showWarning
 
+from ...lib.utilities import JSON_TYPE, create_slug
 from ..base_dialog import TransformerManBaseDialog
 from .generated_notes_table import GeneratedNotesTable
 from .generating_notes import GeneratingNotesManager, GenerationRequest
@@ -73,6 +74,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
         self.notes_generator = GeneratingNotesManager(col, lm_client, self.middleware, self.addon_config)
         self._is_locked_by_context = False
+        self._last_source_text_value = ""  # Track last loaded/saved text to avoid overwriting unsaved changes
 
         self.setWindowTitle("TransformerMan: Generate notes")
         self.setMinimumWidth(800)
@@ -101,6 +103,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         deck_text.setMinimumWidth(145)
         selection_layout.addWidget(deck_text, 1, 0)
         self.deck_combo = QComboBox()
+        self.deck_combo.currentTextChanged.connect(self._on_deck_changed)
         selection_layout.addWidget(self.deck_combo, 1, 1)
 
         selection_layout.setColumnStretch(1, 1)
@@ -194,6 +197,68 @@ class GenerateNotesDialog(TransformerManBaseDialog):
     def _update_buttons_state(self) -> None:
         """Update the enabled/disabled state of all buttons based on current state."""
         self.create_btn.setEnabled(self.table.rowCount() > 0)
+
+    def _on_deck_changed(self) -> None:
+        """Handle deck selection change."""
+        self._load_source_text()
+        self._update_state()
+
+    def _get_source_text_config_key(self, include_deck: bool = True) -> str | None:
+        """Get the config key for the source text."""
+        note_type_name = self.note_type_combo.currentText()
+        if not note_type_name:
+            return None
+        model = NoteModel.by_name(self.col, note_type_name)
+        if not model:
+            return None
+
+        if include_deck:
+            deck_name = self.deck_combo.currentText()
+            if deck_name:
+                root_deck = deck_name.split("::")[0]
+                deck_slug = create_slug(root_deck)
+                return f"generate_source_text_{deck_slug}_{model.id}"
+
+        return f"generate_source_text_{model.id}"
+
+    def _save_source_text(self) -> None:
+        """Save source text to config."""
+        config_key = self._get_source_text_config_key(include_deck=True)
+        if config_key:
+            source_text = self.source_text_edit.toPlainText().strip()
+            self.addon_config.update_setting(config_key, source_text)
+            self._last_source_text_value = source_text
+
+    def _load_source_text(self) -> None:
+        """Load source text from config."""
+        note_type_name = self.note_type_combo.currentText()
+        model = NoteModel.by_name(self.col, note_type_name)
+        if not model:
+            return
+
+        current_text = self.source_text_edit.toPlainText().strip()
+
+        # If the field has content that wasn't just loaded/saved, don't overwrite it
+        if current_text and current_text != self._last_source_text_value:
+            return
+
+        # Try with deck first
+        config_key = self._get_source_text_config_key(include_deck=True)
+        source_text: JSON_TYPE = ""
+
+        if config_key and config_key in self.addon_config:
+            source_text = self.addon_config.get(config_key, "")
+        else:
+            # Fallback to without deck
+            config_key_no_deck = self._get_source_text_config_key(include_deck=False)
+            if config_key_no_deck and config_key_no_deck in self.addon_config:
+                source_text = self.addon_config.get(config_key_no_deck, "")
+
+        if isinstance(source_text, str) and source_text:
+            self.source_text_edit.blockSignals(True)
+            self.source_text_edit.setPlainText(source_text)
+            self.source_text_edit.blockSignals(False)
+            self._last_source_text_value = source_text
 
     def _get_selected_fields(self) -> list[str]:
         """Get the list of currently selected fields."""
@@ -292,6 +357,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
             self.table.set_notes([])
 
+        self._load_source_text()
         self._update_state()
 
     def _on_generate_clicked(self) -> None:
@@ -308,6 +374,9 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         if not selected_fields:
             showInfo("Please select at least one field.", parent=self)
             return
+
+        # Save source text to config
+        self._save_source_text()
 
         deck_name = self.deck_combo.currentText()
         target_count = self.count_spin.value()
