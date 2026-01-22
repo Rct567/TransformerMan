@@ -147,7 +147,7 @@ def print_and_exit_error(message: str) -> NoReturn:
     sys.exit(1)
 
 
-def create_new_release() -> str:
+def create_new_release_file() -> tuple[str, Path]:
 
     # check git status
 
@@ -203,18 +203,26 @@ def create_new_release() -> str:
     create_zip(new_release_dst_dir, release_zip_file)
 
     print("Done!")
-    return new_release_version
+    return new_release_version, release_zip_file
 
 
-new_release_version = create_new_release()
+def create_new_release() -> None:
 
-commit_tag_push = input("Use GIT to commit, tag and push to v{}? (Y/N) ".format(new_release_version))
+    new_release_version, release_zip_file = create_new_release_file()
 
-if commit_tag_push.lower() == "y":
-    commit_and_tag(new_release_version)
-    print("New version committed!")
-    print("\nNext step:\nCreate a new release on Github: https://github.com/Rct567/TransformerMan/releases/new")
-else:
-    print("Skipped commit, tag and push...")
+    print("New release file created at: {}".format(release_zip_file))
 
-print("Check the release directory for new version {}!".format(new_release_version))
+    commit_tag_push = input("Use GIT to commit, tag and push to v{}? (Y/N) ".format(new_release_version))
+
+    if commit_tag_push.lower() == "y":
+        commit_and_tag(new_release_version)
+        print("New version committed!")
+        print("\nNext step:\nCreate a new release on Github: https://github.com/Rct567/TransformerMan/releases/new")
+    else:
+        print("Skipped commit, tag and push...")
+
+    print("Check the release directory for new version {}!".format(new_release_version))
+
+
+if __name__ == "__main__":
+    create_new_release()
