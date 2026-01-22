@@ -103,12 +103,14 @@ class GenerationPromptBuilder(PromptBuilder):
                 "",
                 f"Please generate exactly {target_count} new Anki notes based on the source text above.",
             ])
-        else:
+        elif notes_from_examples:
             parts.extend([
                 f"Target Number of Notes: {target_count}",
                 "",
                 f"Please generate exactly {target_count} new Anki notes similar to the examples provided above.",
             ])
+        else:
+            raise ValueError("Either source_text or example_notes must be provided.")
 
         parts.extend([
             "",
