@@ -3,7 +3,7 @@
 Check for incorrect docstrings (parameters/returns that don't match code).
 Ignores missing docstrings - only flags when documented items are wrong.
 
-Usage: python check_docstrings.py [path ...]
+Usage: python check_codebase.py [path ...]
 """
 
 from __future__ import annotations
