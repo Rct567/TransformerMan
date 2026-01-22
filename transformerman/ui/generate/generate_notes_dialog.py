@@ -111,7 +111,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             "selected": StatKeyValue("Selected"),
             "api_client": StatKeyValue("Api client"),
             "client_model": StatKeyValue("Model"),
-            "examples": StatKeyValue("Examples", title="Number of examples used in the prompt."),
+            "examples": StatKeyValue("Examples", title="Number of example notes used in the generated prompt."),
         }
         self.stats_widget = StatsWidget(self, self.is_dark_mode, stat_config)
         layout.addWidget(self.stats_widget)
