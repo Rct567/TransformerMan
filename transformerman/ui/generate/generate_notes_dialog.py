@@ -23,11 +23,13 @@ from aqt.qt import (
     QListWidgetItem,
     QApplication,
     Qt,
+    QMessageBox,
+    QCloseEvent,
 )
 
 from aqt.utils import showInfo, showWarning
 
-from ...lib.utilities import JSON_TYPE, create_slug
+from ...lib.utilities import JSON_TYPE, create_slug, override
 from ..base_dialog import TransformerManBaseDialog
 from .generated_notes_table import GeneratedNotesTable
 from .generating_notes import GeneratingNotesManager, GenerationRequest
@@ -511,3 +513,19 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             on_success=on_success,
             on_failure=on_failure,
         )
+
+    @override
+    def closeEvent(self, a0: QCloseEvent | None) -> None:
+        """Handle dialog close event with warning if there are unsaved generated notes."""
+        if a0 is not None and self.table.rowCount() > 0:
+            reply = QMessageBox.question(
+                self,
+                "Unsaved Generated Notes",
+                "You have generated notes that will be lost if you close this dialog.\n\nDo you want to close anyway?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.No:
+                a0.ignore()
+                return
+        super().closeEvent(a0)
