@@ -14,37 +14,41 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Global patch for showInfo and showWarning in UI tests
 import aqt.utils
-aqt.utils.showInfo = MagicMock()
-aqt.utils.showWarning = MagicMock()
-
-# Patch debounce to execute immediately in tests
-import transformerman.ui.ui_utilities
-
-
-def mock_debounce(wait_ms: int) -> Callable[[Callable[..., Any]], Callable[..., None]]:
-    """Mock debounce that executes immediately."""
-    def decorator(func: Callable[..., Any]) -> Callable[..., None]:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> None:
-            sig = inspect.signature(func)
-            num_params = len(sig.parameters)
-            func(*args[:num_params], **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-transformerman.ui.ui_utilities.debounce = mock_debounce
-
 from aqt.qt import QWidget, QMessageBox
 
+import transformerman.ui.ui_utilities
 from transformerman.lib.lm_clients import DummyLMClient, ApiKey, ModelName
+
 if TYPE_CHECKING:
     from collections.abc import Generator
     from pytestqt.qtbot import QtBot
+
+
+def patch_utils() -> None:
+    aqt.utils.showInfo = MagicMock()
+    aqt.utils.showWarning = MagicMock()
+
+
+def patch_debounce() -> None:
+    def mock_debounce(wait_ms: int) -> Callable[[Callable[..., Any]], Callable[..., None]]:
+        """Mock debounce that executes immediately."""
+        def decorator(func: Callable[..., Any]) -> Callable[..., None]:
+            @wraps(func)
+            def wrapper(*args: Any, **kwargs: Any) -> None:
+                sig = inspect.signature(func)
+                num_params = len(sig.parameters)
+                func(*args[:num_params], **kwargs)
+
+            return wrapper
+
+        return decorator
+
+    transformerman.ui.ui_utilities.debounce = mock_debounce
+
+
+patch_utils()
+patch_debounce()
 
 
 @pytest.fixture(autouse=True)
