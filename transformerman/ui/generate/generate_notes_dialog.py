@@ -37,6 +37,7 @@ from ...lib.selected_notes import NoteModel
 from ...lib.selected_notes import SelectedNotes
 from ...lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
 from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
+from ..ui_utilities import debounce
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -77,6 +78,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         self.notes_generator = GeneratingNotesManager(col, lm_client, self.middleware, self.addon_config)
         self._is_locked_by_context = False
         self._last_source_text_value = ""  # Track last loaded/saved text to avoid overwriting unsaved changes
+        self._prompt_too_large = False
 
         self.setWindowTitle("TransformerMan: Generate notes")
         self.setMinimumWidth(800)
@@ -130,6 +132,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         self.source_text_edit = QTextEdit()
         self.source_text_edit.setPlaceholderText("Enter text to generate notes from (optional)...")
         input_layout.addWidget(self.source_text_edit)
+        self.source_text_edit.textChanged.connect(self._check_current_prompt_length)
         top_layout.addLayout(input_layout, 2)
 
         # Field Selection Section
@@ -142,6 +145,13 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         top_layout.addLayout(field_layout, 1)
 
         layout.addLayout(top_layout)
+
+        # Warning label for source text length
+        self.source_text_warning_label = QLabel()
+        self.source_text_warning_label.setStyleSheet("color: orange;")
+        self.source_text_warning_label.setWordWrap(True)
+        self.source_text_warning_label.setVisible(False)
+        layout.addWidget(self.source_text_warning_label)
 
         # Settings Section
         settings_layout = QHBoxLayout()
@@ -199,18 +209,64 @@ class GenerateNotesDialog(TransformerManBaseDialog):
     def _update_buttons_state(self) -> None:
         """Update the enabled/disabled state of all buttons based on current state."""
         self.create_btn.setEnabled(self.table.rowCount() > 0)
+        self.generate_btn.setEnabled(not self._prompt_too_large)
+
+    def _get_current_prompt_length(self) -> int | None:
+        """Get the length of the prompt that would be generated with current settings, or None if cannot determine."""
+        text = self.source_text_edit.toPlainText().strip()
+        if not text:
+            return None
+
+        model = self._get_selected_note_type()
+        if not model:
+            return None
+
+        deck_name = self.deck_combo.currentText()
+        selected_fields = self._get_selected_fields()
+        filtered_examples = self.example_notes.filter_by_note_type(model)
+
+        # Build prompt and return length
+        prompt = self.notes_generator.generator.prompt_builder.build_prompt(
+            source_text=text,
+            note_type=model,
+            deck_name=deck_name,
+            target_count=self.count_spin.value(),
+            selected_fields=selected_fields,
+            example_notes=filtered_examples,
+            max_examples=self.addon_config.get_max_examples(),
+        )
+        return len(prompt)
+
+    @debounce(300)
+    def _check_current_prompt_length(self) -> None:
+        prompt_length = self._get_current_prompt_length()
+        self._prompt_too_large = False
+        if prompt_length is not None:
+            max_size = self.addon_config.get_max_prompt_size()
+            if prompt_length > max_size:
+                warning_text = f"Warning: Generated prompt ({prompt_length:,} chars) exceeds max prompt size ({max_size:,} chars)."
+                self.source_text_warning_label.setText(warning_text)
+                self._prompt_too_large = True
+
+        self.source_text_warning_label.setVisible(self._prompt_too_large)
+        self._update_state()
 
     def _on_deck_changed(self) -> None:
         """Handle deck selection change."""
         self._load_source_text()
         self._update_state()
 
-    def _get_source_text_config_key(self, include_deck: bool = True) -> str | None:
-        """Get the config key for the source text."""
+    def _get_selected_note_type(self) -> NoteModel | None:
+        """Get the currently selected note type model."""
         note_type_name = self.note_type_combo.currentText()
         if not note_type_name:
             return None
         model = NoteModel.by_name(self.col, note_type_name)
+        return model
+
+    def _get_source_text_config_key(self, include_deck: bool = True) -> str | None:
+        """Get the config key for the source text."""
+        model = self._get_selected_note_type()
         if not model:
             return None
 
@@ -233,8 +289,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
     def _load_source_text(self) -> None:
         """Load source text from config."""
-        note_type_name = self.note_type_combo.currentText()
-        model = NoteModel.by_name(self.col, note_type_name)
+        model = self._get_selected_note_type()
         if not model:
             return
 
@@ -311,14 +366,16 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
     def _update_stats_widget(self) -> None:
         """Update the stats widget."""
-        note_type_name = self.note_type_combo.currentText()
-        model = NoteModel.by_name(self.col, note_type_name)
+        model = self._get_selected_note_type()
 
         total_count = 0
         if model and self.example_notes:
             total_count = len(self.example_notes.filter_by_note_type(model))
 
         note_text = "note" if total_count == 1 else "notes"
+
+        def on_close() -> None:
+            self._check_current_prompt_length()
 
         def on_client_updated(new_lm_client: LMClient) -> None:
             self.lm_client = new_lm_client
@@ -327,7 +384,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             self._update_state()
 
         def open_dialog() -> None:
-            open_config_dialog(self, self.addon_config, on_client_updated)
+            open_config_dialog(self, self.addon_config, on_client_updated, on_close)
 
         show_model = bool(self.lm_client.get_model())
 
@@ -340,8 +397,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
 
     def _on_note_type_changed(self) -> None:
         # Update table columns and field list when note type changes
-        note_type_name = self.note_type_combo.currentText()
-        model = NoteModel.by_name(self.col, note_type_name)
+        model = self._get_selected_note_type()
         if model:
             fields = model.get_fields()
 
@@ -479,10 +535,9 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             showInfo("No notes to create.", parent=self)
             return
 
-        note_type_name = self.note_type_combo.currentText()
         deck_name = self.deck_combo.currentText()
 
-        model = NoteModel.by_name(self.col, note_type_name)
+        model = self._get_selected_note_type()
         if not model:
             return
 

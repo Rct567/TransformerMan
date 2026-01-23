@@ -192,6 +192,7 @@ def open_config_dialog(
     parent: QWidget,
     addon_config: AddonConfig,
     on_client_updated: Callable[[LMClient], None],
+    on_close: Callable[[], None] | None = None,
 ) -> None:
     """Open the addon configuration dialog."""
     SettingsDialog(parent=parent, addon_config=addon_config).exec()
@@ -204,3 +205,6 @@ def open_config_dialog(
         return
     if new_lm_client:
         on_client_updated(new_lm_client)
+
+    if on_close:
+        on_close()
