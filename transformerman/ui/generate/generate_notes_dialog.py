@@ -206,6 +206,8 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             selected_fields = self._get_selected_fields()
             self.table.update_columns(selected_fields)
 
+        assert self.table.rowCount() == 0 or is_locked, "Table should be empty if not locked by context."
+
     def _update_buttons_state(self) -> None:
         """Update the enabled/disabled state of all buttons based on current state."""
         self.create_btn.setEnabled(self.table.rowCount() > 0)
@@ -478,11 +480,10 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             self.generate_btn.setEnabled(True)
             self.generate_btn.setText("Generate notes")
             if notes or ignored_count > 0:
-                # Lock note type, deck and field selection after first successful generation
-                if not self._is_locked_by_context:
-                    self._is_locked_by_context = (model, deck_name)
-
                 if notes:
+                    if not self._is_locked_by_context:  # Lock note type, deck and field selection after first successful generation
+                        self._is_locked_by_context = (model, deck_name)
+
                     start_row = self.table.rowCount()
                     self.table.append_notes(notes)
                     self.table.highlight_duplicates(duplicates, start_row=start_row)
