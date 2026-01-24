@@ -86,7 +86,7 @@ class TestGenerateNotesDialog:
         # check prompt
         qtbot.waitUntil(lambda: dialog.notes_generator.generator.prompt is not None)
         assert dialog.notes_generator.generator.prompt
-        assert dialog.notes_generator.generator.prompt.count("<note nid=") == max_examples
+        assert dialog.notes_generator.generator.prompt.count("<note>") == max_examples+1
 
         assert dialog.create_btn.isEnabled()  # create button should be enabled now
         assert dialog.generate_btn.isEnabled()

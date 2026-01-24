@@ -91,7 +91,7 @@ class GenerationPromptBuilder(PromptBuilder):
 
         if notes_from_examples:
             parts.append("Here are some existing notes of this type from the collection to show the desired style and level of detail:")
-            parts.append(self.format_notes_as_xml(notes_from_examples, note_type, field_names))
+            parts.append(self.format_notes_as_xml(notes_from_examples, note_type, field_names, include_nid=False))
             parts.append("")
 
         if source_text:

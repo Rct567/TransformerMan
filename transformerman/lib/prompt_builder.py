@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class PromptBuilder:
     """Base class for building prompts for the language model."""
 
-    note_xml_cache: dict[tuple[NoteId, tuple[str, ...], tuple[str, ...], bool], str]
+    note_xml_cache: dict[tuple[NoteId, tuple[str, ...], tuple[str, ...], bool, bool], str]
 
     def __init__(self, col: Collection) -> None:
         self.col = CollectionData(col)
@@ -135,12 +135,16 @@ class PromptBuilder:
         return [note for _, _, note in scored_candidates[:max_examples]]
 
     def format_note_as_xml(
-        self, note: Note, fields_included: Sequence[str], leave_empty: Sequence[str] | None, include_deck: bool = True
+        self,
+        note: Note,
+        fields_included: Sequence[str],
+        leave_empty: Sequence[str] | None,
+        include_deck: bool = True,
+        include_nid: bool = True,
     ) -> str:
         """Format a single note as XML with caching."""
         # Create cache key
-        cache_key = (note.id, tuple(fields_included), tuple(leave_empty or []), include_deck)
-
+        cache_key = (note.id, tuple(fields_included), tuple(leave_empty or []), include_deck, include_nid)
         # Check cache
         if cache_key in self.note_xml_cache:
             return self.note_xml_cache[cache_key]
@@ -148,11 +152,16 @@ class PromptBuilder:
         # Get deck name
         deck_name = self.col.get_deck_name_for_note(note)
 
+        if include_nid:
+            id_attr = f' nid="{note.id}"'
+        else:
+            id_attr = ""
+
         # Build XML lines for this note
         if include_deck:
-            lines = [f'  <note nid="{note.id}" deck="{escape_xml_content(deck_name)}">']
+            lines = [f'  <note{id_attr} deck="{escape_xml_content(deck_name)}">']
         else:
-            lines = [f'  <note nid="{note.id}">']
+            lines = [f"  <note{id_attr}>"]
 
         # Add included fields
         for field_name in fields_included:
@@ -177,6 +186,7 @@ class PromptBuilder:
         note_type: NoteModel,
         fields_included: Sequence[str],
         leave_empty: Sequence[str] | None = None,
+        include_nid: bool = True,
     ) -> str:
         """
         Format notes as XML-like structure.
@@ -186,6 +196,7 @@ class PromptBuilder:
             note_type: Note type of the notes.
             fields_included: Sequence of field names to include.
             leave_empty: Included field names to leave empty (optional).
+            include_nid: Whether to include note IDs in the output.
 
         Returns:
             XML-like string representation.
@@ -209,7 +220,9 @@ class PromptBuilder:
 
         # Add notes
         for note in notes:
-            lines.append(self.format_note_as_xml(note, fields_included, leave_empty, include_deck=(common_deck is None)))
+            lines.append(
+                self.format_note_as_xml(note, fields_included, leave_empty, include_deck=(common_deck is None), include_nid=include_nid)
+            )
 
         lines.append("</notes>")
 

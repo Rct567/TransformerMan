@@ -6,23 +6,23 @@ Available Fields: Front, Back
 
 Here are some existing notes of this type from the collection to show the desired style and level of detail:
 <notes model="Basic" deck="decka">
-  <note nid="1701890446032">
+  <note>
     <field name="Front">aaaa aaaa hh aaaa aa aa aaaa 4</field>
     <field name="Back">aa aa aa aa hh</field>
   </note>
-  <note nid="1701890435655">
+  <note>
     <field name="Front">aaaa&amp;nbsp; hhh aaaa aaaa aa aa aaaa car</field>
     <field name="Back">aa aa aa aa</field>
   </note>
-  <note nid="1701890440810">
+  <note>
     <field name="Front">aaaa aaaa aaaa aa aa aaaa car</field>
     <field name="Back">aa aa aa aa</field>
   </note>
-  <note nid="1701890444014">
+  <note>
     <field name="Front">aaaa aaaa aaaa aa aa aaaa 3</field>
     <field name="Back">aa aa aa aa</field>
   </note>
-  <note nid="1701890448066">
+  <note>
     <field name="Front">aaaa aaaa aaaa aa aa aaaa 5</field>
     <field name="Back">aa aa aa aa</field>
   </note>
