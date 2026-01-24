@@ -29,6 +29,7 @@ from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
 from ..prompt_preview_dialog import PromptPreviewDialog
 
 from .transforming_notes import TransformingNotesManager
+from ..ui_utilities import celebrate_milestone
 from ...lib.response_middleware import LogLastRequestResponseMiddleware, CacheResponseMiddleware, ResponseMiddleware
 from ...lib.selected_notes import SelectedNotes, NoteModel
 
@@ -628,6 +629,17 @@ class TransformNotesDialog(TransformerManBaseDialog):
 
             if updated > 0:
                 showInfo(f"Successfully applied changes to {updated} notes.", parent=self)
+
+                # Milestone tracking
+                old_count, new_count = self.addon_config.increase_counter("notes_transformed_count", updated)
+                milestone = self.addon_config.get_milestone_reached(old_count, new_count)
+
+                if milestone:
+                    celebrate_milestone(
+                        f"You have transformed {new_count:,} notes! ✨",
+                        addon_config=self.addon_config,
+                        parent=self,
+                    )
             else:
                 showInfo(f"No notes were updated. {failed} notes failed.", parent=self)
 

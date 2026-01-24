@@ -269,6 +269,37 @@ class AddonConfig:
         client = client_class(api_key, model, self.get_timeout(), self.get_connect_timeout(), custom_settings)
         return client, None
 
+    def increase_counter(self, key: str, amount: int = 1) -> tuple[int, int]:
+        """Increment a counter and return (old_count, new_count)."""
+        if self._config is None:
+            self.load()
+
+        old_count = self.get(key, 0)
+        if not isinstance(old_count, int):
+            old_count = 0
+
+        new_count = old_count + amount
+        self.update_setting(key, new_count)
+
+        return old_count, new_count
+
+    def get_milestone_reached(self, old_count: int, new_count: int) -> Optional[int]:
+        """Check if a milestone was reached between old and new counts."""
+
+        milestones = [100, 1_000, 10_000, 50_000]
+        for milestone in milestones:
+            if old_count < milestone <= new_count:
+                return milestone
+        return None
+
+    def should_ask_for_review(self) -> bool:
+        """Check if we should ask the user for a review."""
+        return self.is_enabled("ask_for_review", default=True)
+
+    def disable_review_requests(self) -> None:
+        """Disable future review requests."""
+        self.update_setting("ask_for_review", False)
+
     @staticmethod
     def from_anki_main_window(mw: AnkiQt) -> AddonConfig:
 

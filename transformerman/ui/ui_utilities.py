@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Callable, TypeVar
 
-from aqt.qt import QIcon
+from aqt.qt import QIcon, QMessageBox, QApplication, QStyle
 
 from typing_extensions import ParamSpec, Any
 
@@ -18,7 +18,10 @@ from aqt.qt import QTimer
 import inspect
 
 if TYPE_CHECKING:
-    from aqt.qt import QAction, QMenu
+    from aqt.qt import QAction, QMenu, QWidget
+    from ..lib.addon_config import AddonConfig
+
+from aqt.utils import openLink, ButtonedDialog
 
 
 def get_tm_icon(dark_mode: bool) -> QIcon:
@@ -176,3 +179,36 @@ class EventManager:
         if event_type in self._listeners:
             for listener in self._listeners[event_type]:
                 listener(event)  # type: ignore
+
+
+def milestone_dialog(text: str, buttons: list[str], parent: QWidget | None = None) -> str:
+
+    dialog = ButtonedDialog(text, buttons, parent=parent)
+
+    dialog.setIcon(QMessageBox.Icon.Information)
+
+    if (style := QApplication.style()):
+        icon = style.standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
+        if not icon.isNull():
+            dialog.setIconPixmap(icon.pixmap(64, 64))
+
+    return dialog.run()
+
+
+def celebrate_milestone(message: str, addon_config: AddonConfig, parent: QWidget) -> None:
+    """Show celebration message and ask for review if appropriate."""
+    title = "New milestone achieved!"
+    full_message = f"{title}\n\n{message}"
+
+    if addon_config.should_ask_for_review():
+        full_message += "\n\nWould you like to leave a review on AnkiWeb?\n\n"
+        buttons = ["Yes", "No", "Maybe later"]
+        choice = milestone_dialog(full_message, buttons=buttons, parent=parent)
+
+        if choice == "Yes":
+            openLink("https://ankiweb.net/shared/info/1033047802")
+            addon_config.disable_review_requests()
+        elif choice == "No":
+            addon_config.disable_review_requests()
+    else:
+        milestone_dialog(full_message, buttons=["OK"], parent=parent)

@@ -37,7 +37,7 @@ from ...lib.selected_notes import NoteModel
 from ...lib.selected_notes import SelectedNotes
 from ...lib.response_middleware import LogLastRequestResponseMiddleware, ResponseMiddleware
 from ..stats_widget import StatsWidget, StatKeyValue, open_config_dialog
-from ..ui_utilities import debounce
+from ..ui_utilities import debounce, celebrate_milestone
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -549,6 +549,17 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         def on_success(notes: list[Note]) -> None:
             count = len(notes)
             showInfo(f"Successfully added {count} notes to deck '{deck_name}'.", parent=self)
+
+            # Milestone tracking
+            old_count, new_count = self.addon_config.increase_counter("notes_generated_count", count)
+            milestone = self.addon_config.get_milestone_reached(old_count, new_count)
+
+            if milestone:
+                celebrate_milestone(
+                    f"You have generated {new_count:,} notes! 🚀",
+                    addon_config=self.addon_config,
+                    parent=self,
+                )
 
             # Clear table and update UI state
             self.table.set_notes([])
