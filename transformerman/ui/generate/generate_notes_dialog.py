@@ -552,12 +552,13 @@ class GenerateNotesDialog(TransformerManBaseDialog):
             showInfo(f"Successfully added {count} notes to deck '{deck_name}'.", parent=self)
 
             # Milestone tracking
-            old_count, new_count = self.addon_config.increase_counter("notes_generated_count", count)
+            self.addon_config.increase_counter("notes_generated_count", count)
+            old_count, new_count = self.addon_config.increase_counter("times_notes_generated")
             milestone = self.addon_config.get_milestone_reached(old_count, new_count)
 
             if milestone:
                 celebrate_milestone(
-                    f"You have generated {new_count:,} notes! 🚀",
+                    f"You have generated notes {new_count:,} times! 🚀",
                     addon_config=self.addon_config,
                     parent=self,
                 )

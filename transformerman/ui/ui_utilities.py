@@ -197,18 +197,19 @@ def milestone_dialog(text: str, buttons: list[str], parent: QWidget | None = Non
 
 def celebrate_milestone(message: str, addon_config: AddonConfig, parent: QWidget) -> None:
     """Show celebration message and ask for review if appropriate."""
-    title = "New milestone achieved!"
-    full_message = f"{title}\n\n{message}"
+    full_message = f"New milestone achieved!\n\n{message}"
+
+    num_notes_generated = addon_config.get("notes_generated_count", 0)
+    num_notes_transformed = addon_config.get("notes_transformed_count", 0)
+    full_message += f"\n\nNotes generated: {num_notes_generated:,}, notes transformed: {num_notes_transformed:,}."
 
     if addon_config.should_ask_for_review():
-        full_message += "\n\nWould you like to leave a review on AnkiWeb?\n\n"
-        buttons = ["Yes", "No", "Maybe later"]
+        full_message += "\n\nWould you like to leave a review on AnkiWeb?"
+        buttons = ["Sure!", "Maybe next time"]
         choice = milestone_dialog(full_message, buttons=buttons, parent=parent)
 
-        if choice == "Yes":
+        if choice == "Sure!":
             openLink("https://ankiweb.net/shared/info/1033047802")
-            addon_config.disable_review_requests()
-        elif choice == "No":
             addon_config.disable_review_requests()
     else:
         milestone_dialog(full_message, buttons=["OK"], parent=parent)

@@ -631,12 +631,13 @@ class TransformNotesDialog(TransformerManBaseDialog):
                 showInfo(f"Successfully applied changes to {updated} notes.", parent=self)
 
                 # Milestone tracking
-                old_count, new_count = self.addon_config.increase_counter("notes_transformed_count", updated)
+                self.addon_config.increase_counter("notes_transformed_count", updated)
+                old_count, new_count = self.addon_config.increase_counter("times_notes_transformed")
                 milestone = self.addon_config.get_milestone_reached(old_count, new_count)
 
                 if milestone:
                     celebrate_milestone(
-                        f"You have transformed {new_count:,} notes! ✨",
+                        f"You have transformed notes {new_count:,} times! ✨",
                         addon_config=self.addon_config,
                         parent=self,
                     )

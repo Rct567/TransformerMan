@@ -220,43 +220,37 @@ class TestAddonConfig:
         """Comprehensive test for the milestone system."""
         # Initial state
         assert empty_addon_config.should_ask_for_review() is True
-        assert empty_addon_config.get("notes_generated_count", 0) == 0
+        assert empty_addon_config.get("times_notes_generated", 0) == 0
 
         # 1. Increment counter, no milestone
-        old_count, new_count = empty_addon_config.increase_counter("notes_generated_count", 50)
+        old_count, new_count = empty_addon_config.increase_counter("times_notes_generated")
         milestone = empty_addon_config.get_milestone_reached(old_count, new_count)
         assert milestone is None
         assert old_count == 0
-        assert new_count == 50
+        assert new_count == 1
 
-        # 2. Reach first milestone (100)
-        old_count, new_count = empty_addon_config.increase_counter("notes_generated_count", 50)
+        # 2. Reach first milestone (10)
+        old_count, new_count = empty_addon_config.increase_counter("times_notes_generated", 10)
         milestone = empty_addon_config.get_milestone_reached(old_count, new_count)
-        assert milestone == 100
-        assert old_count == 50
-        assert new_count == 100
+        assert milestone == 10
+        assert old_count == 1
+        assert new_count == 11
 
         # 3. Increment more, no new milestone
-        old_count, new_count = empty_addon_config.increase_counter("notes_generated_count", 100)
+        old_count, new_count = empty_addon_config.increase_counter("times_notes_generated")
         milestone = empty_addon_config.get_milestone_reached(old_count, new_count)
         assert milestone is None
-        assert old_count == 100
-        assert new_count == 200
+        assert old_count == 11
+        assert new_count == 12
 
-        # 4. Reach second milestone (1,000)
-        old_count, new_count = empty_addon_config.increase_counter("notes_generated_count", 800)
+        # 4. Reach second milestone (100)
+        old_count, new_count = empty_addon_config.increase_counter("times_notes_generated", 100)
         milestone = empty_addon_config.get_milestone_reached(old_count, new_count)
-        assert milestone == 1_000
-        assert old_count == 200
-        assert new_count == 1000
+        assert milestone == 100
+        assert old_count == 12
+        assert new_count == 112
 
         # 5. Test review request logic
         assert empty_addon_config.should_ask_for_review() is True
         empty_addon_config.disable_review_requests()
-        assert empty_addon_config.should_ask_for_review() is False
-
-        # 6. Reach third milestone (10,000) - review request should still be disabled
-        old_count, new_count = empty_addon_config.increase_counter("notes_generated_count", 9000)
-        milestone = empty_addon_config.get_milestone_reached(old_count, new_count)
-        assert milestone == 10_000
         assert empty_addon_config.should_ask_for_review() is False

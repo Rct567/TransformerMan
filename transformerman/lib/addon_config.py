@@ -286,7 +286,7 @@ class AddonConfig:
     def get_milestone_reached(self, old_count: int, new_count: int) -> Optional[int]:
         """Check if a milestone was reached between old and new counts."""
 
-        milestones = [100, 1_000, 10_000, 50_000]
+        milestones = [10, 100, 500, 1_000, 10_000, 50_000]
         for milestone in milestones:
             if old_count < milestone <= new_count:
                 return milestone
