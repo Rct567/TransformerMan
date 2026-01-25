@@ -49,24 +49,28 @@ class AddonConfig:
         self._config = None
         self.load()
 
-    def __getitem__(self, key: str) -> JSON_TYPE:
+    def load_if_needed(self) -> None:
         if self._config is None:
-            raise ValueError("Config not loaded!")
+            self.load()
+
+    def __getitem__(self, key: str) -> JSON_TYPE:
+        self.load_if_needed()
+        assert self._config is not None
         return self._config[key]
 
-    def get(self, key: str, default: JSON_TYPE) -> JSON_TYPE:
-        if self._config is None:
-            raise ValueError("Config not loaded!")
-        return self._config.get(key, default)
-
     def __contains__(self, key: str) -> bool:
-        if self._config is None:
-            raise ValueError("Config not loaded!")
+        self.load_if_needed()
+        assert self._config is not None
         return key in self._config
 
+    def get(self, key: str, default: JSON_TYPE) -> JSON_TYPE:
+        self.load_if_needed()
+        assert self._config is not None
+        return self._config.get(key, default)
+
     def is_enabled(self, key: str, default: bool = False) -> bool:
-        if self._config is None:
-            raise ValueError("Config not loaded!")
+        self.load_if_needed()
+        assert self._config is not None
         if key not in self._config:
             return default
         val = self._config[key]
@@ -77,17 +81,14 @@ class AddonConfig:
         return default
 
     def update_setting(self, key: str, value: Union[bool, int, float, str, list[Any], dict[str, Any]]) -> None:
-        if self._config is None:
-            raise ValueError("Config not loaded!")
+        self.load_if_needed()
+        assert self._config is not None
         self._config[key] = value
         self._config_save(self._config)
 
     def get_api_key(self, client_id: str) -> ApiKey:
         """Get the API key for a specific LM client."""
-        if self._config is None:
-            self.load()
-
-        # After load(), _config should not be None
+        self.load_if_needed()
         assert self._config is not None
 
         # client-specific key (e.g., "openai_api_key")
@@ -99,45 +100,24 @@ class AddonConfig:
 
     def get_model(self, client_id: str) -> str:
         """Get the model for a specific LM client."""
-        if self._config is None:
-            self.load()
-
-        # After load(), _config should not be None
-        assert self._config is not None
-
         model_key = f"{client_id}_model"
         return str(self.get(model_key, ""))
 
     def set_model(self, client_id: str, model: str) -> None:
         """Set the model for a specific LM client."""
-        if self._config is None:
-            self.load()
 
-        # After load(), _config should not be None
-        assert self._config is not None
-
-        # Store with client-specific prefix
-        model_key = f"{client_id}_model"
+        model_key = f"{client_id}_model"  # Store with client-specific prefix
         self.update_setting(model_key, model)
 
     def set_api_key(self, client_id: str, api_key: str) -> None:
         """Set the API key for a specific LM client."""
-        if self._config is None:
-            self.load()
 
-        # After load(), _config should not be None
-        assert self._config is not None
-
-        # Store with client-specific prefix
-        client_key = f"{client_id}_api_key"
+        client_key = f"{client_id}_api_key"  # Store with client-specific prefix
         self.update_setting(client_key, api_key)
 
     def get_custom_client_settings(self, client_id: str) -> dict[str, str]:
         """Get custom settings for a specific LM client."""
-        if self._config is None:
-            self.load()
-
-        # After load(), _config should not be None
+        self.load_if_needed()
         assert self._config is not None
 
         custom_settings = {}
@@ -152,24 +132,11 @@ class AddonConfig:
 
     def set_custom_client_setting(self, client_id: str, setting_name: str, setting_value: str) -> None:
         """Set a custom setting for a specific LM client."""
-        if self._config is None:
-            self.load()
-
-        # After load(), _config should not be None
-        assert self._config is not None
-
-        # Store with client-specific prefix
-        client_key = f"{client_id}_custom_{setting_name}"
+        client_key = f"{client_id}_custom_{setting_name}"  # Store with client-specific prefix
         self.update_setting(client_key, setting_value)
 
     def set_custom_client_settings(self, client_id: str, settings: dict[str, str]) -> None:
         """Set multiple custom settings for a specific LM client."""
-        if self._config is None:
-            self.load()
-
-        # After load(), _config should not be None
-        assert self._config is not None
-
         for setting_name, setting_value in settings.items():
             self.set_custom_client_setting(client_id, setting_name, setting_value)
 
@@ -212,18 +179,11 @@ class AddonConfig:
         return self._get_int_setting("connect_timeout", DEFAULT_CONNECT_TIMEOUT)
 
     def get_max_examples(self) -> int:
-        """Get the maximum number of few-shot examples to include in the prompt.
-
-        Few-shot examples help the model understand the desired output format and style.
-        """
+        """Get the maximum number of few-shot examples to include in the prompt."""
         return self._get_int_setting("max_examples", DEFAULT_MAX_EXAMPLES, min_val=0)
 
     def get_num_cache_responses(self) -> int:
-        """Get the number of API responses to cache.
-
-        Caching responses helps avoid redundant API calls for identical prompts,
-        saving time and reducing costs. Set to 0 to disable caching.
-        """
+        """Get the number of API responses to cache."""
         if self._config and "cache_responses" in self._config and self._config["cache_responses"] is False:
             self._config["cache_responses"] = 0
 
@@ -231,8 +191,6 @@ class AddonConfig:
 
     def get_client(self) -> tuple[LMClient, None] | tuple[None, AddonConfigError]:
         """Return the configured LM client, or None if the client is unknown."""
-        if self._config is None:
-            self.load()
 
         # Lm client name
         client_name = self.get("lm_client", None)
@@ -271,9 +229,6 @@ class AddonConfig:
 
     def increase_counter(self, key: str, amount: int = 1) -> tuple[int, int]:
         """Increment a counter and return (old_count, new_count)."""
-        if self._config is None:
-            self.load()
-
         old_count = self.get(key, 0)
         if not isinstance(old_count, int):
             old_count = 0

@@ -144,21 +144,6 @@ class TestAddonConfig:
         """Test __getitem__ method."""
         assert addon_config_with_data["batch_size"] == 5
 
-    def test_error_when_config_not_loaded(self) -> None:
-        """Test that methods raise ValueError when config is not loaded."""
-
-        def loader() -> dict[str, JSON_TYPE]:
-            return {}
-
-        def saver(config: dict[str, JSON_TYPE]) -> None:
-            pass
-
-        addon_config = AddonConfig(loader, saver)
-        # Don't call load()
-
-        with pytest.raises(ValueError, match="Config not loaded!"):
-            addon_config.is_enabled("feature")
-
     def test_reload(self) -> None:
         """Test reload method."""
         current_data: dict[str, JSON_TYPE] = {"gemini_api_key": "initial"}
