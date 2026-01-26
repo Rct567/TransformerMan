@@ -17,6 +17,16 @@ if TYPE_CHECKING:
     from aqt.qt import QCloseEvent
 
 
+tm_version: str
+
+try:
+    from ..version import TRANSFORMERMAN_VERSION
+
+    tm_version = TRANSFORMERMAN_VERSION
+except ImportError:
+    tm_version = ""
+
+
 class TransformerManBaseDialog(QDialog):
     """Base dialog for TransformerMan with geometry saving/restoring."""
 
@@ -35,6 +45,14 @@ class TransformerManBaseDialog(QDialog):
         # Generate a unique geometry key based on the class name
         geometry_key = f"transformerman_{self.__class__.__name__}"
         restoreGeom(self, geometry_key)
+
+    def set_title(self, title: str, add_version: bool = True) -> None:
+        """Set the title of the dialog."""
+        assert "TransformerMan" not in title
+        title_prefix = "TransformerMan"
+        if add_version and tm_version != "":
+            title_prefix = f"{title_prefix} v{tm_version}"
+        self.setWindowTitle(f"{title_prefix}: {title}")
 
     @override
     def closeEvent(self, a0: QCloseEvent | None) -> None:

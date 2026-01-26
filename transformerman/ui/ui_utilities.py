@@ -113,6 +113,7 @@ def debounce(wait_ms: int) -> Callable[[Callable[P, Any]], Callable[P, None]]:
             # Signal arguments are automatically ignored
             print("Something changed")
     """
+
     def decorator(func: Callable[P, Any]) -> Callable[P, None]:
         timer: QTimer | None = None
         pending_call: tuple[tuple[Any, ...], dict[str, Any]] | None = None
@@ -152,6 +153,7 @@ def debounce(wait_ms: int) -> Callable[[Callable[P, Any]], Callable[P, None]]:
             timer.start(int(wait_ms))
 
         return wrapper
+
     return decorator
 
 
@@ -187,7 +189,7 @@ def milestone_dialog(text: str, buttons: list[str], parent: QWidget | None = Non
 
     dialog.setIcon(QMessageBox.Icon.Information)
 
-    if (style := QApplication.style()):
+    if style := QApplication.style():
         icon = style.standardIcon(QStyle.StandardPixmap.SP_DialogApplyButton)
         if not icon.isNull():
             dialog.setIconPixmap(icon.pixmap(64, 64))

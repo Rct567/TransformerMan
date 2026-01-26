@@ -37,7 +37,7 @@ class TestSettingsDialog:
         assert dialog.addon_config is addon_config
 
         # Dialog should have correct title
-        assert dialog.windowTitle() == "TransformerMan API Settings"
+        assert "Settings" in dialog.windowTitle()
 
         # Should have minimum width set
         assert dialog.minimumWidth() >= 400

@@ -80,7 +80,7 @@ class GenerateNotesDialog(TransformerManBaseDialog):
         self._last_source_text_value = ""  # Track last loaded/saved text to avoid overwriting unsaved changes
         self._prompt_too_large = False
 
-        self.setWindowTitle("TransformerMan: Generate notes")
+        self.set_title("Generate notes")
         self.setMinimumWidth(800)
         self.setMinimumHeight(600)
 

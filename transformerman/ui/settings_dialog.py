@@ -56,7 +56,7 @@ class SettingsDialog(TransformerManBaseDialog):
 
     def _setup_ui(self) -> None:
         """Setup the UI components."""
-        self.setWindowTitle("TransformerMan API Settings")
+        self.set_title("Settings", add_version=False)
         self.setMinimumWidth(400)
 
         # Main layout with stretch to control resizing

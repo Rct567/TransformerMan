@@ -46,13 +46,6 @@ if TYPE_CHECKING:
     from ...lib.field_updates import FieldUpdates
     from ...lib.transform_operations import TransformResults
 
-try:
-    from ...version import TRANSFORMERMAN_VERSION
-
-    tm_version = TRANSFORMERMAN_VERSION
-except ImportError:
-    tm_version = ""
-
 
 class TransformNotesDialog(TransformerManBaseDialog):
     """Main dialog for transforming notes (TransformerMan > Fill fields)."""
@@ -133,10 +126,7 @@ class TransformNotesDialog(TransformerManBaseDialog):
     def _setup_ui(self) -> None:
         """Setup the UI components."""
 
-        if tm_version != "":
-            self.setWindowTitle("TransformerMan v" + tm_version)
-        else:
-            self.setWindowTitle("TransformerMan")
+        self.set_title("Transform notes")
 
         self.setMinimumWidth(500)
         self.setMinimumHeight(400)
