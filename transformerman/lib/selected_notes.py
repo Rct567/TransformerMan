@@ -1,4 +1,4 @@
-""""
+"""
 TransformerMan by Rick Zuidhoek. Licensed under the GNU GPL-3.0.
 See <https://www.gnu.org/licenses/gpl-3.0.html> for details.
 """
@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 
 
 class SelectedNotes:
-    """Manages selected notes for transformation."""
+    """Manages selected notes for transformation or generation.
+    It is also used to represent the notes/cards the user selected in the Anki Card Browser."""
 
     _note_ids: Sequence[NoteId]
     _card_ids: Sequence[CardId] | None
