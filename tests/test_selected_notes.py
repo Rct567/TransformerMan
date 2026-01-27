@@ -964,6 +964,64 @@ class TestSelectedNotes:
         assert single_card_ids is not None
         assert set(single_card_ids) == set(expected_card_ids_4)
 
+    @with_test_collection("two_deck_collection")
+    def test_slicing_and_indexing(
+        self,
+        col: TestCollection,
+    ) -> None:
+        """Test slicing and indexing return Self type with proper data."""
+        note_ids = col.find_notes("")
+        all_card_ids = [cid for nid in note_ids for cid in col.get_note(nid).card_ids()]
+        selected_notes = SelectedNotes(col, note_ids, card_ids=all_card_ids)
+
+        # Test slice returns correct type and data
+        sliced = selected_notes[0:3]
+        assert type(sliced) is SelectedNotes
+        assert len(sliced) == 3
+        assert list(sliced.get_ids()) == list(note_ids[0:3])
+
+        # Test negative slice
+        last_two = selected_notes[-2:]
+        assert len(last_two) == 2
+
+        # Test step slice
+        every_other = selected_notes[::2]
+        assert len(every_other) == len(note_ids[0::2])
+
+        # Test integer indexing returns SelectedNotes with single note
+        first = selected_notes[0]
+        assert type(first) is SelectedNotes
+        assert len(first) == 1
+        assert list(first.get_ids()) == [note_ids[0]]
+
+        # Test negative indexing
+        last = selected_notes[-1]
+        assert len(last) == 1
+        assert list(last.get_ids()) == [note_ids[-1]]
+
+        # Test card_ids are preserved and filtered
+        sliced_card_ids = sliced.get_selected_card_ids()
+        expected_card_ids = [cid for nid in note_ids[0:3] for cid in col.get_note(nid).card_ids()]
+        assert sliced_card_ids is not None
+        assert set(sliced_card_ids) == set(expected_card_ids)
+
+        # Test parent is preserved
+        assert sliced.parent() is selected_notes
+        assert first.parent() is selected_notes
+
+        # Test SelectedNotesFromType preserves note_type
+        note_type = NoteModel.by_name(col, "Basic")
+        assert note_type
+        selected_from_type = selected_notes.filter_by_note_type(note_type)
+
+        sliced_from_type = selected_from_type[0:2]
+        assert type(sliced_from_type) is SelectedNotesFromType
+        assert sliced_from_type.note_type == note_type
+
+        first_from_type = selected_from_type[0]
+        assert type(first_from_type) is SelectedNotesFromType
+        assert first_from_type.note_type == note_type
+
 
 class TestSelectedNotesFromNote:
     """Test class for SelectedNotesFromNote."""

@@ -373,6 +373,14 @@ class SelectedNotes:
         """Return the number of notes in the selection."""
         return len(self._note_ids)
 
+    def __getitem__(self, key: int | slice) -> Self:
+        """Support indexing and slicing, returning a new SelectedNotes instance."""
+        if isinstance(key, slice):
+            sliced_ids = self._note_ids[key]
+            return self.new_selected_notes(sliced_ids)
+        # key is int
+        return self.new_selected_notes([self._note_ids[key]])
+
 
 class SelectedNotesFromType(SelectedNotes):
     """SelectedNotes that also contains the NoteModel.
