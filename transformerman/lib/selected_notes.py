@@ -29,7 +29,7 @@ class SelectedNotes:
     """Manages selected notes for transformation or generation.
     It is also used to represent the notes/cards the user selected in the Anki Card Browser."""
 
-    _note_ids: Sequence[NoteId]
+    _note_ids: list[NoteId]
     _card_ids: Sequence[CardId] | None
     _card_ids_set: set[CardId] | None
     batching_stats: BatchingStats | None
@@ -42,7 +42,7 @@ class SelectedNotes:
         _parent: SelectedNotes | None = None,
     ) -> None:
         """Initialize with collection and selected note IDs and optional card IDs."""
-        self._note_ids = note_ids
+        self._note_ids = list(note_ids)
         self._card_ids = card_ids if card_ids else None  # these might represent cards selected by the user
         self._card_ids_set = None
         self.col = col if isinstance(col, CollectionData) else CollectionData(col)
@@ -63,6 +63,10 @@ class SelectedNotes:
             Note object if found and no error, otherwise None.
         """
         return self.col.get_note(nid)
+
+    def add_note(self, note: Note) -> None:
+        """Add a note to the selection."""
+        self._note_ids.append(note.id)
 
     def get_ids(self) -> Sequence[NoteId]:
         """Return the note IDs in the selection."""
@@ -399,6 +403,13 @@ class SelectedNotesFromType(SelectedNotes):
     ) -> None:
         super().__init__(col, note_ids, card_ids, _parent)
         self.note_type = note_type
+
+    @override
+    def add_note(self, note: Note) -> None:
+        """Add a note to the selection, validating note type."""
+        if note.mid != self.note_type.id:
+            raise ValueError(f"Note type mismatch: expected {self.note_type.id}, got {note.mid}")
+        super().add_note(note)
 
     @override
     @classmethod

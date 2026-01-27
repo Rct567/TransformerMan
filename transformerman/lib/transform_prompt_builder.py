@@ -102,13 +102,13 @@ class TransformPromptTemplate:
         return "\n".join(parts)
 
 
-class TransformPromptBuilder(PromptBuilder):
+class TransformPromptBuilder:
     """Builds prompts for the language model to fill empty fields."""
 
     field_instructions: dict[str, str]
 
     def __init__(self, col: Collection) -> None:
-        super().__init__(col)
+        self._prompt_builder = PromptBuilder(col)
         self.field_instructions = {}
 
     def update_field_instructions(self, field_instructions: dict[str, str]) -> None:
@@ -142,10 +142,15 @@ class TransformPromptBuilder(PromptBuilder):
             raise ValueError("No writable or overwritable fields specified")
 
         # Get example notes
-        example_notes = self.select_example_notes(target_notes.note_type, target_notes, field_selection.selected, max_examples)
+        target_deck_name = target_notes.get_most_common_deck()
+        example_notes = self._prompt_builder.select_example_notes(
+            target_notes.note_type, target_notes, field_selection.selected, max_examples, target_deck_name
+        )
 
         formatted_examples_xml = (
-            self.format_notes_as_xml(example_notes, target_notes.note_type, field_selection.selected) if example_notes else ""
+            self._prompt_builder.format_notes_as_xml(example_notes, target_notes.note_type, field_selection.selected)
+            if example_notes
+            else ""
         )
 
         prompt = TransformPromptTemplate(self.field_instructions, fields_to_fill, formatted_examples_xml)
@@ -179,13 +184,13 @@ class TransformPromptBuilder(PromptBuilder):
                 if SelectedNotes.has_empty_field(note, target_fields):
                     target_notes_to_include.append(note)
                 # Check if note has field in overwritable_fields
-                elif field_selection.overwritable and any(field in note for field in field_selection.overwritable):
+                elif field_selection.overwritable and any(ow_field in note for ow_field in field_selection.overwritable):
                     target_notes_to_include.append(note)
 
             if not target_notes_to_include:
                 raise ValueError("No target notes with empty writable fields or overwritable fields found")
 
-            formatted_target_notes_xml = self.format_notes_as_xml(
+            formatted_target_notes_xml = self._prompt_builder.format_notes_as_xml(
                 target_notes_to_include, provided_target_notes.note_type, field_selection.selected, field_selection.overwritable
             )
 

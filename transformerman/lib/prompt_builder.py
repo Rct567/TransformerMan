@@ -29,10 +29,10 @@ class PromptBuilder:
     def select_example_notes(
         self,
         note_type: NoteModel,
-        target_notes: SelectedNotes | None,
+        exclude_notes: SelectedNotes | None,
         selected_fields: Sequence[str],
         max_examples: int,
-        target_deck_name: str | None = None,
+        target_deck_name: str | None,
     ) -> Sequence[Note]:
         """
         Select up to max_examples example notes from the collection.
@@ -44,18 +44,18 @@ class PromptBuilder:
 
         Args:
             note_type: Note type to select examples from.
-            target_notes: SelectedNotes instance (to avoid selecting them as examples).
+            exclude_notes: Notes to exclude from the example selection.
             selected_fields: Sequence of field names to consider.
             max_examples: Maximum number of example notes to produce.
-            target_deck_name: Optional target deck name to prioritize examples from.
+            target_deck_name: Deck name to prioritize examples from.
         Returns:
             List of example notes.
         """
         # Get target note IDs
-        if target_notes is None:
-            target_note_ids: set[NoteId] = set()
+        if exclude_notes is None:
+            exclude_note_ids: set[NoteId] = set()
         else:
-            target_note_ids = set(target_notes.get_ids())
+            exclude_note_ids = set(exclude_notes.get_ids())
 
         # Find the note type
         model = self.col.get_note_model_by_name(note_type.name)
@@ -65,7 +65,7 @@ class PromptBuilder:
         def find_candidate_notes(query: str) -> list[NoteId]:
             note_ids = self.col.find_notes(query)
             # Filter out target notes
-            return [nid for nid in note_ids if nid not in target_note_ids]
+            return [nid for nid in note_ids if nid not in exclude_note_ids]
 
         refined_query_parts = [f'"note:{note_type.name}"']
         for field in selected_fields:
@@ -77,13 +77,7 @@ class PromptBuilder:
         # Attempt 1/3 Use deck and refined query
 
         if target_deck_name:
-            deck_name = target_deck_name
-        elif target_notes:
-            deck_name = target_notes.get_most_common_deck()
-        else:
-            raise ValueError("Either target_deck_name or target_notes must be provided")
-
-        candidate_note_ids = find_candidate_notes(refined_query + f' "deck:{deck_name}"')
+            candidate_note_ids = find_candidate_notes(refined_query + f' "deck:{target_deck_name}"')
 
         # Attempt 2/3 Try just the refined query
 

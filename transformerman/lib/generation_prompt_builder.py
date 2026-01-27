@@ -9,19 +9,20 @@ from typing import TYPE_CHECKING
 
 from .xml_parser import escape_xml_content
 from .prompt_builder import PromptBuilder
+from .selected_notes import NoteModel, SelectedNotesFromType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from anki.collection import Collection
     from anki.notes import Note
-    from .selected_notes import NoteModel, SelectedNotesFromType
 
 
-class GenerationPromptBuilder(PromptBuilder):
+class GenerationPromptBuilder:
     """Builds prompts for generating new Anki notes."""
 
     def __init__(self, col: Collection) -> None:
-        super().__init__(col)
+        self.col = col
+        self._prompt_builder = PromptBuilder(col)
 
     def get_example_notes(
         self,
@@ -34,16 +35,18 @@ class GenerationPromptBuilder(PromptBuilder):
         """
         Get example notes for the prompt, either from provided examples or by searching the collection.
         """
-        notes_from_examples = {note.id: note for note in example_notes.get_notes()[:max_examples]} if example_notes else {}
+        if example_notes:
+            example_notes_selection = example_notes[:max_examples]
+        else:
+            example_notes_selection = SelectedNotesFromType(self.col, [], note_type)
 
-        if len(notes_from_examples) < max_examples:
-            for note in self.select_example_notes(note_type, None, field_names, max_examples, target_deck_name=deck_name):
-                if note.id not in notes_from_examples:
-                    notes_from_examples[note.id] = note
-                if len(notes_from_examples) >= max_examples:
+        if len(example_notes_selection) < max_examples:
+            for note in self._prompt_builder.select_example_notes(note_type, example_notes_selection, field_names, max_examples, deck_name):
+                example_notes_selection.add_note(note)
+                if len(example_notes_selection) >= max_examples:
                     break
 
-        return list(notes_from_examples.values())
+        return list(example_notes_selection.get_notes())
 
     def build_prompt(
         self,
@@ -91,7 +94,7 @@ class GenerationPromptBuilder(PromptBuilder):
 
         if notes_from_examples:
             parts.append("Here are some existing notes of this type from the collection to show the desired style and level of detail:")
-            parts.append(self.format_notes_as_xml(notes_from_examples, note_type, field_names, include_nid=False))
+            parts.append(self._prompt_builder.format_notes_as_xml(notes_from_examples, note_type, field_names, include_nid=False))
             parts.append("")
 
         if source_text:
